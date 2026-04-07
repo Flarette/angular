@@ -8,7 +8,7 @@
 
 import {LogicFn, PathKind, SchemaPath, SchemaPathRules} from '../../types';
 import {createMetadataKey, metadata, MIN} from '../metadata';
-import {BaseValidatorConfig, getOption, isEmpty} from './util';
+import {BaseValidatorConfig, getOption, getValidationErrorExtras, isEmpty} from './util';
 import {validate} from './validate';
 import {minError} from './validation_errors';
 
@@ -21,6 +21,8 @@ import {minError} from './validation_errors';
  * @param path Path of the field to validate
  * @param minValue The minimum value, or a LogicFn that returns the minimum value.
  * @param config Optional, allows providing any of the following options:
+ *  - `message`: A user-facing message for the error.
+ *  - `extras`: Additional properties that will be spread onto the error.
  *  - `error`: Custom validation error(s) to be used instead of the default `ValidationError.min(minValue)`
  *    or a function that receives the `FieldContext` and returns custom validation error(s).
  * @template TPathKind The kind of path the logic is bound to (a root path, child path, or item of an array)
@@ -55,7 +57,10 @@ export function min<
       if (config?.error) {
         return getOption(config.error, ctx);
       } else {
-        return minError(min, {message: getOption(config?.message, ctx)});
+        return minError(min, {
+          ...getValidationErrorExtras(config?.extras, ctx),
+          message: getOption(config?.message, ctx),
+        });
       }
     }
     return undefined;

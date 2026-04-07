@@ -12,6 +12,7 @@ import {
   BaseValidatorConfig,
   getLengthOrSize,
   getOption,
+  getValidationErrorExtras,
   isEmpty,
   ValueWithLengthOrSize,
 } from './util';
@@ -27,6 +28,8 @@ import {maxLengthError} from './validation_errors';
  * @param path Path of the field to validate
  * @param maxLength The maximum length, or a LogicFn that returns the maximum length.
  * @param config Optional, allows providing any of the following options:
+ *  - `message`: A user-facing message for the error.
+ *  - `extras`: Additional properties that will be spread onto the error.
  *  - `error`: Custom validation error(s) to be used instead of the default `ValidationError.maxLength(maxLength)`
  *    or a function that receives the `FieldContext` and returns custom validation error(s).
  * @template TValue The type of value stored in the field the logic is bound to.
@@ -60,7 +63,10 @@ export function maxLength<
       if (config?.error) {
         return getOption(config.error, ctx);
       } else {
-        return maxLengthError(maxLength, {message: getOption(config?.message, ctx)});
+        return maxLengthError(maxLength, {
+          ...getValidationErrorExtras(config?.extras, ctx),
+          message: getOption(config?.message, ctx),
+        });
       }
     }
     return undefined;

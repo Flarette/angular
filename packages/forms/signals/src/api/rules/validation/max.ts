@@ -8,7 +8,7 @@
 
 import {LogicFn, PathKind, SchemaPath, SchemaPathRules} from '../../types';
 import {createMetadataKey, MAX, metadata} from '../metadata';
-import {BaseValidatorConfig, getOption, isEmpty} from './util';
+import {BaseValidatorConfig, getOption, getValidationErrorExtras, isEmpty} from './util';
 import {validate} from './validate';
 import {maxError} from './validation_errors';
 
@@ -21,6 +21,8 @@ import {maxError} from './validation_errors';
  * @param path Path of the field to validate
  * @param maxValue The maximum value, or a LogicFn that returns the maximum value.
  * @param config Optional, allows providing any of the following options:
+ *  - `message`: A user-facing message for the error.
+ *  - `extras`: Additional properties that will be spread onto the error.
  *  - `error`: Custom validation error(s) to be used instead of the default `ValidationError.max(maxValue)`
  *    or a function that receives the `FieldContext` and returns custom validation error(s).
  * @template TPathKind The kind of path the logic is bound to (a root path, child path, or item of an array)
@@ -52,7 +54,10 @@ export function max<TPathKind extends PathKind = PathKind.Root>(
       if (config?.error) {
         return getOption(config.error, ctx);
       } else {
-        return maxError(max, {message: getOption(config?.message, ctx)});
+        return maxError(max, {
+          ...getValidationErrorExtras(config?.extras, ctx),
+          message: getOption(config?.message, ctx),
+        });
       }
     }
     return undefined;

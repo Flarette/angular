@@ -54,7 +54,7 @@ All validation rules run on every change - validation doesn't short-circuit afte
 
 ## Built-in validation rules
 
-Signal Forms provides validation rules for common validation scenarios. All built-in validation rules accept an options object for custom error messages and conditional logic.
+Signal Forms provides validation rules for common validation scenarios. All built-in validation rules accept an options object for custom error messages, conditional logic, and additional error properties.
 
 ### required()
 
@@ -353,7 +353,7 @@ Built-in validation rules automatically set the `kind` property. The `message` p
 
 ### Custom error messages
 
-All built-in validation rules accept a `message` option for custom error text:
+All built-in validation rules accept a `message` option for custom error text and an `extras` option for additional error properties:
 
 ```angular-ts
 import {Component, signal} from '@angular/core';
@@ -385,6 +385,7 @@ export class SignupComponent {
   signupForm = form(this.signupModel, (schemaPath) => {
     required(schemaPath.username, {
       message: 'Please choose a username',
+      extras: { severity: 'warning' },
     });
 
     required(schemaPath.password, {
@@ -397,7 +398,7 @@ export class SignupComponent {
 }
 ```
 
-Custom messages should be clear, specific, and tell users how to fix the problem. Instead of "Invalid input", use "Password must be at least 12 characters for security".
+Custom messages should be clear, specific, and tell users how to fix the problem. Instead of "Invalid input", use "Password must be at least 12 characters for security". Use `extras` when you want to attach additional top-level properties to the built-in error object.
 
 ### Multiple errors per field
 
@@ -476,7 +477,7 @@ The validator function receives a `FieldContext` object with:
 
 NOTE: Child fields also have a `key` signal, and array item fields have both `key` and `index` signals.
 
-Return an error object with `kind` and `message` when validation fails. Return `null` or `undefined` when validation passes.
+Return an error object with `kind` and any other properties your application needs when validation fails. `message` is optional. Return `null` or `undefined` when validation passes.
 
 ### Using validateTree()
 

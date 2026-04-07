@@ -69,6 +69,81 @@ describe('required validator', () => {
     expect(f.name().errors()).toEqual([]);
   });
 
+  it('supports custom error extras', () => {
+    const cat = signal({name: '', age: 5});
+    const f = form(
+      cat,
+      (p) => {
+        required(p.name, {
+          message: 'required error',
+          extras: {
+            severity: 'blocking',
+            source: 'schema',
+          },
+        });
+      },
+      {
+        injector: TestBed.inject(Injector),
+      },
+    );
+
+    expect(f.name().errors()).toEqual([
+      requiredError({
+        message: 'required error',
+        severity: 'blocking',
+        source: 'schema',
+        fieldTree: f.name,
+      }),
+    ]);
+  });
+
+  it('supports dynamic error extras', () => {
+    const cat = signal({name: '', country: 'USA'});
+    const f = form(
+      cat,
+      (p) => {
+        required(p.name, {
+          extras: ({valueOf}) => ({
+            country: valueOf(p.country),
+          }),
+        });
+      },
+      {
+        injector: TestBed.inject(Injector),
+      },
+    );
+
+    expect(f.name().errors()).toEqual([
+      requiredError({
+        country: 'USA',
+        fieldTree: f.name,
+      }),
+    ]);
+  });
+
+  for (const reservedKey of ['kind', 'message', 'fieldTree', 'formField'] as const) {
+    it(`throws when extras contains reserved key "${reservedKey}"`, () => {
+      expect(() => {
+        const cat = signal({name: ''});
+        const f = form(
+          cat,
+          (p) => {
+            required(p.name, {
+              extras: {[reservedKey]: 'reserved'} as any,
+            });
+          },
+          {
+            injector: TestBed.inject(Injector),
+          },
+        );
+
+        f.name().errors();
+      }).toThrowError(
+        new RegExp(`Validator config extras cannot contain reserved key\\(s\\): ${reservedKey}`),
+      );
+    });
+  }
+
   it('supports custom condition', () => {
     const cat = signal({name: '', age: 5});
     const f = form(

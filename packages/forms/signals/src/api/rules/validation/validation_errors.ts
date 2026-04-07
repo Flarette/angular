@@ -13,7 +13,7 @@ import type {StandardSchemaValidationError} from './standard_schema';
 /**
  * Options used to create a `ValidationError`.
  */
-export interface ValidationErrorOptions {
+export interface ValidationErrorOptions extends Record<PropertyKey, unknown> {
   /** Human readable error message. */
   message?: string;
 }

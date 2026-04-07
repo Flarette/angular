@@ -120,6 +120,32 @@ describe('min validator', () => {
       ]);
     });
 
+    it('supports custom error extras', () => {
+      const cat = signal({name: 'pirojok-the-cat', age: 3});
+      const f = form(
+        cat,
+        (p) => {
+          min(p.age, 5, {
+            message: 'min error!!',
+            extras: {
+              severity: 'blocking',
+              source: 'schema',
+            },
+          });
+        },
+        {injector: TestBed.inject(Injector)},
+      );
+
+      expect(f.age().errors()).toEqual([
+        minError(5, {
+          message: 'min error!!',
+          severity: 'blocking',
+          source: 'schema',
+          fieldTree: f.age,
+        }),
+      ]);
+    });
+
     it('Supports not returning nothing from error function', () => {
       const cat = signal({name: 'pirojok-the-cat', age: 3});
       const f = form(

@@ -8,7 +8,7 @@
 
 import {LogicFn, PathKind, SchemaPath, SchemaPathRules} from '../../types';
 import {createMetadataKey, metadata, REQUIRED} from '../metadata';
-import {BaseValidatorConfig, getOption, isEmpty} from './util';
+import {BaseValidatorConfig, getOption, getValidationErrorExtras, isEmpty} from './util';
 import {validate} from './validate';
 import {requiredError} from './validation_errors';
 
@@ -20,6 +20,7 @@ import {requiredError} from './validation_errors';
  * @param path Path of the field to validate
  * @param config Optional, allows providing any of the following options:
  *  - `message`: A user-facing message for the error.
+ *  - `extras`: Additional properties that will be spread onto the error.
  *  - `error`: Custom validation error(s) to be used instead of the default `ValidationError.required()`
  *    or a function that receives the `FieldContext` and returns custom validation error(s).
  *  - `when`: A function that receives the `FieldContext` and returns true if the field is required
@@ -45,7 +46,10 @@ export function required<TValue, TPathKind extends PathKind = PathKind.Root>(
       if (config?.error) {
         return getOption(config.error, ctx);
       } else {
-        return requiredError({message: getOption(config?.message, ctx)});
+        return requiredError({
+          ...getValidationErrorExtras(config?.extras, ctx),
+          message: getOption(config?.message, ctx),
+        });
       }
     }
     return undefined;

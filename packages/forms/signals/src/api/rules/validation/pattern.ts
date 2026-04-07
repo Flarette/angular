@@ -8,7 +8,7 @@
 
 import {LogicFn, PathKind, SchemaPath, SchemaPathRules} from '../../types';
 import {createMetadataKey, metadata, PATTERN} from '../metadata';
-import {BaseValidatorConfig, getOption, isEmpty} from './util';
+import {BaseValidatorConfig, getOption, getValidationErrorExtras, isEmpty} from './util';
 import {validate} from './validate';
 import {patternError} from './validation_errors';
 
@@ -20,6 +20,8 @@ import {patternError} from './validation_errors';
  * @param path Path of the field to validate
  * @param pattern The RegExp pattern to match, or a LogicFn that returns the RegExp pattern.
  * @param config Optional, allows providing any of the following options:
+ *  - `message`: A user-facing message for the error.
+ *  - `extras`: Additional properties that will be spread onto the error.
  *  - `error`: Custom validation error(s) to be used instead of the default `ValidationError.pattern(pattern)`
  *    or a function that receives the `FieldContext` and returns custom validation error(s).
  * @template TPathKind The kind of path the logic is bound to (a root path, child path, or item of an array)
@@ -49,7 +51,10 @@ export function pattern<TPathKind extends PathKind = PathKind.Root>(
       if (config?.error) {
         return getOption(config.error, ctx);
       } else {
-        return patternError(pattern, {message: getOption(config?.message, ctx)});
+        return patternError(pattern, {
+          ...getValidationErrorExtras(config?.extras, ctx),
+          message: getOption(config?.message, ctx),
+        });
       }
     }
     return undefined;
