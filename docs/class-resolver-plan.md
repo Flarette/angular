@@ -71,6 +71,7 @@ Listed for the owner at review.
 | D7  | `NG0320` rule: in dev mode, during the first update pass of the element's `TView`, after the element resolves, find the lowest registration that ran. If its owner is a directive, warn once for each registration below it, except a registration owned by one of the component's host directives when the component has a registration too. The component's host directives are the directives at indices `tNode.directiveStart` to `tNode.directiveStart + tNode.componentOffset - 1`. If the lowest that ran is the template, don't warn. The message is `The class resolver of <Name> on <<tag>> never runs, because the class resolver of <Name> replaces it without calling $event.inherited().`, with directive class names. |
 | D8  | The payload is a plain array with a non-enumerable `inherited` property, one array per registration level. The three source arrays are shared between levels.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                        |
 | D9  | A component's `minVersion` is raised to `22.3.0` after the existing blocks rule (`17.0.0`), so the blocks rule can't lower it.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                       |
+| D10 | A registration on a node that isn't an element (`<ng-container>` or `<ng-template>`) falls back to `listenerInternal` without `NG0319`, as the template's `(class)` on `<ng-container>` compiles to a listener. It isn't a registration for D1 to D7.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                |
 
 ## Environment
 
@@ -493,3 +494,14 @@ Commit: `fix(compiler): require 22.3.0 to link class resolvers`
   resolver, as the template is exempt, because the component author chose that host directive.
   WP3's tests change to match: the `<ui-button tooltip ring />` spec expects two warnings, not
   three.
+- 2026-10-17, WP1 review: D10 added. A directive's host `(class)` on `<ng-container>` resolved
+  against a comment node and threw in `applyStyling`, without a `class` output before WP1 and next
+  to one after it. A registration on a node that isn't an element now falls back to a listener.
+- 2026-10-17, WP1 review: `NG0319` is logged once per template registration that falls back, so
+  two `(class)` bindings on one element warn twice. WP1's "once" means once per registration. No
+  change.
+- 2026-10-17, WP1 review: an output named `class` sets `TNodeFlags.hasClassInput`
+  (`setShadowStylingInputFlags` in `packages/core/src/render3/view/directives.ts`), so the
+  element's template `[class]` binding goes to directive inputs and is dropped, with or without a
+  resolver. Upstream behavior, present at the base, and out of scope here. Noted in
+  `docs/DEFERRED.md`; the owner decides whether to fix it.
