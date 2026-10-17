@@ -42,8 +42,10 @@ import {classKeyValueArraySet, classStringParser, toStylingKeyValueArray} from '
  * Registers the handler of a `(class)` binding on the current element.
  *
  * Instead of applying class bindings directly, the element collects the classes from every source
- * (component, directives, template) and passes them to `resolverFn` once its host bindings have
- * run. The value that `resolverFn` returns becomes the element's classes.
+ * (component, directives, template) once its host bindings have run. Its resolvers, `resolverFn`
+ * among them, then run from the lowest to the highest priority: the lowest receives the collected
+ * classes, and each later one receives the previous one's result folded back into `ClassSources`.
+ * The value that the highest one returns becomes the element's classes.
  *
  * If a directive on the element declares an output named `class`, a binding in the template keeps
  * its existing meaning and subscribes to that output instead. A binding in host bindings always
@@ -247,9 +249,13 @@ function toClassNames(resolved: unknown): string[] {
     }
   };
   if (typeof resolved === 'string') {
-    resolved.split(/\s+/).forEach(add);
+    for (const className of resolved.split(/\s+/)) {
+      add(className);
+    }
   } else if (Array.isArray(resolved) || resolved instanceof Set) {
-    resolved.forEach(add);
+    for (const className of resolved) {
+      add(className);
+    }
   } else if (resolved !== null && typeof resolved === 'object') {
     const classMap = resolved as {[className: string]: unknown};
     for (const className of Object.keys(classMap)) {

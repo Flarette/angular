@@ -18,6 +18,10 @@
  * bindings. A class that a higher-priority binding turns off (for example with
  * `[class.name]="false"`) isn't present in any source.
  *
+ * When several `(class)` bindings apply to an element, each one after the lowest-priority one
+ * receives the classes that the previous one returned, grouped the same way. A class keeps its
+ * source, and a class that the previous binding added is reported under that binding's source.
+ *
  * @experimental 22.3
  */
 export type ClassSources = readonly [

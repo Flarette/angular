@@ -655,10 +655,11 @@ describe('(class) binding', () => {
 
     for (const [form, value, expected] of [
       ['a string', 'a  b', ['a', 'b']],
+      ['a string with a duplicate', 'a b a', ['a', 'b']],
       ['an array', ['a', '', 'b'], ['a', 'b']],
+      ['an array with a duplicate', ['a', 'b', 'a'], ['a', 'b']],
       ['a Set', new Set(['a', 'b']), ['a', 'b']],
       ['an object map', {a: true, x: false, b: 1}, ['a', 'b']],
-      ['a function', () => ['a', 'b'], ['a', 'b']],
       ['null', null, []],
       ['a number', 42, []],
     ] as Array<[string, unknown, string[]]>) {
@@ -689,6 +690,46 @@ describe('(class) binding', () => {
         expect(fixture.componentInstance.sources!.flat()).toEqual(expected);
       });
     }
+
+    it('calls a function that a lower resolver returned once with the same $event', async () => {
+      // One entry per run of the lower resolver: its `$event`, and each argument of the function
+      // it returned.
+      const runs: Array<{sources: ClassSources; calls: unknown[]}> = [];
+
+      @Directive({selector: '[lower]', host: {'(class)': 'resolve($event)'}})
+      class Lower {
+        protected resolve(sources: ClassSources) {
+          const run = {sources, calls: [] as unknown[]};
+          runs.push(run);
+          return (received: unknown) => {
+            run.calls.push(received);
+            return ['a', 'b'];
+          };
+        }
+      }
+
+      @Component({
+        imports: [Lower],
+        template: `<div lower class="c" (class)="capture($event)"></div>`,
+      })
+      class App {
+        sources: ClassSources | null = null;
+
+        protected capture(sources: ClassSources) {
+          this.sources = sources;
+          return sources.flat();
+        }
+      }
+
+      const fixture = await render(App);
+
+      expect(runs.length).toBeGreaterThan(0);
+      for (const run of runs) {
+        expect(run.calls.length).toBe(1);
+        expect(run.calls[0]).toBe(run.sources);
+      }
+      expect(fixture.componentInstance.sources!.flat()).toEqual(['a', 'b']);
+    });
 
     it('keeps host resolvers next to a directive output named class', async () => {
       const warn = spyOn(console, 'warn');
