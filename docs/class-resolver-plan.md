@@ -456,3 +456,13 @@ Commit: `fix(compiler): require 22.3.0 to link class resolvers`
   - `classResolverFirstCreatePass` now also records owners for later registrations; the name
     covers only its first job. A refactoring round could rename it.
   - The fixup's specs cover `<ng-container>` but not `<ng-template>`, which takes the same branch.
+- WP2 (`16bff0c067`, fixup `b656a58a56`), re-scoped to the fold: orchestrator 9.25, Codex 9.30
+  before the fixup.
+  - The fixup adds duplicate rows and a spec that the returned function runs once with the same
+    payload, uses `for...of` in `toClassNames`, and updates the `ɵɵclassResolver` and
+    `ClassSources` JSDoc for the fold.
+  - `classSourceOf` is a helper the entry didn't name; it keeps the segment rule and the fold's
+    owner rule in one place.
+  - D5's normalization differs from the final application on purpose: a number from a lower
+    resolver gives `[]`, while the highest resolver's number throws in dev mode; an array entry
+    with a space stays one entry until a later resolver joins it.
