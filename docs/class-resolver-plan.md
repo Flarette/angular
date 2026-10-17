@@ -40,38 +40,38 @@ None of these is a bug or a gap. Don't fix them, soften them, or add alternative
 
 ### Owner rulings
 
-| ID  | Ruling                                                                                                                                                                                                                                                                             |
-| --- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| R1  | `ClassSources` is `[component, directives, template]`, each a `string[]`, ordered by source. Within a source, static classes come first, then `[class]`, then `[class.x]`. Same-name conflicts follow Angular's existing rules.                                                    |
-| R2  | Components and directives can declare a host resolver with `host: {'(class)': …}` or `@HostListener('class')`. The template's `(class)` ranks above all of them.                                                                                                                   |
-| R3  | The handler runs on every refresh of the view that declares the element. It runs while the view renders, so signal reads are tracked and a signal write throws `NG0600`.                                                                                                           |
-| R4  | Hydration seeds the first resolution from the element's `class` attribute only when the element has no static classes.                                                                                                                                                             |
-| R5  | One resolver runs per element: the highest-priority registration. `$event.inherited()` runs the registration it replaced; `$event.inherited(Directive)` runs a named directive's registration. The method isn't named `next`.                                                      |
-| R6  | Dev mode warns with `NG0320` when a directive's or component's resolver never runs because another directive's resolver replaced it without delegating. A template that replaces a resolver stays silent, and so does a component that replaces its own host directive's resolver. |
-| R7  | Host-level `(class)` always resolves. Only the template's `(class)` on an element with a directive output named `class` falls back to a listener, with `NG0319` in dev mode.                                                                                                       |
-| R8  | No app-wide controls in core. App-wide default resolvers are open for comments in the proposal, not part of this work.                                                                                                                                                             |
-| R9  | A partial declaration declares `minVersion: "22.3.0"` when its template has `(class)` on an element, or its host has a `class` listener.                                                                                                                                           |
-| R10 | Nothing under `packages/compiler-cli/preprocessor/` changes.                                                                                                                                                                                                                       |
-| R11 | Compliance tests target the TypeScript compiler.                                                                                                                                                                                                                                   |
-| R12 | Commit messages follow the repository hook: `type(scope): lowercase summary`, a blank line, and a body wrapped at 72 characters that says what and why.                                                                                                                            |
-| R13 | One Bazel server at a time, with the caps in `.bazelrc.user`. Run `pnpm bazel shutdown` after each gate ladder.                                                                                                                                                                    |
+| ID  | Ruling                                                                                                                                                                                                                                                                                                                |
+| --- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| R1  | `ClassSources` is `[component, directives, template]`, each a `string[]`, ordered by source. Within a source, static classes come first, then `[class]`, then `[class.x]`. Same-name conflicts follow Angular's existing rules.                                                                                       |
+| R2  | Components and directives can declare a host resolver with `host: {'(class)': …}` or `@HostListener('class')`. The template's `(class)` ranks above all of them.                                                                                                                                                      |
+| R3  | The handler runs on every refresh of the view that declares the element. It runs while the view renders, so signal reads are tracked and a signal write throws `NG0600`.                                                                                                                                              |
+| R4  | Hydration seeds the first resolution from the element's `class` attribute only when the element has no static classes.                                                                                                                                                                                                |
+| R5  | Every registration runs on each refresh, from the lowest to the highest priority (D1). The lowest receives the collected sources; each later one receives the previous result folded back into `ClassSources` (D8). The highest registration's result becomes the element's classes. There's no `$event.inherited()`. |
+| R6  | No warning about replaced resolvers: every resolver runs, so none is shadowed. There's no `NG0320` or `NG0321`.                                                                                                                                                                                                       |
+| R7  | Host-level `(class)` always resolves. Only the template's `(class)` on an element with a directive output named `class` falls back to a listener, with `NG0319` in dev mode.                                                                                                                                          |
+| R8  | No app-wide controls in core. App-wide default resolvers are open for comments in the proposal, not part of this work.                                                                                                                                                                                                |
+| R9  | A partial declaration declares `minVersion: "22.3.0"` when its template has `(class)` on an element, or its host has a `class` listener.                                                                                                                                                                              |
+| R10 | Nothing under `packages/compiler-cli/preprocessor/` changes.                                                                                                                                                                                                                                                          |
+| R11 | Compliance tests target the TypeScript compiler.                                                                                                                                                                                                                                                                      |
+| R12 | Commit messages follow the repository hook: `type(scope): lowercase summary`, a blank line, and a body wrapped at 72 characters that says what and why.                                                                                                                                                               |
+| R13 | One Bazel server at a time, with the caps in `.bazelrc.user`. Run `pnpm bazel shutdown` after each gate ladder.                                                                                                                                                                                                       |
 
 ### Orchestrator defaults
 
 Listed for the owner at review.
 
-| ID  | Default                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                              |
-| --- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
-| D1  | Registration order is priority order: the component's host directives, the component, other directives in match order, then the template. The runtime records it in first-creation order.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                            |
-| D2  | A registration's owner is `getCurrentDirectiveIndex()` when `ɵɵclassResolver` runs: the directive's index in host-binding creation mode, `-1` in template code.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                      |
-| D3  | `inherited(Directive)` must name a registration that ranks below the caller; the highest such registration of that type runs. Otherwise it throws `NG0321`. This rules out cycles.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                   |
-| D4  | `inherited()` from the lowest registration returns the sources flattened in order: `[...component, ...directives, ...template]`.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                     |
-| D5  | `inherited()` normalizes the replaced resolver's result to `string[]`, keeping its order: a returned function is called with the same payload first; a string splits on whitespace; an array keeps its non-empty entries as strings; a `Set` keeps insertion order; an object map keeps the keys with truthy values; `null` and `undefined` give `[]`. Exact duplicates keep their first position.                                                                                                                                                                                                                                                                                                                                   |
-| D6  | Error codes: `CLASS_RESOLVER_SHADOWED = 320` (warning) and `INHERITED_CLASS_RESOLVER_NOT_FOUND = 321` (error). Positive, because neither has a guide page on angular.dev.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                            |
-| D7  | `NG0320` rule: in dev mode, during the first update pass of the element's `TView`, after the element resolves, find the lowest registration that ran. If its owner is a directive, warn once for each registration below it, except a registration owned by one of the component's host directives when the component has a registration too. The component's host directives are the directives at indices `tNode.directiveStart` to `tNode.directiveStart + tNode.componentOffset - 1`. If the lowest that ran is the template, don't warn. The message is `The class resolver of <Name> on <<tag>> never runs, because the class resolver of <Name> replaces it without calling $event.inherited().`, with directive class names. |
-| D8  | The payload is a plain array with a non-enumerable `inherited` property, one array per registration level. The three source arrays are shared between levels.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                        |
-| D9  | A component's `minVersion` is raised to `22.3.0` after the existing blocks rule (`17.0.0`), so the blocks rule can't lower it.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                       |
-| D10 | A registration on a node that isn't an element (`<ng-container>` or `<ng-template>`) falls back to `listenerInternal` without `NG0319`, as the template's `(class)` on `<ng-container>` compiles to a listener. It isn't a registration for D1 to D7.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                |
+| ID  | Default                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                  |
+| --- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| D1  | Registration order is priority order: the component's host directives, the component, other directives in match order, then the template. The runtime records it in first-creation order.                                                                                                                                                                                                                                                                                                                |
+| D2  | A registration's owner is `getCurrentDirectiveIndex()` when `ɵɵclassResolver` runs: the directive's index in host-binding creation mode, `-1` in template code.                                                                                                                                                                                                                                                                                                                                          |
+| D3  | No API names another directive's resolver.                                                                                                                                                                                                                                                                                                                                                                                                                                                               |
+| D4  | The lowest registration receives the sources as `collectClassSources` returns them.                                                                                                                                                                                                                                                                                                                                                                                                                      |
+| D5  | Before it's folded, a result is normalized to `string[]`, keeping its order: a returned function is called once with the same payload first; a string splits on whitespace; an array, a `Set`, and the keys of an object map with truthy values keep their entries as strings and drop empty ones; `null`, `undefined`, and any other value give `[]`. Exact duplicates keep their first position. The highest registration's result isn't normalized; it's applied as before.                           |
+| D6  | No new error codes.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                      |
+| D7  | No `NG0320` rule (R6).                                                                                                                                                                                                                                                                                                                                                                                                                                                                                   |
+| D8  | Fold by origin: each class of a normalized result goes to the source it had in that registration's payload, in the result's order. A class the payload didn't have goes to the owner's source: `component` for the component and its host directives, `directives` for other directives (the rule `classResolverFirstCreatePass` uses for segments), `template` for the template. A class the result leaves out is gone for later registrations. Each registration gets a new tuple of three new arrays. |
+| D9  | A component's `minVersion` is raised to `22.3.0` after the existing blocks rule (`17.0.0`), so the blocks rule can't lower it.                                                                                                                                                                                                                                                                                                                                                                           |
+| D10 | A registration on a node that isn't an element (`<ng-container>` or `<ng-template>`) falls back to `listenerInternal` without `NG0319`, as the template's `(class)` on `<ng-container>` compiles to a listener. It isn't a registration for D1 to D7.                                                                                                                                                                                                                                                    |
 
 ## Environment
 
@@ -119,7 +119,7 @@ Run from the worktree, in order, before each commit. Each WP entry adds its own 
 1. The WP's regression targets.
 1. `pnpm bazel shutdown`.
 
-Runtime WPs (WP1 to WP3) use these regression targets:
+Runtime WPs (WP1 and WP2) use these regression targets:
 
 ```bash
 pnpm bazel test //packages/core/test/acceptance:acceptance //packages/platform-server/test:test //packages/core:core_api //packages/core:core_errors
@@ -185,14 +185,7 @@ creation mode (D2).
 
 ### B3: error codes
 
-In `packages/core/src/errors.ts`, next to `CLASS_RESOLVER_OUTPUT_CONFLICT = -319` (D6):
-
-```ts
-  CLASS_RESOLVER_SHADOWED = 320,
-  INHERITED_CLASS_RESOLVER_NOT_FOUND = 321,
-```
-
-WP2 adds `INHERITED_CLASS_RESOLVER_NOT_FOUND`, and WP3 adds `CLASS_RESOLVER_SHADOWED`.
+No new error codes (R6, D6).
 
 ## Work packages
 
@@ -266,77 +259,67 @@ pnpm bazel test //packages/core/test/acceptance/class_resolver:class_resolver
 
 Commit: `fix(core): keep host class resolvers next to class outputs`
 
-### WP2: `$event.inherited()`
+### WP2: run every registration and fold its result
 
 Scope:
 
-- `packages/core/src/render3/interfaces/class_resolver.ts`: the public `ClassSources` type.
-- `packages/core/src/render3/instructions/class_resolver.ts`: payload construction, delegation,
-  and normalization.
-- `packages/core/src/errors.ts`: `INHERITED_CLASS_RESOLVER_NOT_FOUND` (B3).
-- `goldens/public-api/core/index.api.md` and `goldens/public-api/core/errors.api.md`, through the
-  accept targets.
-- `packages/core/test/acceptance/class_resolver/class_resolver_spec.ts`: new specs.
-- `packages/compiler-cli/test/ngtsc/template_typecheck_spec.ts`: one new spec in
-  `strictOutputEventTypes and (class) bindings`.
+- `packages/core/src/render3/instructions/class_resolver.ts`: `refreshClassResolvers`, and new
+  helpers for normalizing (D5) and folding (D8) a result.
+- `packages/core/test/acceptance/class_resolver/class_resolver_spec.ts`: the specs named below.
 
-Before, the public type:
+Behavior (R5, D4, D5, D8):
 
-```ts
-export type ClassSources = readonly [
-  component: readonly string[],
-  directives: readonly string[],
-  template: readonly string[],
-];
+- `refreshClassResolvers` collects the sources once per element, then runs its registrations from
+  the lowest to the highest, each with its own payload.
+- Below the highest, each result is unwrapped (a returned function is called once with the same
+  payload), normalized (D5), and folded (D8) into the next registration's payload.
+- The highest registration's result is unwrapped and applied as before.
+- An element with one registration behaves as before.
+- `ClassSources`, `ClassResolverFn`, `packages/core/src/errors.ts`, and the public API goldens
+  don't change.
+
+Example, with the spec fixtures in "with several resolvers on one element", where each resolver
+returns `[...sources.flat(), 'by-<name>']`, and `<ui-button tooltip ring class="tpl" (class)="resolve($event)" />`
+imports `[UiButton, Tooltip, Ring]`:
+
+```text
+collected:            [['cmp'], ['ring'], ['tpl']]
+after supplied:       [['cmp', 'by-supplied'], ['ring'], ['tpl']]
+after cmp-listener:   [['cmp', 'by-supplied', 'by-cmp-listener'], ['ring'], ['tpl']]
+after tooltip:        [['cmp', 'by-supplied', 'by-cmp-listener'], ['ring', 'by-tooltip'], ['tpl']]
+after ring:           [['cmp', 'by-supplied', 'by-cmp-listener'], ['ring', 'by-tooltip', 'by-ring'], ['tpl']]
+template receives the last line and returns it flattened plus 'by-template'.
 ```
 
-After:
+This is the orchestrator's prediction from the fixtures; the specs measure it.
 
-```ts
-export type ClassSources = readonly [
-  component: readonly string[],
-  directives: readonly string[],
-  template: readonly string[],
-] & {
-  /**
-   * Runs the class resolver that this one replaced on the element, with the same sources, and
-   * returns the class names it resolved. Without one, returns the class names the element would
-   * have without resolution.
-   *
-   * @param directive Runs this directive's resolver on the element instead. It must rank below
-   *     the caller.
-   */
-  inherited(directive?: Type<unknown>): string[];
-};
-```
+Tests, red first:
 
-Behavior (R5, D3, D4, D5, D8):
-
-- `refreshClassResolvers` runs the last registration with its payload, as before.
-- Each payload is a new plain array of the three shared source arrays, with `inherited` defined as
-  a non-enumerable property.
-- `inherited()` runs the registration one level lower with that level's payload, unwraps a
-  returned function, and normalizes the result. At the lowest level, it returns the flattened
-  sources.
-- `inherited(Directive)` runs the highest registration below the caller whose owner's
-  `DirectiveDef.type` is `Directive`, or throws `RuntimeError(INHERITED_CLASS_RESOLVER_NOT_FOUND)`.
-  Dev message: `<Name> doesn't declare a class resolver on <<tag>> that ranks below this one.`
-- Lower payloads are built only when `inherited` asks for them.
-
-Tests, all red before the change:
-
-- A component's host resolver adds a class; the template's resolver returns
-  `[...$event.inherited(), 'extra']`. The element has both classes.
-- The only resolver calls `$event.inherited()`. It returns the flattened sources.
-- `Tooltip` and `Ring` declare host resolvers, and `Ring` ranks higher. The template calls
-  `$event.inherited(Tooltip)`. `Tooltip`'s resolver runs, and `Ring`'s doesn't.
-- `$event.inherited(Unrelated)` reports `NG0321` through the `ErrorHandler`.
-- Table-driven: the replaced resolver returns a string, an array, a `Set`, an object map, and a
-  function that returns an array. `inherited()` returns the class names in order each time.
-- ngtsc: `<div (class)="resolve($event.inherited())"></div>` with `resolve(value: number)` reports
-  `Argument of type 'string[]' is not assignable to parameter of type 'number'.`
-- The existing spec "passes the classes of each source in priority order", which compares `$event`
-  with `toEqual`, stays green. That shows `inherited` isn't enumerable.
+- Rewrite in "with several resolvers on one element"; these expectations change on purpose:
+  - "runs only the template resolver" becomes "runs every resolver from the lowest to the
+    highest priority". `ranResolvers()` is `['supplied', 'cmp-listener', 'tooltip', 'ring',
+'template']`, the template's `$event` is the last payload in the example, and the element has
+    every `by-` class next to `cmp`, `ring`, and `tpl`.
+  - "runs only the resolver of the directive matched last" becomes "runs directive resolvers in
+    match order": `['supplied', 'cmp-listener', 'tooltip', 'ring']`.
+  - "matches directives in the order of the imports": `['supplied', 'cmp-listener', 'ring',
+'tooltip']`.
+  - "runs the component's @HostListener resolver, not its host-object or host directive's"
+    becomes "runs the component's host directive resolver, then its @HostListener resolver":
+    `['supplied', 'cmp-listener']`.
+- Rewrite in "in host bindings": "gives precedence to the template (class) binding" becomes
+  "passes the component's resolved classes to the template (class) binding". The template's
+  `$event` is `[['py-1'], [], ['px-4']]`, and the classes are `['px-4', 'py-1']`.
+- New:
+  - A lower resolver leaves out a template class and appends one: the next payload doesn't have
+    the left-out class and has the appended one at the end of the owner's source.
+  - An appended class ranks at its owner's source: a component resolver returns
+    `[...sources.flat(), 'bg-muted']` with host class `bg-primary` and template class
+    `bg-red-600`; the template's `$event` is `[['bg-primary', 'bg-muted'], [], ['bg-red-600']]`.
+  - Table-driven (D5): the lower resolver returns `'a  b'`, `['a', '', 'b']`,
+    `new Set(['a', 'b'])`, `{a: true, x: false, b: 1}`, `() => ['a', 'b']`, `null`, and `42`. The
+    next payload, flattened, is `['a', 'b']` for the first five and `[]` for the last two.
+- Every other spec in `class_resolver_spec.ts` stays green, unchanged.
 
 Gates: the gate ladder, with targeted tests:
 
@@ -344,62 +327,11 @@ Gates: the gate ladder, with targeted tests:
 pnpm bazel test //packages/core/test/acceptance/class_resolver:class_resolver
 ```
 
-```bash
-pnpm bazel test '--test_arg=--filter=strictOutputEventTypes and \(class\) bindings' //packages/compiler-cli/test/ngtsc:ngtsc
-```
+Commit: `feat(core): run every class resolver on an element in order`
 
-Check only: the new ngtsc spec also runs on the `ngp` backend. Run it there and report the result.
-If it fails, stop and ask. The fix would be a pending entry in
-`packages/compiler-cli/src/ngtsc/file_system/testing/src/ngp_known_failures.ts`, never a change
-under `packages/compiler-cli/preprocessor/` (R10).
+### WP3: withdrawn
 
-```bash
-pnpm bazel test '--test_arg=--filter=strictOutputEventTypes and \(class\) bindings' //packages/compiler-cli/test/ngtsc:ngtsc_ngp
-```
-
-Commit: `feat(core): let a class resolver run the one it replaced`
-
-### WP3: `NG0320` when a resolver never runs
-
-Scope:
-
-- `packages/core/src/render3/instructions/class_resolver.ts`: track which registrations ran during
-  the first resolution, and warn.
-- `packages/core/src/errors.ts`: `CLASS_RESOLVER_SHADOWED` (B3).
-- `goldens/public-api/core/errors.api.md`, through the accept target.
-- `packages/core/test/acceptance/class_resolver/class_resolver_spec.ts`: new specs, and
-  `console.warn` assertions in the existing specs that now warn.
-
-Behavior (R6, D7): tracking and warning happen only in dev mode and only while
-`tView.firstUpdatePass` is true, so each element warns at most once. `refreshView` calls
-`refreshClassResolvers` before it sets `tView.firstUpdatePass = false`
-(`packages/core/src/render3/instructions/change_detection.ts`, lines 307 and 347 at the base), so
-the flag is still true during the first resolution.
-
-Tests:
-
-- Red first: `<ui-button tooltip ring />`, where `Supplied` (the host directive of `UiButton`),
-  `UiButton`, `Tooltip`, and `Ring` declare resolvers and `Ring` doesn't delegate. Two `NG0320`
-  warnings, for `UiButton` and `Tooltip`, each naming `Ring`. `Supplied` doesn't warn, because its
-  component `UiButton` declares a resolver.
-- No warning when the template's resolver replaces the others.
-- No warning when a component's resolver replaces its own host directive's resolver.
-- A warning naming `Ring` when a component's host directive declares a resolver, the component
-  doesn't, and `Ring` replaces it.
-- No warning when every directive resolver above the lowest calls `inherited()`.
-- No second warning after another change detection.
-- The existing specs "runs only the resolver of the directive matched last" and "matches
-  directives in the order of the imports" gain `console.warn` assertions for the warnings they now
-  cause. "runs the component's @HostListener resolver, not its host-object or host directive's"
-  gains an assertion that nothing warns.
-
-Gates: the gate ladder, with targeted tests:
-
-```bash
-pnpm bazel test //packages/core/test/acceptance/class_resolver:class_resolver
-```
-
-Commit: `feat(core): warn when a class resolver never runs`
+Withdrawn on 2026-10-17 with R6: every resolver runs, so no warning is needed.
 
 ### WP4: `minVersion: "22.3.0"` for `(class)` in partial declarations
 
@@ -479,10 +411,10 @@ Commit: `fix(compiler): require 22.3.0 to link class resolvers`
 
 - Anything under `packages/compiler-cli/preprocessor/` (R10).
 - The template pipeline (`packages/compiler/src/template/pipeline/`) and type-check block
-  generation (`packages/compiler/src/typecheck/`). WP2 adds a spec, not code.
+  generation (`packages/compiler/src/typecheck/`).
 - The extended diagnostics `NG8119` and `NG8111`.
 - Hydration seeding in `ɵɵclassResolver`.
-- The order or shape of `ClassSources` other than WP2's `inherited` (R1).
+- The order or shape of `ClassSources` (R1).
 - Goldens other than `core_api`, `core_errors`, and WP4's `GOLDEN_PARTIAL.js`.
 - Expectations of existing specs other than those a WP entry names.
 - `proposal.md`, `docs/class-resolver.md`, and this plan.
@@ -508,6 +440,13 @@ Commit: `fix(compiler): require 22.3.0 to link class resolvers`
 - 2026-10-17, owner: the upstream `[class]` drop next to an output named `class` stays as it is.
   `proposal.md` documents it under "Directive outputs named `class`", and the fix goes to a separate
   upstream pull request. No WP changes.
+- 2026-10-17, owner, on WP2's question about the `inherited` type: every resolver runs, lowest
+  first, and each receives the previous result folded back by origin (R5, D8). `inherited()`,
+  `inherited(Directive)`, `NG0320`, and `NG0321` are dropped (R6, D3, D6, D7); a directive argument
+  would depend on match order, which the consumer can't see. WP2 is re-scoped, WP3 is withdrawn,
+  WP4 is unchanged. No escape hatch for full replacement: a consumer filters `$event`. The WP2
+  agent's normalization becomes D5, including its two refinements (`Set` and object-map entries
+  are converted like array entries; other values give `[]`).
 
 ## Reviews
 
