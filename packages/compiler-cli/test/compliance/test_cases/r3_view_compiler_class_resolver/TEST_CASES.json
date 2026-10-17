@@ -1,0 +1,95 @@
+{
+  "$schema": "../test_case_schema.json",
+  "cases": [
+    {
+      "description": "should create a class resolver instruction for (class) on an element",
+      "inputFiles": ["class_resolver_element.ts"],
+      "expectations": [
+        {
+          "files": [
+            {
+              "expected": "class_resolver_element_template.js",
+              "generated": "class_resolver_element.js"
+            }
+          ],
+          "failureMessage": "Incorrect template"
+        }
+      ]
+    },
+    {
+      "description": "should create a class resolver instruction for (class) on a component",
+      "inputFiles": ["class_resolver_component.ts"],
+      "expectations": [
+        {
+          "files": [
+            {
+              "expected": "class_resolver_component_template.js",
+              "generated": "class_resolver_component.js"
+            }
+          ],
+          "failureMessage": "Incorrect template"
+        }
+      ]
+    },
+    {
+      "description": "should return an arrow function from a (class) handler",
+      "inputFiles": ["class_resolver_arrow_function.ts"],
+      "expectations": [
+        {
+          "files": [
+            {
+              "expected": "class_resolver_arrow_function_template.js",
+              "generated": "class_resolver_arrow_function.js"
+            }
+          ],
+          "failureMessage": "Incorrect template"
+        }
+      ]
+    },
+    {
+      "description": "should keep (class) on <ng-container> a listener",
+      "inputFiles": ["class_resolver_ng_container.ts"],
+      "expectations": [
+        {
+          "files": [
+            {
+              "expected": "class_resolver_ng_container_template.js",
+              "generated": "class_resolver_ng_container.js"
+            }
+          ],
+          "failureMessage": "Incorrect template"
+        }
+      ]
+    },
+    {
+      "description": "should create a class resolver instruction for (class) in host bindings",
+      "inputFiles": ["class_resolver_host.ts"],
+      "expectations": [
+        {
+          "files": [
+            {
+              "expected": "class_resolver_host_host_bindings.js",
+              "generated": "class_resolver_host.js"
+            }
+          ],
+          "failureMessage": "Incorrect host bindings"
+        }
+      ]
+    },
+    {
+      "description": "should keep only the @HostListener('class') resolver when host metadata declares (class) too",
+      "inputFiles": ["class_resolver_host_listener_and_host.ts"],
+      "expectations": [
+        {
+          "files": [
+            {
+              "expected": "class_resolver_host_listener_and_host_host_bindings.js",
+              "generated": "class_resolver_host_listener_and_host.js"
+            }
+          ],
+          "failureMessage": "Incorrect host bindings"
+        }
+      ]
+    }
+  ]
+}
