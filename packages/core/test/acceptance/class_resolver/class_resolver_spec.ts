@@ -7,14 +7,21 @@
  */
 
 import {
+  ChangeDetectionStrategy,
   ClassSources,
   Component,
   Directive,
   ElementRef,
+  EnvironmentProviders,
+  ErrorHandler,
   EventEmitter,
+  HostBinding,
+  HostListener,
   inject,
   Input,
   Output,
+  provideCheckNoChangesConfig,
+  Provider,
   Renderer2,
   signal,
   Type,
@@ -405,6 +412,231 @@ describe('(class) binding', () => {
 
       expect(fixture.componentInstance.received).toBe('sent');
       expect(warn).not.toHaveBeenCalled();
+    });
+  });
+
+  describe('with several resolvers on one element', () => {
+    // Each resolver records that it ran and adds a class named after itself.
+    let runs: string[] = [];
+    beforeEach(() => (runs = []));
+
+    function resolver(name: string) {
+      return (sources: ClassSources) => {
+        runs.push(name);
+        return [...sources.flat(), `by-${name}`];
+      };
+    }
+
+    function ranResolvers(): string[] {
+      return [...new Set(runs)];
+    }
+
+    function captureErrors(providers: Array<Provider | EnvironmentProviders> = []): unknown[] {
+      const errors: unknown[] = [];
+      TestBed.configureTestingModule({
+        rethrowApplicationErrors: false,
+        providers: [
+          {provide: ErrorHandler, useValue: {handleError: (e: unknown) => errors.push(e)}},
+          ...providers,
+        ],
+      });
+      return errors;
+    }
+
+    @Directive({host: {'(class)': 'resolve($event)'}})
+    class Supplied {
+      protected readonly resolve = resolver('supplied');
+    }
+
+    @Component({
+      selector: 'ui-button',
+      template: '',
+      hostDirectives: [Supplied],
+      host: {class: 'cmp', '(class)': 'resolve($event)'},
+    })
+    class UiButton {
+      protected readonly resolve = resolver('cmp-host');
+      private readonly listen = resolver('cmp-listener');
+
+      @HostListener('class', ['$event'])
+      onClass(sources: ClassSources) {
+        return this.listen(sources);
+      }
+    }
+
+    @Directive({selector: '[tooltip]', host: {'(class)': 'resolve($event)'}})
+    class Tooltip {
+      protected readonly resolve = resolver('tooltip');
+    }
+
+    @Directive({selector: '[ring]'})
+    class Ring {
+      @HostBinding('class') readonly ringClass = 'ring';
+      private readonly resolve = resolver('ring');
+
+      @HostListener('class', ['$event'])
+      onClass(sources: ClassSources) {
+        return this.resolve(sources);
+      }
+    }
+
+    it('runs only the template resolver', async () => {
+      @Component({
+        imports: [UiButton, Tooltip, Ring],
+        template: `<ui-button tooltip ring class="tpl" (class)="resolve($event)" />`,
+      })
+      class App {
+        protected readonly resolve = resolver('template');
+      }
+
+      const fixture = await render(App);
+
+      expect(ranResolvers()).toEqual(['template']);
+      expect(classesOf(fixture.nativeElement.querySelector('ui-button'))).toEqual([
+        'by-template',
+        'cmp',
+        'ring',
+        'tpl',
+      ]);
+    });
+
+    it('runs only the resolver of the directive matched last', async () => {
+      @Component({imports: [UiButton, Tooltip, Ring], template: `<ui-button tooltip ring />`})
+      class App {}
+
+      await render(App);
+
+      expect(ranResolvers()).toEqual(['ring']);
+    });
+
+    it('matches directives in the order of the imports', async () => {
+      @Component({imports: [UiButton, Ring, Tooltip], template: `<ui-button tooltip ring />`})
+      class App {}
+
+      await render(App);
+
+      expect(ranResolvers()).toEqual(['tooltip']);
+    });
+
+    it("runs the component's @HostListener resolver, not its host-object or host directive's", async () => {
+      @Component({imports: [UiButton], template: `<ui-button />`})
+      class App {}
+
+      await render(App);
+
+      expect(ranResolvers()).toEqual(['cmp-listener']);
+    });
+
+    it('turns every resolver into a listener when a directive has an output named class', async () => {
+      const warn = spyOn(console, 'warn');
+      const received: Array<[string, unknown]> = [];
+
+      @Directive({selector: '[emitter]'})
+      class Emitter {
+        @Output('class') readonly classEvent = new EventEmitter<string>();
+      }
+
+      @Component({
+        selector: 'ui-card',
+        template: '',
+        host: {class: 'cmp', '(class)': 'record($event)'},
+      })
+      class UiCard {
+        protected record(value: unknown) {
+          received.push(['component', value]);
+        }
+      }
+
+      @Component({
+        imports: [UiCard, Emitter],
+        template: `<ui-card emitter class="tpl" (class)="record($event)" />`,
+      })
+      class App {
+        @ViewChild(Emitter) emitter!: Emitter;
+
+        protected record(value: unknown) {
+          received.push(['template', value]);
+        }
+      }
+
+      const fixture = await render(App);
+      expect(received).toEqual([]);
+
+      fixture.componentInstance.emitter.classEvent.emit('sent');
+
+      expect(received).toEqual([
+        ['component', 'sent'],
+        ['template', 'sent'],
+      ]);
+      expect(
+        warn.calls.allArgs().filter(([message]) => String(message).includes('NG0319')).length,
+      ).toBe(2);
+      expect(classesOf(fixture.nativeElement.querySelector('ui-card'))).toEqual(['cmp', 'tpl']);
+    });
+
+    it('reports a resolver that writes a signal', async () => {
+      const errors = captureErrors();
+
+      @Component({template: `<div class="p-2" (class)="record($event)"></div>`})
+      class App {
+        readonly received = signal<ClassSources | null>(null);
+
+        protected record(sources: ClassSources) {
+          this.received.set(sources);
+          return sources.flat();
+        }
+      }
+
+      await render(App);
+
+      expect(errors.map(String).join('\n')).toContain('NG0600');
+    });
+
+    describe('when a resolver changes state that its own bindings read', () => {
+      @Component({
+        template: `<div [class.odd]="resolutions % 2 === 1" (class)="track($event)"></div>`,
+      })
+      class App {
+        resolutions = 0;
+
+        protected track(sources: ClassSources) {
+          this.resolutions++;
+          return sources.flat();
+        }
+      }
+
+      it('leaves an OnPush element out of date without an error', async () => {
+        const errors = captureErrors();
+
+        const fixture = await render(App);
+
+        // `resolutions` is now odd, but the binding read it before the resolver ran.
+        expect(fixture.componentInstance.resolutions).toBe(1);
+        expect(classesOf(fixture.nativeElement.querySelector('div'))).toEqual([]);
+        expect(errors).toEqual([]);
+      });
+
+      it('reports the change when checkNoChanges is exhaustive', async () => {
+        const errors = captureErrors([provideCheckNoChangesConfig({exhaustive: true})]);
+
+        await render(App);
+
+        expect(errors.map(String).join('\n')).toContain('NG0100');
+      });
+
+      it('reports the change in an eager view', async () => {
+        const errors = captureErrors();
+
+        @Component({
+          template: `<div [class.odd]="resolutions % 2 === 1" (class)="track($event)"></div>`,
+          changeDetection: ChangeDetectionStrategy.Eager,
+        })
+        class EagerApp extends App {}
+
+        await render(EagerApp);
+
+        expect(errors.map(String).join('\n')).toContain('NG0100');
+      });
     });
   });
 });
