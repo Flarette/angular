@@ -219,6 +219,21 @@ Only a template (class) on <ui-card> would listen to `changed`.
 The host's `$event: ClassSources` type stays true. A host `(class)` never listened to another
 directive's output on purpose.
 
+An upstream bug drops the template's `[class]` binding on these elements, with or without a
+`(class)` binding. Angular marks an element as having a `class` input when a directive declares an
+output named `class`, so the binding's value goes to directive inputs that don't exist:
+
+```html
+<ui-card emitter [class]="'shadow-lg'" />
+```
+
+```text
+classes: "p-4". `shadow-lg` is dropped, and UiCard's resolver never sees it.
+```
+
+This proposal doesn't change that. The fix belongs in a separate upstream pull request, and the
+feature already asks authors to rename such outputs through `NG0319` and `NG8119`.
+
 ### `[(class)]`
 
 `[(class)]="value"` is shorthand for `[class]="value" (classChange)="value = $event"`. It never

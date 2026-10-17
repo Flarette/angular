@@ -505,6 +505,9 @@ Commit: `fix(compiler): require 22.3.0 to link class resolvers`
   element's template `[class]` binding goes to directive inputs and is dropped, with or without a
   resolver. Upstream behavior, present at the base, and out of scope here. Noted in
   `docs/DEFERRED.md`; the owner decides whether to fix it.
+- 2026-10-17, owner: the upstream `[class]` drop next to an output named `class` stays as it is.
+  `proposal.md` documents it under "Directive outputs named `class`", and the fix goes to a separate
+  upstream pull request. No WP changes.
 
 ## Reviews
 
