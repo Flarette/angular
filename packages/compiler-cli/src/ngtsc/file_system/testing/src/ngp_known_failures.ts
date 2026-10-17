@@ -86,6 +86,7 @@ export const NGP_KNOWN_EXTENDED_CHECK_FAILURES: ReadonlySet<string> = new Set([
   '@let declarations should produce a warning when a signal aliased via @let is used in @if',
   '@let declarations should produce a warning when a signal aliased via @let is used in a bound attribute',
   '@let declarations should produce a warning when an instance property of a signal aliased via @let is accessed in interpolation',
+  'ClassResolverShadowedByOutputCheck should produce a diagnostic when a directive output named class claims a (class) binding',
   'DeferTriggerMisconfiguration should emit when main viewport has no options and prefetch has empty options',
   'DeferTriggerMisconfiguration should emit when on immediate coexists with other mains',
   'DeferTriggerMisconfiguration should emit when on immediate coexists with prefetch',

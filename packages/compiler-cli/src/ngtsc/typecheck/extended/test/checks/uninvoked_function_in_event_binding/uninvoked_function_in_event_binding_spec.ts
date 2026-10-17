@@ -170,6 +170,15 @@ runInEachFileSystem(() => {
       expect(diags.length).toBe(0);
     });
 
+    it('should not produce a diagnostic for a function returned to a (class) binding', () => {
+      const diags = setupTestComponent(
+        `<div (class)="resolve"></div><div (class)="(sources) => resolve(sources)"></div>`,
+        `resolve(sources: unknown) { return ''; }`,
+      );
+
+      expect(diags.length).toBe(0);
+    });
+
     it('should not produce a warning when the function is not invoked in two-way-binding', () => {
       const diags = setupTestComponent(
         `<button [(event)]="increment"></button>`,

@@ -1,6 +1,18 @@
 # Design: resolve an element's classes with a `(class)` binding
 
-Status: prototype on branch `feat/class-resolver`. Not reviewed, not pushed.
+Status: prototype on branch `feat/class-resolver`. Not pushed.
+
+Decisions confirmed on 2026-10-17:
+
+- `ClassSources` is three fixed arrays of class names, `[component, directives, template]`, with
+  directives flattened, no `static`, and no grouping per binding.
+- A directive output named `class` keeps listener behavior at runtime, with a dev-mode warning, and
+  full AOT compilation warns about it too.
+- Components can resolve their own host classes with `host: {'(class)': …}`. A template `(class)`
+  overrides it.
+- The handler runs on every refresh of the view that declares the element.
+- Hydration starts the first resolution from the classes the element has when it has no static
+  classes.
 
 The `(class)` binding lets a template decide the final classes of an element. Angular collects the
 classes that the component, the other directives, and the template apply to the element. It groups
@@ -240,16 +252,17 @@ recursively, so `cn($event)`, `cn(...$event)`, and `cn([[$event]])` return the s
 Today `(class)="handler($event)"` subscribes to any directive output named `class`. It also adds a
 DOM listener for a `class` event.
 
-| Option                                    | Behavior                                                                                                   | Trade-off                                                                                                                                                               |
-| ----------------------------------------- | ---------------------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| Fall back (prototype)                     | If a matched directive has a `class` output, the binding keeps listener semantics. Dev mode logs `NG0319`. | Nothing breaks: the handler compiles the same way as a listener, so the old semantics are exact. The same syntax means two things, depending on which directives match. |
-| Error and migrate                         | Report a compile-time diagnostic in AOT and a runtime error otherwise.                                     | Unambiguous. Breaking, and a consumer can't rename an output that a third-party library declares.                                                                       |
-| Different name, such as `(class.resolve)` | No collision.                                                                                              | Loses the short form. `(class.x)` already reads like a modifier, as in `(keydown.enter)`.                                                                               |
+| Option                                    | Behavior                                                                                                                                     | Trade-off                                                                                                                                                               |
+| ----------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Fall back (prototype)                     | If a matched directive has a `class` output, the binding keeps listener semantics. Dev mode logs `NG0319`, and full AOT warns with `NG8119`. | Nothing breaks: the handler compiles the same way as a listener, so the old semantics are exact. The same syntax means two things, depending on which directives match. |
+| Error and migrate                         | Report a compile-time diagnostic in AOT and a runtime error otherwise.                                                                       | Unambiguous. Breaking, and a consumer can't rename an output that a third-party library declares.                                                                       |
+| Different name, such as `(class.resolve)` | No collision.                                                                                                                                | Loses the short form. `(class.x)` already reads like a modifier, as in `(keydown.enter)`.                                                                               |
 
 The compiler can't always see the conflict. JIT, partial, and local compilation don't know which
 directives match, so the runtime makes the final call. In full AOT, the type checker does know, and
 it already types a claimed `(class)` as the directive's output. That matches the runtime fallback.
-A compile-time warning there is a cheap follow-up.
+Full AOT compilation also reports it as the extended diagnostic `classResolverShadowedByOutput`
+(`NG8119`), a warning by default.
 
 What still breaks: a custom element that dispatches a DOM event named `class`. `(class)` on it no
 longer adds a DOM listener. `@HostListener('class')` now declares a host resolver instead of a
@@ -352,6 +365,13 @@ if (rf & 2) {
 
 A production version might replace the `ListenerOp` flag with a dedicated op kind.
 
+Two extended diagnostics change:
+
+- The new `classResolverShadowedByOutput` (`NG8119`) warns when a directive output named `class`
+  claims a `(class)` binding: [`index.ts`](../packages/compiler-cli/src/ngtsc/typecheck/extended/checks/class_resolver_shadowed_by_output/index.ts).
+- `uninvokedFunctionInEventBinding` (`NG8111`) no longer flags `(class)="cn"` or an arrow function in
+  `(class)`, because Angular calls a returned function there.
+
 ### Runtime
 
 - [`class_resolver.ts`](../packages/core/src/render3/instructions/class_resolver.ts) holds the
@@ -385,6 +405,8 @@ covers an input named `class`.
 the `$event` type with and without `strictOutputEventTypes`.
 [`host_bindings_type_check_spec.ts`](../packages/compiler-cli/test/ngtsc/host_bindings_type_check_spec.ts)
 checks it in host bindings; without the fix, it fails with `Argument of type 'Event'`.
+The `class_resolver_shadowed_by_output` and `uninvoked_function_in_event_binding` specs under
+`packages/compiler-cli/src/ngtsc/typecheck/extended/test/checks` cover both diagnostics.
 [`class_resolver_hydration_spec.ts`](../packages/platform-server/test/class_resolver_hydration_spec.ts)
 renders on the server and hydrates, with and without static classes.
 
@@ -416,7 +438,9 @@ These existing suites pass with the change:
   reuses `@angular/compiler` for code generation, but the `ngp` compliance suites weren't run.
 - Root components (a bootstrapped host with a host `(class)` binding) and `@HostListener('class')`.
 - Checking the handler's return type.
-- A compile-time warning for the `class` output conflict in full AOT.
+- `classResolverShadowedByOutput` on the `ngp` backend. That backend's test harness doesn't report
+  the directives on an element yet, so the spec is listed in `ngp_known_failures.ts`, like other
+  checks that need that lookup.
 - Language service support for `$event` in `(class)`.
 - Verifying handler stability in the `checkNoChanges` pass.
 - A `(style)` counterpart.

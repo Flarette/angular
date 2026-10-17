@@ -702,6 +702,18 @@ export enum ErrorCode {
   FORBIDDEN_REQUIRED_INITIALIZER_INVOCATION = 8118,
 
   /**
+   * A `(class)` binding on an element listens to a directive output named `class` instead of
+   * resolving the element's classes.
+   *
+   * For example:
+   * ```html
+   * <!-- `withClassOutput` declares an output named `class`. -->
+   * <div withClassOutput (class)="cn($event)"></div>
+   * ```
+   */
+  CLASS_RESOLVER_SHADOWED_BY_OUTPUT = 8119,
+
+  /**
    * The template type-checking engine would need to generate an inline type check block for a
    * component, but the current type-checking environment doesn't support it.
    */

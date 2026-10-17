@@ -7,6 +7,8 @@
 // @public
 export enum ExtendedTemplateDiagnosticName {
     // (undocumented)
+    CLASS_RESOLVER_SHADOWED_BY_OUTPUT = "classResolverShadowedByOutput",
+    // (undocumented)
     CONTROL_FLOW_PREVENTING_CONTENT_PROJECTION = "controlFlowPreventingContentProjection",
     // (undocumented)
     DEFER_TRIGGER_MISCONFIGURATION = "deferTriggerMisconfiguration",

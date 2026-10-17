@@ -51,6 +51,11 @@ class UninvokedFunctionInEventBindingSpec extends TemplateCheckWithVisitor<Error
     if (node.type !== ParsedEventType.Regular && node.type !== ParsedEventType.LegacyAnimation)
       return [];
 
+    // A `(class)` binding calls a function that its handler returns, so `(class)="resolve"` and
+    // `(class)="(sources) => resolve(sources)"` are intended.
+    if (node.name === 'class' && node.type === ParsedEventType.Regular && node.target === null)
+      return [];
+
     if (!(node.handler instanceof ASTWithSource)) return [];
 
     const sourceExpressionText = node.handler.source || '';
