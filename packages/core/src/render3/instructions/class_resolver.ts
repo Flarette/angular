@@ -49,7 +49,8 @@ import {classKeyValueArraySet, classStringParser, toStylingKeyValueArray} from '
  *
  * If a directive on the element declares an output named `class`, a binding in the template keeps
  * its existing meaning and subscribes to that output instead. A binding in host bindings always
- * resolves the element's classes.
+ * resolves the element's classes. On `<ng-container>` and `<ng-template>`, which have no classes,
+ * a binding in host bindings subscribes to directive outputs.
  *
  * @param resolverFn Handler compiled from the binding. Receives the `ClassSources` as `$event`.
  *
