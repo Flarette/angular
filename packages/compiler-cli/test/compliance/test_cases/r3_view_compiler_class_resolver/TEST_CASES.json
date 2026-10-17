@@ -90,6 +90,21 @@
           "failureMessage": "Incorrect host bindings"
         }
       ]
+    },
+    {
+      "description": "should create a class resolver instruction for (class) inside a block",
+      "inputFiles": ["class_resolver_with_blocks.ts"],
+      "expectations": [
+        {
+          "files": [
+            {
+              "expected": "class_resolver_with_blocks_template.js",
+              "generated": "class_resolver_with_blocks.js"
+            }
+          ],
+          "failureMessage": "Incorrect template"
+        }
+      ]
     }
   ]
 }

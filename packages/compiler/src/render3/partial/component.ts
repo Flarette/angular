@@ -6,9 +6,11 @@
  * found in the LICENSE file at https://angular.dev/license
  */
 import * as core from '../../core';
+import {ParsedEventType} from '../../expression_parser/ast';
+import {isNgContainer} from '../../ml_parser/tags';
 import * as o from '../../output/output_ast';
 import {ParseLocation, ParseSourceFile, ParseSourceSpan} from '../../parse_util';
-import {RecursiveVisitor, visitAll} from '../r3_ast';
+import {Element, RecursiveVisitor, visitAll} from '../r3_ast';
 import {Identifiers as R3} from '../r3_identifiers';
 import {generateForwardRef, R3CompiledExpression} from '../util';
 import {
@@ -28,7 +30,7 @@ import {
   R3DeclareNgModuleDependencyMetadata,
   R3DeclarePipeDependencyMetadata,
 } from './api';
-import {createDirectiveDefinitionMap} from './directive';
+import {createDirectiveDefinitionMap, hasHostClassResolver} from './directive';
 import {toOptionalLiteralArray} from './util';
 
 export interface DeclareComponentTemplateInfo {
@@ -88,6 +90,8 @@ function createComponentDefinitionMap(
     createDirectiveDefinitionMap(meta);
   const blockVisitor = new BlockPresenceVisitor();
   visitAll(blockVisitor, template.nodes);
+  const classResolverVisitor = new ClassResolverPresenceVisitor();
+  visitAll(classResolverVisitor, template.nodes);
 
   definitionMap.set('template', getTemplateExpression(template, templateInfo));
 
@@ -99,6 +103,12 @@ function createComponentDefinitionMap(
   // We don't do this for templates without blocks, in order to preserve backwards compatibility.
   if (blockVisitor.hasBlocks) {
     definitionMap.set('minVersion', o.literal('17.0.0'));
+  }
+
+  // Set the minVersion to 22.3.0 if the component declares a class resolver in its host or its
+  // template. This runs after the blocks rule above, so that rule can't lower it.
+  if (hasHostClassResolver(meta) || classResolverVisitor.hasClassResolver) {
+    definitionMap.set('minVersion', o.literal('22.3.0'));
   }
 
   definitionMap.set('styles', toOptionalLiteralArray(meta.styles, o.literal));
@@ -284,5 +294,28 @@ class BlockPresenceVisitor extends RecursiveVisitor {
 
   override visitSwitchBlockCaseGroup(): void {
     this.hasBlocks = true;
+  }
+}
+
+/**
+ * Finds `(class)` outputs on elements, which compile to class resolvers. On `<ng-container>` and
+ * `<ng-template>`, `(class)` stays a listener.
+ */
+class ClassResolverPresenceVisitor extends RecursiveVisitor {
+  hasClassResolver = false;
+
+  override visitElement(element: Element): void {
+    if (
+      !isNgContainer(element.name) &&
+      element.outputs.some(
+        (output) =>
+          output.name === 'class' &&
+          output.type === ParsedEventType.Regular &&
+          output.target === null,
+      )
+    ) {
+      this.hasClassResolver = true;
+    }
+    super.visitElement(element);
   }
 }

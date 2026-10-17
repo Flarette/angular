@@ -156,7 +156,20 @@ function getMinimumVersionForPartialOutput(meta: R3DirectiveMetadata): string {
     minVersion = '17.2.0';
   }
 
+  // A `class` host listener is a class resolver, which older linkers compile to a plain listener.
+  if (hasHostClassResolver(meta)) {
+    minVersion = '22.3.0';
+  }
+
   return minVersion;
+}
+
+/**
+ * Gets whether the given directive declares a class resolver in its host, through
+ * `host: {'(class)': ...}` or `@HostListener('class')`.
+ */
+export function hasHostClassResolver(meta: R3DirectiveMetadata): boolean {
+  return meta.host.listeners['class'] !== undefined;
 }
 
 /**
