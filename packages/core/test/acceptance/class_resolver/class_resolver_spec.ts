@@ -366,6 +366,25 @@ describe('(class) binding', () => {
         'py-1',
       ]);
     });
+
+    it('listens instead of resolving on <ng-container>', async () => {
+      const received: unknown[] = [];
+
+      @Directive({selector: '[recorder]', host: {'(class)': 'record($event)'}})
+      class Recorder {
+        protected record(value: unknown) {
+          received.push(value);
+          return ['by-recorder'];
+        }
+      }
+
+      @Component({imports: [Recorder], template: `<ng-container recorder />`})
+      class App {}
+
+      await expectAsync(render(App)).toBeResolved();
+
+      expect(received).toEqual([]);
+    });
   });
 
   describe('next to a directive output named "class"', () => {
@@ -412,6 +431,32 @@ describe('(class) binding', () => {
 
       expect(fixture.componentInstance.received).toBe('sent');
       expect(warn).not.toHaveBeenCalled();
+    });
+
+    it('keeps subscribing a host binding to the output on <ng-container>', async () => {
+      const warn = spyOn(console, 'warn');
+      const received: unknown[] = [];
+
+      @Directive({selector: '[recorder]', host: {'(class)': 'record($event)'}})
+      class Recorder {
+        protected record(value: unknown) {
+          received.push(value);
+        }
+      }
+
+      @Component({
+        imports: [Emitter, Recorder],
+        template: `<ng-container emitter recorder />`,
+      })
+      class App {
+        @ViewChild(Emitter) emitter!: Emitter;
+      }
+
+      const fixture = await render(App);
+      fixture.componentInstance.emitter.classEvent.emit('sent');
+
+      expect(received).toEqual(['sent']);
+      expect(warn).not.toHaveBeenCalledWith(jasmine.stringContaining('NG0319'));
     });
   });
 

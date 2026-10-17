@@ -18,7 +18,7 @@ import {
   TClassSourceSegment,
 } from '../interfaces/class_resolver';
 import {DirectiveDef} from '../interfaces/definition';
-import {TAttributes, TNode} from '../interfaces/node';
+import {TAttributes, TNode, TNodeType} from '../interfaces/node';
 import {Renderer} from '../interfaces/renderer';
 import {RElement} from '../interfaces/renderer_dom';
 import {TStylingKey} from '../interfaces/styling';
@@ -58,6 +58,12 @@ export function ɵɵclassResolver(resolverFn: ClassResolverFn): typeof ɵɵclass
   const lView = getLView<{} | null>();
   const tView = getTView();
   const tNode = getCurrentTNode()!;
+  if (!(tNode.type & TNodeType.Element)) {
+    // `<ng-container>` and `<ng-template>` have no classes, so a directive's host `(class)` on
+    // them listens to directive outputs, like the template's `(class)` on `<ng-container>`.
+    listenerInternal(tView, lView, lView[RENDERER], tNode, 'class', resolverFn);
+    return ɵɵclassResolver;
+  }
   // The directive whose host bindings are running, or `-1` in template code.
   const owner = getCurrentDirectiveIndex();
   if (owner === -1 && hasClassOutput(tNode)) {
