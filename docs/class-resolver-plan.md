@@ -505,3 +505,12 @@ Commit: `fix(compiler): require 22.3.0 to link class resolvers`
   element's template `[class]` binding goes to directive inputs and is dropped, with or without a
   resolver. Upstream behavior, present at the base, and out of scope here. Noted in
   `docs/DEFERRED.md`; the owner decides whether to fix it.
+
+## Reviews
+
+- WP1 (`d9fd7f974e`, fixup `8cf37b05c8`): orchestrator 9.25, Codex 9.50 after the fixup.
+  - The renamed spec's fixture changed beyond its assertions, so the resolution is observable.
+    Disclosed; no fixup.
+  - `classResolverFirstCreatePass` now also records owners for later registrations; the name
+    covers only its first job. A refactoring round could rename it.
+  - The fixup's specs cover `<ng-container>` but not `<ng-template>`, which takes the same branch.
