@@ -347,24 +347,24 @@ describe('(class) binding', () => {
       expect(classesOf(fixture.nativeElement.querySelector('ui-button'))).toEqual(['px-4', 'py-1']);
     });
 
-    it('gives precedence to the template (class) binding', async () => {
+    it("passes the component's resolved classes to the template (class) binding", async () => {
       @Component({
         imports: [UiButton],
         template: `<ui-button class="px-4" (class)="keepAll($event)" />`,
       })
       class App {
+        sources: ClassSources | null = null;
+
         protected keepAll(sources: ClassSources) {
+          this.sources = sources;
           return sources.flat();
         }
       }
 
       const fixture = await render(App);
 
-      expect(classesOf(fixture.nativeElement.querySelector('ui-button'))).toEqual([
-        'px-2',
-        'px-4',
-        'py-1',
-      ]);
+      expect(fixture.componentInstance.sources).toEqual([['py-1'], [], ['px-4']]);
+      expect(classesOf(fixture.nativeElement.querySelector('ui-button'))).toEqual(['px-4', 'py-1']);
     });
 
     it('listens instead of resolving on <ng-container>', async () => {
@@ -525,33 +525,48 @@ describe('(class) binding', () => {
       }
     }
 
-    it('runs only the template resolver', async () => {
+    it('runs every resolver from the lowest to the highest priority', async () => {
       @Component({
         imports: [UiButton, Tooltip, Ring],
-        template: `<ui-button tooltip ring class="tpl" (class)="resolve($event)" />`,
+        template: `<ui-button tooltip ring class="tpl" (class)="capture($event)" />`,
       })
       class App {
-        protected readonly resolve = resolver('template');
+        sources: ClassSources | null = null;
+        private readonly resolve = resolver('template');
+
+        protected capture(sources: ClassSources) {
+          this.sources = sources;
+          return this.resolve(sources);
+        }
       }
 
       const fixture = await render(App);
 
-      expect(ranResolvers()).toEqual(['template']);
+      expect(ranResolvers()).toEqual(['supplied', 'cmp-listener', 'tooltip', 'ring', 'template']);
+      expect(fixture.componentInstance.sources).toEqual([
+        ['cmp', 'by-supplied', 'by-cmp-listener'],
+        ['ring', 'by-tooltip', 'by-ring'],
+        ['tpl'],
+      ]);
       expect(classesOf(fixture.nativeElement.querySelector('ui-button'))).toEqual([
+        'by-cmp-listener',
+        'by-ring',
+        'by-supplied',
         'by-template',
+        'by-tooltip',
         'cmp',
         'ring',
         'tpl',
       ]);
     });
 
-    it('runs only the resolver of the directive matched last', async () => {
+    it('runs directive resolvers in match order', async () => {
       @Component({imports: [UiButton, Tooltip, Ring], template: `<ui-button tooltip ring />`})
       class App {}
 
       await render(App);
 
-      expect(ranResolvers()).toEqual(['ring']);
+      expect(ranResolvers()).toEqual(['supplied', 'cmp-listener', 'tooltip', 'ring']);
     });
 
     it('matches directives in the order of the imports', async () => {
@@ -560,17 +575,120 @@ describe('(class) binding', () => {
 
       await render(App);
 
-      expect(ranResolvers()).toEqual(['tooltip']);
+      expect(ranResolvers()).toEqual(['supplied', 'cmp-listener', 'ring', 'tooltip']);
     });
 
-    it("runs the component's @HostListener resolver, not its host-object or host directive's", async () => {
+    it("runs the component's host directive resolver, then its @HostListener resolver", async () => {
       @Component({imports: [UiButton], template: `<ui-button />`})
       class App {}
 
       await render(App);
 
-      expect(ranResolvers()).toEqual(['cmp-listener']);
+      expect(ranResolvers()).toEqual(['supplied', 'cmp-listener']);
     });
+
+    it('passes the next resolver only the classes that a lower resolver returned', async () => {
+      @Directive({selector: '[tidy]', host: {class: 'dir', '(class)': 'tidy($event)'}})
+      class Tidy {
+        protected tidy(sources: ClassSources) {
+          return [...sources.flat().filter((className) => className !== 'drop'), 'added'];
+        }
+      }
+
+      @Component({
+        imports: [Tidy],
+        template: `<div tidy class="keep drop" (class)="capture($event)"></div>`,
+      })
+      class App {
+        sources: ClassSources | null = null;
+
+        protected capture(sources: ClassSources) {
+          this.sources = sources;
+          return sources.flat();
+        }
+      }
+
+      const fixture = await render(App);
+
+      expect(fixture.componentInstance.sources).toEqual([[], ['dir', 'added'], ['keep']]);
+      expect(classesOf(fixture.nativeElement.querySelector('div'))).toEqual([
+        'added',
+        'dir',
+        'keep',
+      ]);
+    });
+
+    it("ranks a class that a lower resolver appends at its owner's source", async () => {
+      @Component({
+        selector: 'ui-badge',
+        template: '',
+        host: {class: 'bg-primary', '(class)': 'resolve($event)'},
+      })
+      class UiBadge {
+        protected resolve(sources: ClassSources) {
+          return [...sources.flat(), 'bg-muted'];
+        }
+      }
+
+      @Component({
+        imports: [UiBadge],
+        template: `<ui-badge class="bg-red-600" (class)="capture($event)" />`,
+      })
+      class App {
+        sources: ClassSources | null = null;
+
+        protected capture(sources: ClassSources) {
+          this.sources = sources;
+          return cn(sources);
+        }
+      }
+
+      const fixture = await render(App);
+
+      expect(fixture.componentInstance.sources).toEqual([
+        ['bg-primary', 'bg-muted'],
+        [],
+        ['bg-red-600'],
+      ]);
+      expect(classesOf(fixture.nativeElement.querySelector('ui-badge'))).toEqual(['bg-red-600']);
+    });
+
+    for (const [form, value, expected] of [
+      ['a string', 'a  b', ['a', 'b']],
+      ['an array', ['a', '', 'b'], ['a', 'b']],
+      ['a Set', new Set(['a', 'b']), ['a', 'b']],
+      ['an object map', {a: true, x: false, b: 1}, ['a', 'b']],
+      ['a function', () => ['a', 'b'], ['a', 'b']],
+      ['null', null, []],
+      ['a number', 42, []],
+    ] as Array<[string, unknown, string[]]>) {
+      it(`passes the next resolver the classes of ${form} that a lower resolver returned`, async () => {
+        @Directive({selector: '[lower]', host: {'(class)': 'resolve()'}})
+        class Lower {
+          protected resolve() {
+            return value;
+          }
+        }
+
+        // The class `c` shows that the lower resolver's result replaces the collected classes.
+        @Component({
+          imports: [Lower],
+          template: `<div lower class="c" (class)="capture($event)"></div>`,
+        })
+        class App {
+          sources: ClassSources | null = null;
+
+          protected capture(sources: ClassSources) {
+            this.sources = sources;
+            return sources.flat();
+          }
+        }
+
+        const fixture = await render(App);
+
+        expect(fixture.componentInstance.sources!.flat()).toEqual(expected);
+      });
+    }
 
     it('keeps host resolvers next to a directive output named class', async () => {
       const warn = spyOn(console, 'warn');

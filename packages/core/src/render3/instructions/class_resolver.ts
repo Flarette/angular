@@ -13,7 +13,6 @@ import {AttributeMarker} from '../interfaces/attribute_marker';
 import {
   ClassResolverFn,
   ClassSource,
-  ClassSources,
   TClassResolver,
   TClassSourceSegment,
 } from '../interfaces/class_resolver';
@@ -83,7 +82,7 @@ export function ɵɵclassResolver(resolverFn: ClassResolverFn): typeof ɵɵclass
   // The template and host bindings of several directives can each register a resolver for the
   // same element. They share the element's state, and each registration is kept in the order it
   // runs, which is the priority order: the directives' before the template's, and earlier
-  // directives' before later ones. Only the last one registered resolves the classes.
+  // directives' before later ones. They all run in that order when the classes are resolved.
   if (tView.firstCreatePass) {
     classResolverFirstCreatePass(tView, lView, tNode, owner);
   }
@@ -128,14 +127,10 @@ function classResolverFirstCreatePass(
   }
 
   const tData = tView.data;
-  const componentIndex =
-    tNode.componentOffset > -1 ? tNode.directiveStart + tNode.componentOffset : -1;
   const segments: TClassSourceSegment[] = [];
   for (let i = tNode.directiveStart; i < tNode.directiveEnd; i++) {
     segments.push({
-      // The component's host directives are matched before the component, so they're part of
-      // the component's source.
-      source: i <= componentIndex ? ClassSource.Component : ClassSource.Directives,
+      source: classSourceOf(tNode, i),
       directiveIndex: i,
       statics: readStaticClasses((tData[i] as DirectiveDef<unknown>).hostAttrs),
       bindings: [],
@@ -150,6 +145,22 @@ function classResolverFirstCreatePass(
 
   tNode.classResolver = {index: allocExpando(tView, lView, 2, null), owners: [owner], segments};
   (tView.classResolvers ??= []).push(tNode.index);
+}
+
+/**
+ * Source under which the classes of a directive's host bindings, or of the template, are reported.
+ *
+ * @param directiveIndex Index of the `DirectiveDef` in `TView.data`, or `-1` for the template.
+ */
+function classSourceOf(tNode: TNode, directiveIndex: number): ClassSource {
+  if (directiveIndex === -1) {
+    return ClassSource.Template;
+  }
+  // The component's host directives are matched before the component, so they're part of the
+  // component's source.
+  const componentIndex =
+    tNode.componentOffset > -1 ? tNode.directiveStart + tNode.componentOffset : -1;
+  return directiveIndex <= componentIndex ? ClassSource.Component : ClassSource.Directives;
 }
 
 function readStaticClasses(attrs: TAttributes | null): string[] {
@@ -174,8 +185,8 @@ function readStaticClasses(attrs: TAttributes | null): string[] {
 /**
  * Resolves the classes of every element in the view that has a `(class)` binding.
  *
- * Runs after the view's host bindings so the resolver sees the latest values from all sources.
- * The resolver runs on every refresh because it may read state other than its argument.
+ * Runs after the view's host bindings so the resolvers see the latest values from all sources.
+ * The resolvers run on every refresh because they may read state other than their argument.
  */
 export function refreshClassResolvers(tView: TView, lView: LView): void {
   const resolverNodes = tView.classResolvers!;
@@ -184,13 +195,18 @@ export function refreshClassResolvers(tView: TView, lView: LView): void {
       const tNode = tView.data[resolverNodes[i]] as TNode;
       const tClassResolver = tNode.classResolver!;
       const resolverFns = lView[tClassResolver.index] as ClassResolverFn[];
-      // Only the highest-priority registration runs.
-      const resolverFn = resolverFns[resolverFns.length - 1];
-      const sources = collectClassSources(tView.data, lView, tClassResolver);
-      let resolved = resolverFn(sources);
-      if (typeof resolved === 'function') {
-        resolved = resolved(sources);
+      // Every registration runs, from the lowest to the highest priority. Each one after the lowest
+      // receives the classes that the previous one resolved, and the highest decides the classes.
+      let sources = collectClassSources(tView.data, lView, tClassResolver);
+      for (let level = 0; level < resolverFns.length - 1; level++) {
+        const classNames = toClassNames(runClassResolver(resolverFns[level], sources));
+        sources = foldClassNames(
+          sources,
+          classNames,
+          classSourceOf(tNode, tClassResolver.owners[level]),
+        );
       }
+      const resolved = runClassResolver(resolverFns[resolverFns.length - 1], sources);
       applyResolvedClasses(
         lView[RENDERER],
         getNativeByTNode(tNode, lView) as RElement,
@@ -206,6 +222,70 @@ export function refreshClassResolvers(tView: TView, lView: LView): void {
   }
 }
 
+/** The classes of each source, in the order of `ClassSources`. */
+type CollectedClassSources = [component: string[], directives: string[], template: string[]];
+
+/** Runs a resolver, and calls a returned function with the same `ClassSources`. */
+function runClassResolver(resolverFn: ClassResolverFn, sources: CollectedClassSources): unknown {
+  const resolved = resolverFn(sources);
+  return typeof resolved === 'function' ? resolved(sources) : resolved;
+}
+
+/**
+ * Turns a value returned by a class resolver into the class names it resolves, in order.
+ *
+ * Accepts the forms that a `[class]` binding accepts, and gives no class names for any other value.
+ * An exact duplicate keeps its first position.
+ */
+function toClassNames(resolved: unknown): string[] {
+  // Insertion order of the set is the order of the class names.
+  const classNames = new Set<string>();
+  const add = (className: unknown) => {
+    const name = String(className);
+    if (name !== '') {
+      classNames.add(name);
+    }
+  };
+  if (typeof resolved === 'string') {
+    resolved.split(/\s+/).forEach(add);
+  } else if (Array.isArray(resolved) || resolved instanceof Set) {
+    resolved.forEach(add);
+  } else if (resolved !== null && typeof resolved === 'object') {
+    const classMap = resolved as {[className: string]: unknown};
+    for (const className of Object.keys(classMap)) {
+      if (classMap[className]) {
+        add(className);
+      }
+    }
+  }
+  return Array.from(classNames);
+}
+
+/**
+ * Groups the class names that a resolver returned by source, to pass them to the next resolver.
+ *
+ * A class keeps the source it had in the resolver's `ClassSources`. A class that the resolver
+ * added goes to the source of the resolver's owner. Within a source, classes keep the order in
+ * which the resolver returned them.
+ */
+function foldClassNames(
+  sources: CollectedClassSources,
+  classNames: string[],
+  ownerSource: ClassSource,
+): CollectedClassSources {
+  const origins = new Map<string, ClassSource>();
+  for (let source = ClassSource.Component; source <= ClassSource.Template; source++) {
+    for (const className of sources[source]) {
+      origins.set(className, source);
+    }
+  }
+  const folded: CollectedClassSources = [[], [], []];
+  for (const className of classNames) {
+    folded[origins.get(className) ?? ownerSource].push(className);
+  }
+  return folded;
+}
+
 /**
  * Groups the element's classes by source.
  *
@@ -219,7 +299,7 @@ function collectClassSources(
   tData: TData,
   lView: LView,
   tClassResolver: TClassResolver,
-): ClassSources {
+): CollectedClassSources {
   // Insertion order of the map is the priority order. `-1` marks a class turned off.
   const decided = new Map<string, ClassSource | -1>();
   for (const segment of tClassResolver.segments) {
@@ -247,7 +327,7 @@ function collectClassSources(
     }
   }
 
-  const sources: [string[], string[], string[]] = [[], [], []];
+  const sources: CollectedClassSources = [[], [], []];
   for (const [className, source] of decided) {
     if (source !== -1) {
       sources[source].push(className);
