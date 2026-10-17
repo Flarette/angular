@@ -438,6 +438,9 @@ These existing suites pass with the change:
   reuses `@angular/compiler` for code generation, but the `ngp` compliance suites weren't run.
 - Root components (a bootstrapped host with a host `(class)` binding) and `@HostListener('class')`.
 - Checking the handler's return type.
+- `classResolverShadowedByOutput` for a host-level `(class)` binding, or for an output that
+  `hostDirectives` exposes under the alias `class`. Those cases rely on the runtime `NG0319`
+  warning alone.
 - `classResolverShadowedByOutput` on the `ngp` backend. That backend's test harness doesn't report
   the directives on an element yet, so the spec is listed in `ngp_known_failures.ts`, like other
   checks that need that lookup.
