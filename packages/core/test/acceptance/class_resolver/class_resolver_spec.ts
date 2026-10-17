@@ -368,7 +368,7 @@ describe('(class) binding', () => {
     });
 
     for (const tag of ['ng-container', 'ng-template']) {
-      it(`listens instead of resolving on <${tag}>`, async () => {
+      it(`runs no resolver on <${tag}>`, async () => {
         const received: unknown[] = [];
 
         @Directive({selector: '[recorder]', host: {'(class)': 'record($event)'}})
@@ -462,31 +462,30 @@ describe('(class) binding', () => {
       expect(warn).not.toHaveBeenCalled();
     });
 
-    it('keeps subscribing a host binding to the output on <ng-container>', async () => {
-      const warn = spyOn(console, 'warn');
-      const received: unknown[] = [];
+    for (const tag of ['ng-container', 'ng-template']) {
+      it(`keeps subscribing a host binding to the output on <${tag}>`, async () => {
+        const warn = spyOn(console, 'warn');
+        const received: unknown[] = [];
 
-      @Directive({selector: '[recorder]', host: {'(class)': 'record($event)'}})
-      class Recorder {
-        protected record(value: unknown) {
-          received.push(value);
+        @Directive({selector: '[recorder]', host: {'(class)': 'record($event)'}})
+        class Recorder {
+          protected record(value: unknown) {
+            received.push(value);
+          }
         }
-      }
 
-      @Component({
-        imports: [Emitter, Recorder],
-        template: `<ng-container emitter recorder />`,
-      })
-      class App {
-        @ViewChild(Emitter) emitter!: Emitter;
-      }
+        @Component({imports: [Emitter, Recorder], template: `<${tag} emitter recorder />`})
+        class App {
+          @ViewChild(Emitter) emitter!: Emitter;
+        }
 
-      const fixture = await render(App);
-      fixture.componentInstance.emitter.classEvent.emit('sent');
+        const fixture = await render(App);
+        fixture.componentInstance.emitter.classEvent.emit('sent');
 
-      expect(received).toEqual(['sent']);
-      expect(warn).not.toHaveBeenCalledWith(jasmine.stringContaining('NG0319'));
-    });
+        expect(received).toEqual(['sent']);
+        expect(warn).not.toHaveBeenCalledWith(jasmine.stringContaining('NG0319'));
+      });
+    }
   });
 
   describe('with several resolvers on one element', () => {
