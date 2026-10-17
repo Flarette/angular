@@ -24,7 +24,14 @@ import {RElement} from '../interfaces/renderer_dom';
 import {TStylingKey} from '../interfaces/styling';
 import {LView, OpaqueViewState, RENDERER, TData, TView} from '../interfaces/view';
 import {applyStyling} from '../node_manipulation';
-import {getCurrentTNode, getLView, getTView, wasLastNodeCreated, ɵɵrestoreView} from '../state';
+import {
+  getCurrentDirectiveIndex,
+  getCurrentTNode,
+  getLView,
+  getTView,
+  wasLastNodeCreated,
+  ɵɵrestoreView,
+} from '../state';
 import {NO_CHANGE} from '../tokens';
 import {getNativeByTNode} from '../util/view_utils';
 import {allocExpando} from '../view/construction';
@@ -39,8 +46,9 @@ import {classKeyValueArraySet, classStringParser, toStylingKeyValueArray} from '
  * (component, directives, template) and passes them to `resolverFn` once its host bindings have
  * run. The value that `resolverFn` returns becomes the element's classes.
  *
- * If a directive on the element declares an output named `class`, the binding keeps its existing
- * meaning and subscribes to that output instead.
+ * If a directive on the element declares an output named `class`, a binding in the template keeps
+ * its existing meaning and subscribes to that output instead. A binding in host bindings always
+ * resolves the element's classes.
  *
  * @param resolverFn Handler compiled from the binding. Receives the `ClassSources` as `$event`.
  *
@@ -50,18 +58,31 @@ export function ɵɵclassResolver(resolverFn: ClassResolverFn): typeof ɵɵclass
   const lView = getLView<{} | null>();
   const tView = getTView();
   const tNode = getCurrentTNode()!;
-  // The template and host bindings of several directives can each register a resolver for the
-  // same element. They share the element's state, and the last one registered wins: the
-  // template's over the directives', and later directives' over earlier ones.
-  if (tView.firstCreatePass && tNode.classResolver === null) {
-    classResolverFirstCreatePass(tView, lView, tNode);
-  }
-  const tClassResolver = tNode.classResolver;
-  if (tClassResolver === null) {
+  // The directive whose host bindings are running, or `-1` in template code.
+  const owner = getCurrentDirectiveIndex();
+  if (owner === -1 && hasClassOutput(tNode)) {
+    if (ngDevMode && tView.firstCreatePass) {
+      console.warn(
+        formatRuntimeError(
+          RuntimeErrorCode.CLASS_RESOLVER_OUTPUT_CONFLICT,
+          `The \`(class)\` binding on <${tNode.value}> listens to a directive output named ` +
+            `\`class\` instead of resolving the element's classes. Rename the output to use ` +
+            `\`(class)\` as a class resolver on this element.`,
+        ),
+      );
+    }
     listenerInternal(tView, lView, lView[RENDERER], tNode, 'class', resolverFn);
     return ɵɵclassResolver;
   }
-  lView[tClassResolver.index] = resolverFn;
+  // The template and host bindings of several directives can each register a resolver for the
+  // same element. They share the element's state, and each registration is kept in the order it
+  // runs, which is the priority order: the directives' before the template's, and earlier
+  // directives' before later ones. Only the last one registered resolves the classes.
+  if (tView.firstCreatePass) {
+    classResolverFirstCreatePass(tView, lView, tNode, owner);
+  }
+  const tClassResolver = tNode.classResolver!;
+  ((lView[tClassResolver.index] ??= []) as ClassResolverFn[]).push(resolverFn);
   const appliedIndex = tClassResolver.index + 1;
   if (!wasLastNodeCreated() && tNode.classes === null && lView[appliedIndex] === null) {
     // Hydration claimed the element. With static classes, the `class` attribute was rewritten to
@@ -78,18 +99,25 @@ export function ɵɵclassResolver(resolverFn: ClassResolverFn): typeof ɵɵclass
   return ɵɵclassResolver;
 }
 
-function classResolverFirstCreatePass(tView: TView, lView: LView, tNode: TNode): void {
-  if (tNode.outputs?.['class'] || tNode.hostDirectiveOutputs?.['class']) {
-    if (ngDevMode) {
-      console.warn(
-        formatRuntimeError(
-          RuntimeErrorCode.CLASS_RESOLVER_OUTPUT_CONFLICT,
-          `The \`(class)\` binding on <${tNode.value}> listens to a directive output named ` +
-            `\`class\` instead of resolving the element's classes. Rename the output to use ` +
-            `\`(class)\` as a class resolver on this element.`,
-        ),
-      );
-    }
+/** Whether a directive on the element, including a host directive, has an output named `class`. */
+function hasClassOutput(tNode: TNode): boolean {
+  return !!(tNode.outputs?.['class'] || tNode.hostDirectiveOutputs?.['class']);
+}
+
+/**
+ * Records the owner of a registration, and creates the element's resolver data at the first one.
+ *
+ * @param owner Index of the directive whose host bindings registered the resolver, or `-1` for the
+ *     template.
+ */
+function classResolverFirstCreatePass(
+  tView: TView,
+  lView: LView,
+  tNode: TNode,
+  owner: number,
+): void {
+  if (tNode.classResolver !== null) {
+    tNode.classResolver.owners.push(owner);
     return;
   }
 
@@ -114,7 +142,7 @@ function classResolverFirstCreatePass(tView: TView, lView: LView, tNode: TNode):
     bindings: [],
   });
 
-  tNode.classResolver = {index: allocExpando(tView, lView, 2, null), segments};
+  tNode.classResolver = {index: allocExpando(tView, lView, 2, null), owners: [owner], segments};
   (tView.classResolvers ??= []).push(tNode.index);
 }
 
@@ -149,7 +177,9 @@ export function refreshClassResolvers(tView: TView, lView: LView): void {
     for (let i = 0; i < resolverNodes.length; i++) {
       const tNode = tView.data[resolverNodes[i]] as TNode;
       const tClassResolver = tNode.classResolver!;
-      const resolverFn = lView[tClassResolver.index] as ClassResolverFn;
+      const resolverFns = lView[tClassResolver.index] as ClassResolverFn[];
+      // Only the highest-priority registration runs.
+      const resolverFn = resolverFns[resolverFns.length - 1];
       const sources = collectClassSources(tView.data, lView, tClassResolver);
       let resolved = resolverFn(sources);
       if (typeof resolved === 'function') {

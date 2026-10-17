@@ -59,12 +59,18 @@ export interface TClassSourceSegment {
 export interface TClassResolver {
   /**
    * Index of the per-instance state in the `LView`:
-   * - `index`: the `ClassResolverFn` registered by `ɵɵclassResolver`.
+   * - `index`: the `ClassResolverFn`s registered by `ɵɵclassResolver`, in the order of `owners`.
    * - `index + 1`: `KeyValueArray` of the classes applied by the previous resolution. Before the
    *   first resolution it holds the classes of an element claimed by hydration, or `null` if the
    *   element still has the static classes it was created with.
    */
   index: number;
+
+  /**
+   * Owner of each registered resolver, from the lowest to the highest priority: the index of the
+   * `DirectiveDef` in `TView.data`, or `-1` for the template.
+   */
+  owners: number[];
 
   /** One segment per directive followed by the template's, from the lowest to the highest priority. */
   segments: TClassSourceSegment[];

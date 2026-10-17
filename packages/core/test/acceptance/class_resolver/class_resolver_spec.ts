@@ -527,7 +527,7 @@ describe('(class) binding', () => {
       expect(ranResolvers()).toEqual(['cmp-listener']);
     });
 
-    it('turns every resolver into a listener when a directive has an output named class', async () => {
+    it('keeps host resolvers next to a directive output named class', async () => {
       const warn = spyOn(console, 'warn');
       const received: Array<[string, unknown]> = [];
 
@@ -542,8 +542,9 @@ describe('(class) binding', () => {
         host: {class: 'cmp', '(class)': 'record($event)'},
       })
       class UiCard {
-        protected record(value: unknown) {
-          received.push(['component', value]);
+        protected record(sources: ClassSources) {
+          received.push(['component', sources]);
+          return [...sources.flat(), 'by-cmp'];
         }
       }
 
@@ -560,18 +561,51 @@ describe('(class) binding', () => {
       }
 
       const fixture = await render(App);
-      expect(received).toEqual([]);
+      expect(received).toContain(['component', [['cmp'], [], ['tpl']]]);
+      expect(received.every(([handler]) => handler === 'component')).toBeTrue();
+      expect(classesOf(fixture.nativeElement.querySelector('ui-card'))).toEqual([
+        'by-cmp',
+        'cmp',
+        'tpl',
+      ]);
 
       fixture.componentInstance.emitter.classEvent.emit('sent');
 
-      expect(received).toEqual([
-        ['component', 'sent'],
-        ['template', 'sent'],
-      ]);
+      expect(received.filter(([, value]) => value === 'sent')).toEqual([['template', 'sent']]);
       expect(
         warn.calls.allArgs().filter(([message]) => String(message).includes('NG0319')).length,
-      ).toBe(2);
-      expect(classesOf(fixture.nativeElement.querySelector('ui-card'))).toEqual(['cmp', 'tpl']);
+      ).toBe(1);
+    });
+
+    it("runs the component's resolver next to a host directive output aliased as class", async () => {
+      const warn = spyOn(console, 'warn');
+
+      @Directive()
+      class Emitter {
+        @Output() readonly changed = new EventEmitter<string>();
+      }
+
+      @Component({
+        selector: 'ui-card',
+        template: '',
+        hostDirectives: [{directive: Emitter, outputs: ['changed: class']}],
+        host: {class: 'cmp', '(class)': 'resolve($event)'},
+      })
+      class UiCard {
+        protected readonly resolve = resolver('cmp-host');
+      }
+
+      @Component({imports: [UiCard], template: `<ui-card />`})
+      class App {}
+
+      const fixture = await render(App);
+
+      expect(ranResolvers()).toEqual(['cmp-host']);
+      expect(classesOf(fixture.nativeElement.querySelector('ui-card'))).toEqual([
+        'by-cmp-host',
+        'cmp',
+      ]);
+      expect(warn).not.toHaveBeenCalledWith(jasmine.stringContaining('NG0319'));
     });
 
     it('reports a resolver that writes a signal', async () => {
