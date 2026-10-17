@@ -105,6 +105,21 @@
           "failureMessage": "Incorrect template"
         }
       ]
+    },
+    {
+      "description": "should require 22.3.0 for a host class resolver when the template has blocks",
+      "inputFiles": ["class_resolver_host_with_blocks.ts"],
+      "expectations": [
+        {
+          "files": [
+            {
+              "expected": "class_resolver_host_with_blocks_host_bindings.js",
+              "generated": "class_resolver_host_with_blocks.js"
+            }
+          ],
+          "failureMessage": "Incorrect host bindings"
+        }
+      ]
     }
   ]
 }

@@ -60,12 +60,9 @@ export function ɵɵclassResolver(resolverFn: ClassResolverFn): typeof ɵɵclass
   const tView = getTView();
   const tNode = getCurrentTNode()!;
   if (!(tNode.type & TNodeType.Element)) {
-    // `<ng-container>` and `<ng-template>` have no classes, so a directive's host `(class)` on
-    // them listens to directive outputs, like the template's `(class)` on `<ng-container>`.
     listenerInternal(tView, lView, lView[RENDERER], tNode, 'class', resolverFn);
     return ɵɵclassResolver;
   }
-  // The directive whose host bindings are running, or `-1` in template code.
   const owner = getCurrentDirectiveIndex();
   if (owner === -1 && hasClassOutput(tNode)) {
     if (ngDevMode && tView.firstCreatePass) {
@@ -81,10 +78,8 @@ export function ɵɵclassResolver(resolverFn: ClassResolverFn): typeof ɵɵclass
     listenerInternal(tView, lView, lView[RENDERER], tNode, 'class', resolverFn);
     return ɵɵclassResolver;
   }
-  // The template and host bindings of several directives can each register a resolver for the
-  // same element. They share the element's state, and each registration is kept in the order it
-  // runs, which is the priority order: the directives' before the template's, and earlier
-  // directives' before later ones. They all run in that order when the classes are resolved.
+  // Appending keeps the priority order: element creation runs the directives' host bindings in
+  // match order, before the template's `(class)` registers.
   if (tView.firstCreatePass) {
     classResolverFirstCreatePass(tView, lView, tNode, owner);
   }
@@ -106,17 +101,10 @@ export function ɵɵclassResolver(resolverFn: ClassResolverFn): typeof ɵɵclass
   return ɵɵclassResolver;
 }
 
-/** Whether a directive on the element, including a host directive, has an output named `class`. */
 function hasClassOutput(tNode: TNode): boolean {
   return !!(tNode.outputs?.['class'] || tNode.hostDirectiveOutputs?.['class']);
 }
 
-/**
- * Records the owner of a registration, and creates the element's resolver data at the first one.
- *
- * @param owner Index of the directive whose host bindings registered the resolver, or `-1` for the
- *     template.
- */
 function classResolverFirstCreatePass(
   tView: TView,
   lView: LView,
@@ -149,11 +137,6 @@ function classResolverFirstCreatePass(
   (tView.classResolvers ??= []).push(tNode.index);
 }
 
-/**
- * Source under which the classes of a directive's host bindings, or of the template, are reported.
- *
- * @param directiveIndex Index of the `DirectiveDef` in `TView.data`, or `-1` for the template.
- */
 function classSourceOf(tNode: TNode, directiveIndex: number): ClassSource {
   if (directiveIndex === -1) {
     return ClassSource.Template;
@@ -197,8 +180,6 @@ export function refreshClassResolvers(tView: TView, lView: LView): void {
       const tNode = tView.data[resolverNodes[i]] as TNode;
       const tClassResolver = tNode.classResolver!;
       const resolverFns = lView[tClassResolver.index] as ClassResolverFn[];
-      // Every registration runs, from the lowest to the highest priority. Each one after the lowest
-      // receives the classes that the previous one resolved, and the highest decides the classes.
       let sources = collectClassSources(tView.data, lView, tClassResolver);
       for (let level = 0; level < resolverFns.length - 1; level++) {
         const classNames = toClassNames(runClassResolver(resolverFns[level], sources));
@@ -224,23 +205,14 @@ export function refreshClassResolvers(tView: TView, lView: LView): void {
   }
 }
 
-/** The classes of each source, in the order of `ClassSources`. */
 type CollectedClassSources = [component: string[], directives: string[], template: string[]];
 
-/** Runs a resolver, and calls a returned function with the same `ClassSources`. */
 function runClassResolver(resolverFn: ClassResolverFn, sources: CollectedClassSources): unknown {
   const resolved = resolverFn(sources);
   return typeof resolved === 'function' ? resolved(sources) : resolved;
 }
 
-/**
- * Turns a value returned by a class resolver into the class names it resolves, in order.
- *
- * Accepts the forms that a `[class]` binding accepts, and gives no class names for any other value.
- * An exact duplicate keeps its first position.
- */
 function toClassNames(resolved: unknown): string[] {
-  // Insertion order of the set is the order of the class names.
   const classNames = new Set<string>();
   const add = (className: unknown) => {
     const name = String(className);
@@ -267,13 +239,6 @@ function toClassNames(resolved: unknown): string[] {
   return Array.from(classNames);
 }
 
-/**
- * Groups the class names that a resolver returned by source, to pass them to the next resolver.
- *
- * A class keeps the source it had in the resolver's `ClassSources`. A class that the resolver
- * added goes to the source of the resolver's owner. Within a source, classes keep the order in
- * which the resolver returned them.
- */
 function foldClassNames(
   sources: CollectedClassSources,
   classNames: string[],

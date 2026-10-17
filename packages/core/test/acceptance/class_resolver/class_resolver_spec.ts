@@ -367,24 +367,26 @@ describe('(class) binding', () => {
       expect(classesOf(fixture.nativeElement.querySelector('ui-button'))).toEqual(['px-4', 'py-1']);
     });
 
-    it('listens instead of resolving on <ng-container>', async () => {
-      const received: unknown[] = [];
+    for (const tag of ['ng-container', 'ng-template']) {
+      it(`listens instead of resolving on <${tag}>`, async () => {
+        const received: unknown[] = [];
 
-      @Directive({selector: '[recorder]', host: {'(class)': 'record($event)'}})
-      class Recorder {
-        protected record(value: unknown) {
-          received.push(value);
-          return ['by-recorder'];
+        @Directive({selector: '[recorder]', host: {'(class)': 'record($event)'}})
+        class Recorder {
+          protected record(value: unknown) {
+            received.push(value);
+            return ['by-recorder'];
+          }
         }
-      }
 
-      @Component({imports: [Recorder], template: `<ng-container recorder />`})
-      class App {}
+        @Component({imports: [Recorder], template: `<${tag} recorder />`})
+        class App {}
 
-      await expectAsync(render(App)).toBeResolved();
+        await expectAsync(render(App)).toBeResolved();
 
-      expect(received).toEqual([]);
-    });
+        expect(received).toEqual([]);
+      });
+    }
   });
 
   describe('next to a directive output named "class"', () => {
@@ -411,6 +413,33 @@ describe('(class) binding', () => {
 
       expect(fixture.componentInstance.received).toBe('sent');
       expect(classesOf(fixture.nativeElement.querySelector('div'))).toEqual(['p-2', 'p-4']);
+      expect(warn).toHaveBeenCalledWith(jasmine.stringContaining('NG0319'));
+    });
+
+    it('keeps subscribing to the output of a host directive', async () => {
+      const warn = spyOn(console, 'warn');
+
+      @Component({
+        selector: 'ui-card',
+        template: '',
+        hostDirectives: [{directive: Emitter, outputs: ['class']}],
+      })
+      class UiCard {}
+
+      @Component({
+        imports: [UiCard],
+        template: `<ui-card class="p-2" (class)="received = $event" />`,
+      })
+      class App {
+        received = '';
+        @ViewChild(Emitter) emitter!: Emitter;
+      }
+
+      const fixture = await render(App);
+      fixture.componentInstance.emitter.classEvent.emit('sent');
+
+      expect(fixture.componentInstance.received).toBe('sent');
+      expect(classesOf(fixture.nativeElement.querySelector('ui-card'))).toEqual(['p-2']);
       expect(warn).toHaveBeenCalledWith(jasmine.stringContaining('NG0319'));
     });
 
@@ -618,6 +647,32 @@ describe('(class) binding', () => {
       ]);
     });
 
+    it('keeps the order of the classes that a lower resolver returned', async () => {
+      @Directive({selector: '[lower]', host: {class: 'x y', '(class)': 'resolve($event)'}})
+      class Lower {
+        protected resolve(sources: ClassSources) {
+          return sources.flat().reverse();
+        }
+      }
+
+      @Component({
+        imports: [Lower],
+        template: `<div lower class="a b" (class)="capture($event)"></div>`,
+      })
+      class App {
+        sources: ClassSources | null = null;
+
+        protected capture(sources: ClassSources) {
+          this.sources = sources;
+          return sources.flat();
+        }
+      }
+
+      const fixture = await render(App);
+
+      expect(fixture.componentInstance.sources).toEqual([[], ['y', 'x'], ['b', 'a']]);
+    });
+
     it("ranks a class that a lower resolver appends at its owner's source", async () => {
       @Component({
         selector: 'ui-badge',
@@ -663,7 +718,7 @@ describe('(class) binding', () => {
       ['null', null, []],
       ['a number', 42, []],
     ] as Array<[string, unknown, string[]]>) {
-      it(`passes the next resolver the classes of ${form} that a lower resolver returned`, async () => {
+      it(`passes the next resolver only the classes of ${form} that a lower resolver returned`, async () => {
         @Directive({selector: '[lower]', host: {'(class)': 'resolve()'}})
         class Lower {
           protected resolve() {
@@ -671,7 +726,6 @@ describe('(class) binding', () => {
           }
         }
 
-        // The class `c` shows that the lower resolver's result replaces the collected classes.
         @Component({
           imports: [Lower],
           template: `<div lower class="c" (class)="capture($event)"></div>`,
@@ -692,8 +746,6 @@ describe('(class) binding', () => {
     }
 
     it('calls a function that a lower resolver returned once with the same $event', async () => {
-      // One entry per run of the lower resolver: its `$event`, and each argument of the function
-      // it returned.
       const runs: Array<{sources: ClassSources; calls: unknown[]}> = [];
 
       @Directive({selector: '[lower]', host: {'(class)': 'resolve($event)'}})

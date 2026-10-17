@@ -105,8 +105,8 @@ function createComponentDefinitionMap(
     definitionMap.set('minVersion', o.literal('17.0.0'));
   }
 
-  // Set the minVersion to 22.3.0 if the component declares a class resolver in its host or its
-  // template. This runs after the blocks rule above, so that rule can't lower it.
+  // Checks the host again, because the blocks rule above overwrites the version that
+  // `createDirectiveDefinitionMap` set for a host class resolver.
   if (hasHostClassResolver(meta) || classResolverVisitor.hasClassResolver) {
     definitionMap.set('minVersion', o.literal('22.3.0'));
   }
@@ -298,8 +298,8 @@ class BlockPresenceVisitor extends RecursiveVisitor {
 }
 
 /**
- * Finds `(class)` outputs on elements, which compile to class resolvers. On `<ng-container>` and
- * `<ng-template>`, `(class)` stays a listener.
+ * Must flag the same `(class)` outputs as `isClassResolver` in the template pipeline's
+ * `ingest.ts`.
  */
 class ClassResolverPresenceVisitor extends RecursiveVisitor {
   hasClassResolver = false;
