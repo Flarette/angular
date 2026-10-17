@@ -472,3 +472,8 @@ Commit: `fix(compiler): require 22.3.0 to link class resolvers`
     only over-declare `22.3.0`. Selectorless components aren't ingested yet, so none is missed.
   - The `docs/DEFERRED.md` note about the blocks rule lowering `17.1.0` and `17.2.0` is allowed by
     the Protocol.
+- Comment cleanup (`47d9ec20eb`, fixup `a718e63f8d`): Codex 8.50 before the fixup. Product code
+  is identical with comments stripped. The fixup makes the emission spec run on `<ng-template>`
+  too, because the first `<ng-template>` spec never emitted. The sweep's claim that the `-1`
+  branch of `classSourceOf` is dead is wrong: two template `(class)` bindings on one element
+  reach it. `63619a7871` narrows the `ɵɵclassResolver` JSDoc for containers.
