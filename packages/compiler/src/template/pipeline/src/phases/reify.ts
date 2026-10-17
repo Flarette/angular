@@ -328,6 +328,10 @@ function reifyCreateOperations(unit: CompilationUnit, ops: ir.OpList<ir.CreateOp
             `Unexpected global target '${op.eventTarget}' defined for '${op.name}' event. Supported list of global targets: window,document,body.`,
           );
         }
+        if (op.isClassResolver) {
+          ir.OpList.replace(op, ng.classResolver(listenerFn, op.sourceSpan));
+          break;
+        }
         ir.OpList.replace(
           op,
           unit.job.mode === TemplateCompilationMode.DomOnly &&

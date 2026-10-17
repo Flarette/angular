@@ -245,6 +245,13 @@ export interface ClassSansProvider {
     useClass: Type<any>;
 }
 
+// @public
+export type ClassSources = readonly [
+component: readonly string[],
+directives: readonly string[],
+template: readonly string[]
+];
+
 // @public @deprecated
 export class Compiler {
     clearCache(): void;

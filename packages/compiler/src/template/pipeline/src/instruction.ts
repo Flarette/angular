@@ -235,6 +235,10 @@ export function listener(
   );
 }
 
+export function classResolver(handlerFn: o.Expression, sourceSpan: ParseSourceSpan): ir.CreateOp {
+  return call(Identifiers.classResolver, [handlerFn], sourceSpan);
+}
+
 export function twoWayBindingSet(target: o.Expression, value: o.Expression): o.Expression {
   return o.importExpr(Identifiers.twoWayBindingSet).callFn([target, value]);
 }

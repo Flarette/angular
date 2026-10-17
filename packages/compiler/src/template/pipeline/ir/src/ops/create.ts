@@ -1120,6 +1120,12 @@ export interface ListenerOp extends Op<CreateOp> {
    */
   eventTarget: string | null;
 
+  /**
+   * Whether this is a `(class)` binding on an element. Its handler computes the element's classes
+   * instead of reacting to an event.
+   */
+  isClassResolver: boolean;
+
   sourceSpan: ParseSourceSpan;
 }
 
@@ -1152,6 +1158,7 @@ export function createListenerOp(
     isLegacyAnimationListener: legacyAnimationPhase !== null,
     legacyAnimationPhase: legacyAnimationPhase,
     eventTarget,
+    isClassResolver: false,
     sourceSpan,
     ...NEW_OP,
   };

@@ -26,6 +26,7 @@ import {concatStringsWithSpace, stringify} from '../../util/stringify';
 import {assertFirstUpdatePass} from '../assert';
 import {bindingUpdated} from '../bindings';
 import {AttributeMarker} from '../interfaces/attribute_marker';
+import {TClassResolver} from '../interfaces/class_resolver';
 import {DirectiveDef} from '../interfaces/definition';
 import {TAttributes, TNode, TNodeFlags, TNodeType} from '../interfaces/node';
 import {Renderer} from '../interfaces/renderer';
@@ -42,6 +43,7 @@ import {LView, RENDERER, TData, TView} from '../interfaces/view';
 import {applyStyling} from '../node_manipulation';
 import {
   getCurrentDirectiveDef,
+  getCurrentDirectiveIndex,
   getLView,
   getSelectedIndex,
   getTView,
@@ -381,8 +383,37 @@ function stylingFirstUpdatePass(
       // We turn this into a noop by setting the key to `false`
       tStylingKey = false;
     }
+    if (isClassBased && tNode.classResolver !== null && tStylingKey !== false) {
+      registerClassResolverBinding(
+        tNode.classResolver,
+        isHostBindings ? getCurrentDirectiveIndex() : -1,
+        bindingIndex,
+      );
+    }
     tStylingKey = wrapInStaticStylingKey(tData, tNode, tStylingKey, isClassBased);
     insertTStylingBinding(tData, tNode, tStylingKey, bindingIndex, isHostBindings, isClassBased);
+  }
+}
+
+/**
+ * Records a class binding with the source that owns it, so that the element's `(class)` binding
+ * can group the binding's classes by source.
+ *
+ * @param tClassResolver Resolver data of the element.
+ * @param directiveIndex Index of the directive whose host binding this is, or `-1` for the
+ *     template.
+ * @param bindingIndex Index of the binding.
+ */
+function registerClassResolverBinding(
+  tClassResolver: TClassResolver,
+  directiveIndex: number,
+  bindingIndex: number,
+): void {
+  for (const segment of tClassResolver.segments) {
+    if (segment.directiveIndex === directiveIndex) {
+      segment.bindings.push(bindingIndex);
+      return;
+    }
   }
 }
 
@@ -891,6 +922,10 @@ function updateStyling(
   if (!(tNode.type & TNodeType.AnyRNode)) {
     // It is possible to have styling on non-elements (such as ng-container).
     // This is rare, but it does happen. In such a case, just ignore the binding.
+    return;
+  }
+  if (isClassBased && tNode.classResolver !== null) {
+    // The element's `(class)` binding applies the classes once all bindings have run.
     return;
   }
   const tData = tView.data;

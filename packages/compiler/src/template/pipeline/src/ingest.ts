@@ -269,7 +269,7 @@ function ingestHostEvent(job: HostBindingCompilationJob, event: e.ParsedEvent) {
         ? [null, event.targetOrPhase]
         : [event.targetOrPhase, null];
 
-    eventBinding = ir.createListenerOp(
+    const listenerOp = ir.createListenerOp(
       job.root.xref,
       new ir.SlotHandle(),
       event.name,
@@ -280,6 +280,10 @@ function ingestHostEvent(job: HostBindingCompilationJob, event: e.ParsedEvent) {
       true,
       event.sourceSpan,
     );
+    // `(class)` in host bindings computes the host element's classes.
+    listenerOp.isClassResolver =
+      event.name === 'class' && event.type === e.ParsedEventType.Regular && target === null;
+    eventBinding = listenerOp;
   }
   job.root.create.push(eventBinding);
 }
@@ -1643,19 +1647,26 @@ function ingestElementBindings(
         ),
       );
     } else {
-      unit.create.push(
-        ir.createListenerOp(
-          op.xref,
-          op.handle,
-          output.name,
-          op.tag,
-          makeListenerHandlerOps(unit, output.handler, output.handlerSpan),
-          output.phase,
-          output.target,
-          false,
-          output.sourceSpan,
-        ),
+      const listenerOp = ir.createListenerOp(
+        op.xref,
+        op.handle,
+        output.name,
+        op.tag,
+        makeListenerHandlerOps(unit, output.handler, output.handlerSpan),
+        output.phase,
+        output.target,
+        false,
+        output.sourceSpan,
       );
+      // `(class)` on an element computes the element's classes. Containers have no classes, so
+      // they keep listening to directive outputs.
+      listenerOp.isClassResolver =
+        op.kind === ir.OpKind.ElementStart &&
+        op.tag !== 'ng-container' &&
+        output.name === 'class' &&
+        output.type === e.ParsedEventType.Regular &&
+        output.target === null;
+      unit.create.push(listenerOp);
     }
   }
 

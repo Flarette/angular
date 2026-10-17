@@ -79,6 +79,8 @@ export class Identifiers {
 
   static classMap: o.ExternalReference = {name: 'ɵɵclassMap', moduleName: CORE};
 
+  static classResolver: o.ExternalReference = {name: 'ɵɵclassResolver', moduleName: CORE};
+
   static styleProp: o.ExternalReference = {name: 'ɵɵstyleProp', moduleName: CORE};
 
   static interpolate: o.ExternalReference = {

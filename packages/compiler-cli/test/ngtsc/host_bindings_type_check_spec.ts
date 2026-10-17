@@ -254,6 +254,31 @@ runInEachFileSystem(() => {
       expect(getDiagnosticSourceCode(diags[0])).toBe('$event');
     });
 
+    it('should infer the type of $event in a host (class) binding as ClassSources', () => {
+      env.write(
+        'test.ts',
+        `
+        import {Component} from '@angular/core';
+
+        @Component({
+          template: '',
+          selector: 'ui-button',
+          host: {'(class)': 'resolve($event)'},
+        })
+        export class Comp {
+          resolve(value: number) { return ''; }
+        }
+      `,
+      );
+
+      const diags = env.driveDiagnostics();
+      expect(diags.length).toBe(1);
+      expect(diags[0].messageText).toBe(
+        `Argument of type 'ClassSources' is not assignable to parameter of type 'number'.`,
+      );
+      expect(getDiagnosticSourceCode(diags[0])).toBe('$event');
+    });
+
     it('should check @HostListener with a target', () => {
       env.write(
         'test.ts',

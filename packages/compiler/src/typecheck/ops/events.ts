@@ -7,7 +7,7 @@
  */
 
 import {AST, ImplicitReceiver, ParsedEventType, PropertyRead} from '../../expression_parser/ast';
-import {BoundAttribute, BoundEvent, Element} from '../../render3/r3_ast';
+import {BoundAttribute, BoundEvent, Element, HostElement} from '../../render3/r3_ast';
 import {DirectiveOwner} from '../../render3/view/t2_api';
 import {TcbOp} from './base';
 import {getStatementsBlock, TcbExpr} from './codegen';
@@ -160,6 +160,22 @@ export class TcbUnclaimedOutputsOp extends TcbOp {
           // Skip this event handler as the error was already handled.
           continue;
         }
+      }
+
+      if (
+        ((this.target instanceof Element && this.target.name !== 'ng-container') ||
+          this.target instanceof HostElement) &&
+        output.name === 'class' &&
+        output.type === ParsedEventType.Regular &&
+        output.target === null
+      ) {
+        // `(class)` computes the element's classes from the `ClassSources` passed as `$event`.
+        const eventType = this.tcb.env.config.checkTypeOfOutputEvents
+          ? this.tcb.env.referenceExternalSymbol('@angular/core', 'ClassSources').print()
+          : EventParamType.Any;
+        const handler = tcbCreateEventHandler(output, this.tcb, this.scope, eventType);
+        this.scope.addStatement(handler);
+        continue;
       }
 
       if (

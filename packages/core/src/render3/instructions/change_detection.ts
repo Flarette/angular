@@ -80,6 +80,7 @@ import {
   viewAttachedToChangeDetector,
 } from '../util/view_utils';
 
+import {refreshClassResolvers} from './class_resolver';
 import {executeTemplate} from './shared';
 
 /**
@@ -300,6 +301,11 @@ export function refreshView<T>(
     }
 
     processHostBindingOpCodes(tView, lView);
+
+    // Classes computed by `(class)` bindings depend on both template and host bindings.
+    if (tView.classResolvers !== null && !isInCheckNoChangesPass) {
+      refreshClassResolvers(tView, lView);
+    }
 
     // Refresh child component views.
     const components = tView.components;

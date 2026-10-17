@@ -842,6 +842,13 @@ export interface TView {
   components: number[] | null;
 
   /**
+   * A list of element indices whose classes are computed by a `(class)` binding. The classes are
+   * resolved after the view's host bindings have run. These indices have already been adjusted for
+   * the HEADER_OFFSET.
+   */
+  classResolvers: number[] | null;
+
+  /**
    * A collection of queries tracked in a given view.
    */
   queries: TQueries | null;

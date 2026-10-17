@@ -1181,6 +1181,41 @@ runInEachFileSystem(() => {
       });
     });
 
+    describe('strictOutputEventTypes and (class) bindings', () => {
+      beforeEach(() => {
+        env.write(
+          'test.ts',
+          `
+          import {ClassSources, Component} from '@angular/core';
+
+          @Component({
+            selector: 'test',
+            template: '<div (class)="resolve($event)"></div><span (class)="count($event)"></span>',
+          })
+          class TestCmp {
+            resolve(sources: ClassSources) { return ''; }
+            count(value: number) { return ''; }
+          }
+        `,
+        );
+      });
+
+      it('should infer the type of $event as ClassSources when enabled', () => {
+        env.tsconfig({strictTemplates: true});
+
+        const diags = env.driveDiagnostics();
+        expect(diags.map((diag) => diag.messageText)).toEqual([
+          `Argument of type 'ClassSources' is not assignable to parameter of type 'number'.`,
+        ]);
+      });
+
+      it('should not infer the type of $event when not enabled', () => {
+        env.tsconfig({strictTemplates: true, strictOutputEventTypes: false});
+
+        expect(env.driveDiagnostics()).toEqual([]);
+      });
+    });
+
     describe('strictOutputEventTypes and animation event bindings', () => {
       beforeEach(() => {
         env.write(
