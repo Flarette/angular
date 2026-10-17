@@ -24,7 +24,7 @@ import {RElement} from '../interfaces/renderer_dom';
 import {TStylingKey} from '../interfaces/styling';
 import {LView, OpaqueViewState, RENDERER, TData, TView} from '../interfaces/view';
 import {applyStyling} from '../node_manipulation';
-import {getCurrentTNode, getLView, getTView, ɵɵrestoreView} from '../state';
+import {getCurrentTNode, getLView, getTView, wasLastNodeCreated, ɵɵrestoreView} from '../state';
 import {NO_CHANGE} from '../tokens';
 import {getNativeByTNode} from '../util/view_utils';
 import {allocExpando} from '../view/construction';
@@ -59,8 +59,21 @@ export function ɵɵclassResolver(resolverFn: ClassResolverFn): typeof ɵɵclass
   const tClassResolver = tNode.classResolver;
   if (tClassResolver === null) {
     listenerInternal(tView, lView, lView[RENDERER], tNode, 'class', resolverFn);
-  } else {
-    lView[tClassResolver.index] = resolverFn;
+    return ɵɵclassResolver;
+  }
+  lView[tClassResolver.index] = resolverFn;
+  const appliedIndex = tClassResolver.index + 1;
+  if (!wasLastNodeCreated() && tNode.classes === null && lView[appliedIndex] === null) {
+    // Hydration claimed the element. With static classes, the `class` attribute was rewritten to
+    // them, which is where the first resolution starts anyway. Without them, the element keeps the
+    // classes that the server resolved, so start from those and remove the ones that only the
+    // server resolved. This also removes classes that a directive's constructor added.
+    const element = getNativeByTNode(tNode, lView) as RElement;
+    lView[appliedIndex] = toStylingKeyValueArray(
+      classKeyValueArraySet,
+      classStringParser,
+      element.getAttribute('class'),
+    );
   }
   return ɵɵclassResolver;
 }
@@ -241,7 +254,8 @@ function applyResolvedClasses(
     classStringParser,
     resolved as string | string[] | Set<string> | {[key: string]: unknown} | null | undefined,
   );
-  // Before the first resolution the element has the static classes from all sources.
+  // Before the first resolution, an element that wasn't hydrated has the static classes from all
+  // sources. `ɵɵclassResolver` records the classes of a hydrated element instead.
   const previous =
     (lView[appliedIndex] as KeyValueArray<unknown> | null) ??
     (tNode.classes === null
