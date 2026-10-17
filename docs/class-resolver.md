@@ -1,8 +1,13 @@
 # Design: resolve an element's classes with a `(class)` binding
 
-Status: prototype on branch `feat/class-resolver`. Not pushed.
+Status: prototype on branch `feat/class-resolver`. Not pushed. The proposal, with the decision log,
+the alternatives considered, and the open questions about several resolvers on one element, is in
+[`proposal.md`](../proposal.md).
 
-Decisions confirmed on 2026-10-17:
+Decisions confirmed on 2026-10-17. This document describes the prototype as built. Later decisions
+of the same day, listed in the proposal, change two of these once
+[`class-resolver-plan.md`](class-resolver-plan.md) is implemented: only a template `(class)` falls
+back to a listener next to a `class` output, and a resolver can run the one it replaced.
 
 - `ClassSources` is three fixed arrays of class names, `[component, directives, template]`, with
   directives flattened, no `static`, and no grouping per binding.
@@ -281,10 +286,10 @@ Naming the resolver `(classChange)` would create the collision this question tri
 `ClassSources` array in `value` and apply that array as classes.
 
 There's no good use case for two-way binding of the resolved string. Writing it back into the value
-that feeds `[class]` loops within one change detection: resolve, assign, `[class]` changes, resolve
-again. In dev mode that throws `NG0100`. The only non-looping need is observing the final classes,
-for example to mirror them on an overlay panel. That's a read-only event, and `afterRenderEffect` can
-read `element.className` today.
+that feeds `[class]` doesn't loop, because the handler runs while Angular renders: a signal write
+throws `NG0600`, and a plain field leaves the element out of date until the next refresh. The only
+other need is observing the final classes, for example to mirror them on an overlay panel. That's a
+read-only event, and `afterRenderEffect` can read `element.className` today.
 
 Recommendation: keep `(class)`. Don't reserve `[(class)]` or `(classChange)`.
 
@@ -301,21 +306,21 @@ Yes, a resolver should change this, and the prototype does so without losing the
 
 ## Other edge cases
 
-| Case                                                                             | Prototype behavior                                                                                                                                                                                                                                                                                                                                                                                                    |
-| -------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| A higher-priority binding turns a class off                                      | The class is absent from every slot, as today.                                                                                                                                                                                                                                                                                                                                                                        |
-| A higher-priority binding turns a class on again                                 | The class moves to that binding's slot and position. `<ui-button class="px-4" [class.px-2]="true">` over a host `px-2` gives `[[], [], ['px-4', 'px-2']]`.                                                                                                                                                                                                                                                            |
-| Classes added outside bindings: `Renderer2.addClass`, `NgClass`, animations, CDK | They stay on the element, because Angular applies a diff and touches only the classes it applied. They aren't in `$event`, so `cn` can't resolve conflicts with them. Prefer `[class]` over `[ngClass]` on these elements.                                                                                                                                                                                            |
-| Order inside one `[class]` value                                                 | Not preserved. Angular normalizes a `[class]` value into a sorted key-value array, so conflicts inside one binding resolve alphabetically.                                                                                                                                                                                                                                                                            |
-| The handler returns nested arrays                                                | Applied like `[class]`, which doesn't flatten: `[['a', 'b']]` becomes the class `a,b`. Return `cn(…)` or a flat array.                                                                                                                                                                                                                                                                                                |
-| A directive with `input({alias: 'class'})`, the pattern spartan-ng uses          | The template's `[class]` feeds that input, so it isn't a source. The template's static `class` is still a source; it's also on the DOM today. Covered by a spec.                                                                                                                                                                                                                                                      |
-| `<ng-container>` and `<ng-template>`                                             | `(class)` stays a listener, because there's no element to style.                                                                                                                                                                                                                                                                                                                                                      |
-| Embedded views (`@if`, `@for`)                                                   | Each view resolves its own elements after its host bindings. The handler reads that view's context, such as the `@for` item.                                                                                                                                                                                                                                                                                          |
-| State that the handler reads                                                     | The handler runs on every refresh of the view that declares the element, after host bindings. Signals read inside it are tracked, so a change schedules a refresh.                                                                                                                                                                                                                                                    |
-| Template and host `(class)` on one element                                       | The template's handler wins. Between host handlers, the later directive wins.                                                                                                                                                                                                                                                                                                                                         |
-| Dev-mode `checkNoChanges` pass                                                   | Skipped. The prototype doesn't verify that the handler is stable.                                                                                                                                                                                                                                                                                                                                                     |
-| Server rendering and hydration                                                   | Handled. Hydration rewrites a claimed element's `class` attribute to its static classes, and the first resolution starts from them, so classes that only the server resolved are removed. An element without static classes keeps the server's attribute, so its first resolution starts from the classes it has. That also removes classes a directive's constructor added to such an element. Covered by two specs. |
-| Performance                                                                      | No cost for elements without `(class)`: one null check per class binding update and one per view refresh. Per handler, per refresh: one `Map` over the element's classes, one call, and one sorted diff. `tailwind-merge` caches results by input string.                                                                                                                                                             |
+| Case                                                                             | Prototype behavior                                                                                                                                                                                                                                                                                                                                                                                                                                                            |
+| -------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| A higher-priority binding turns a class off                                      | The class is absent from every slot, as today.                                                                                                                                                                                                                                                                                                                                                                                                                                |
+| A higher-priority binding turns a class on again                                 | The class moves to that binding's slot and position. `<ui-button class="px-4" [class.px-2]="true">` over a host `px-2` gives `[[], [], ['px-4', 'px-2']]`.                                                                                                                                                                                                                                                                                                                    |
+| Classes added outside bindings: `Renderer2.addClass`, `NgClass`, animations, CDK | They stay on the element, because Angular applies a diff and touches only the classes it applied. They aren't in `$event`, so `cn` can't resolve conflicts with them. Prefer `[class]` over `[ngClass]` on these elements.                                                                                                                                                                                                                                                    |
+| Order inside one `[class]` value                                                 | Not preserved. Angular normalizes a `[class]` value into a sorted key-value array, so conflicts inside one binding resolve alphabetically.                                                                                                                                                                                                                                                                                                                                    |
+| The handler returns nested arrays                                                | Applied like `[class]`, which doesn't flatten: `[['a', 'b']]` becomes the class `a,b`. Return `cn(…)` or a flat array.                                                                                                                                                                                                                                                                                                                                                        |
+| A directive with `input({alias: 'class'})`, the pattern spartan-ng uses          | The template's `[class]` feeds that input, so it isn't a source. The template's static `class` is still a source; it's also on the DOM today. Covered by a spec.                                                                                                                                                                                                                                                                                                              |
+| `<ng-container>` and `<ng-template>`                                             | `(class)` stays a listener, because there's no element to style.                                                                                                                                                                                                                                                                                                                                                                                                              |
+| Embedded views (`@if`, `@for`)                                                   | Each view resolves its own elements after its host bindings. The handler reads that view's context, such as the `@for` item.                                                                                                                                                                                                                                                                                                                                                  |
+| State that the handler reads                                                     | The handler runs on every refresh of the view that declares the element, after host bindings. Signals read inside it are tracked, so a change schedules a refresh. Writing a signal inside it throws `NG0600`. Writing a plain field that the element's own bindings read leaves the element out of date: silently in an `OnPush` view, the default, and as `NG0100` in an `Eager` view or with exhaustive `checkNoChanges`.                                                  |
+| Several `(class)` resolvers on one element                                       | Only one runs: the template's, else the attribute directive matched last (match order follows `imports` order), else the component's, else one of its host directives'. `@HostListener('class')` replaces `host: {'(class)': …}` on the same class. If any directive on the element has an output named `class`, every registration becomes a listener on it. Measured in the proposal's [Several resolvers on one element](../proposal.md#several-resolvers-on-one-element). |
+| Dev-mode `checkNoChanges` pass                                                   | Skipped. The prototype doesn't verify that the handler is stable.                                                                                                                                                                                                                                                                                                                                                                                                             |
+| Server rendering and hydration                                                   | Handled. Hydration rewrites a claimed element's `class` attribute to its static classes, and the first resolution starts from them, so classes that only the server resolved are removed. An element without static classes keeps the server's attribute, so its first resolution starts from the classes it has. That also removes classes a directive's constructor added to such an element. Covered by two specs.                                                         |
+| Performance                                                                      | No cost for elements without `(class)`: one null check per class binding update and one per view refresh. Per handler, per refresh: one `Map` over the element's classes, one call, and one sorted diff. `tailwind-merge` caches results by input string.                                                                                                                                                                                                                     |
 
 ## Alternatives
 
@@ -388,9 +393,10 @@ Two extended diagnostics change:
 ### Tests
 
 [`class_resolver_spec.ts`](../packages/core/test/acceptance/class_resolver/class_resolver_spec.ts) runs
-16 specs through TestBed and the JIT compiler, with a stand-in `cn`. Each spec owns one rule.
+25 specs through TestBed and the JIT compiler, with a stand-in `cn`. Each spec owns one rule.
 Mutating each rule fails the spec that owns it. These mutation runs predate the 16th spec, which
-covers an input named `class`.
+covers an input named `class`, and the nine specs that measure several resolvers on one element and
+a handler that writes state.
 
 | Mutation                                                      | Failing specs |
 | ------------------------------------------------------------- | ------------- |
@@ -416,6 +422,14 @@ Run the runtime tests with:
 pnpm bazel test //packages/core/test/acceptance/class_resolver:class_resolver
 ```
 
+The compliance cases in
+[`r3_view_compiler_class_resolver`](../packages/compiler-cli/test/compliance/test_cases/r3_view_compiler_class_resolver)
+check the generated code: `(class)` on an element and on a component, an arrow function,
+`<ng-container>`, host `(class)`, and `@HostListener('class')` next to `host: {'(class)': …}`. They
+pass in full, linked, declaration-only, and instruction compilation, the partial golden is checked
+in, and they pass unchanged on the `ngp` variants of those targets and in the preprocessor's own
+compliance suite.
+
 ### Regression runs
 
 These existing suites pass with the change:
@@ -433,17 +447,18 @@ These existing suites pass with the change:
 
 ## Not done
 
-- Golden compliance tests for AOT and partial (linker) output.
-- Code generation on the fork's `ngp` backend. Its type checking passes the new specs, and it
-  reuses `@angular/compiler` for code generation, but the `ngp` compliance suites weren't run.
-- Root components (a bootstrapped host with a host `(class)` binding) and `@HostListener('class')`.
+- Raising the partial declaration's `minVersion` when a template or host binding uses `(class)`, so
+  an older linker can't compile it as a listener. Templates with blocks already raise it to
+  `17.0.0`.
+- Root components (a bootstrapped host with a host `(class)` binding).
 - Checking the handler's return type.
 - `classResolverShadowedByOutput` for a host-level `(class)` binding, or for an output that
   `hostDirectives` exposes under the alias `class`. Those cases rely on the runtime `NG0319`
   warning alone.
-- `classResolverShadowedByOutput` on the `ngp` backend. That backend's test harness doesn't report
-  the directives on an element yet, so the spec is listed in `ngp_known_failures.ts`, like other
-  checks that need that lookup.
+- `classResolverShadowedByOutput` on the `ngp` backend. The preprocessor doesn't run ngtsc's
+  extended diagnostics; it implements two of them itself. The spec is listed in
+  `ngp_known_failures.ts`, like the specs of other extended checks that expect a diagnostic. No change
+  is planned there, because the preprocessor doesn't accept external contributions.
 - Language service support for `$event` in `(class)`.
 - Verifying handler stability in the `checkNoChanges` pass.
 - A `(style)` counterpart.
