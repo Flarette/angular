@@ -1,9 +1,9 @@
 # Proposal: resolve an element's classes with a `(class)` binding
 
 Status: prototype on the `feat/class-resolver` branch of the Flarette/angular fork. Not pushed. The
-decisions dated 2026-10-17 about several resolvers on one element and about partial compilation
-aren't implemented yet. Implementation notes, the worked example, and the test inventory are in
-[`docs/class-resolver.md`](docs/class-resolver.md).
+decisions dated 2026-10-17 about several resolvers on one element and about partial compilation are
+being implemented on the `feat/class-resolver-decisions` branch. Implementation notes, the worked
+example, and the test inventory are in [`docs/class-resolver.md`](docs/class-resolver.md).
 
 ## Summary
 
@@ -22,19 +22,19 @@ order of rules in the stylesheet.
 
 ## Decisions
 
-| Date       | Decision                                                                                                                                                                                                                                                                                                                                         |
-| ---------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
-| 2026-10-17 | `$event` is `ClassSources`: three arrays of class names, `[component, directives, template]`. Directives share one slot. There's no `static` field and no split between static and bound classes. Reconfirmed after [Should bound classes always win over static ones?](#should-bound-classes-always-win-over-static-ones).                      |
-| 2026-10-17 | A component can resolve its own host element's classes with `host: {'(class)': …}` or `@HostListener('class')`. A template `(class)` replaces it.                                                                                                                                                                                                |
-| 2026-10-17 | The handler runs on every refresh of the view that declares the element.                                                                                                                                                                                                                                                                         |
-| 2026-10-17 | Hydration starts the first resolution from the element's current classes when the element has no static classes.                                                                                                                                                                                                                                 |
-| 2026-10-17 | One resolver runs per element, chosen by priority. It can run the resolver it replaced with `$event.inherited()`, or a named directive's resolver with `$event.inherited(Directive)`. See [Delegation](#delegation-with-eventinherited).                                                                                                         |
-| 2026-10-17 | Dev mode warns with `NG0320` when a directive's or component's resolver never runs because another directive's resolver replaced it without delegating. A template that replaces a resolver, and a component that replaces its own host directive's, stay silent. See [Warning when a resolver never runs](#warning-when-a-resolver-never-runs). |
-| 2026-10-17 | Host-level `(class)` always resolves. Only a template `(class)` next to a directive output named `class` falls back to a listener, with the dev-mode warning `NG0319` and the extended diagnostic `NG8119`. See [Directive outputs named `class`](#directive-outputs-named-class).                                                               |
-| 2026-10-17 | No app-wide controls in core for now. App-wide default resolvers are open for comments; see [Request for comments](#request-for-comments).                                                                                                                                                                                                       |
-| 2026-10-17 | A partial declaration whose template or host uses `(class)` declares `minVersion: "22.3.0"`. See [Libraries compiled in partial mode](#libraries-compiled-in-partial-mode).                                                                                                                                                                      |
-| 2026-10-17 | The Rust compiler preprocessor (`packages/compiler-cli/preprocessor`) doesn't change, because it doesn't accept external contributions.                                                                                                                                                                                                          |
-| 2026-10-17 | Compliance (golden) tests target the TypeScript compiler.                                                                                                                                                                                                                                                                                        |
+| Date       | Decision                                                                                                                                                                                                                                                                                                                                           |
+| ---------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| 2026-10-17 | `$event` is `ClassSources`: three arrays of class names, `[component, directives, template]`. Directives share one slot. There's no `static` field and no split between static and bound classes. Reconfirmed after [Should bound classes always win over static ones?](#should-bound-classes-always-win-over-static-ones).                        |
+| 2026-10-17 | A component can resolve its own host element's classes with `host: {'(class)': …}` or `@HostListener('class')`. A template `(class)` receives its result.                                                                                                                                                                                          |
+| 2026-10-17 | The handler runs on every refresh of the view that declares the element.                                                                                                                                                                                                                                                                           |
+| 2026-10-17 | Hydration starts the first resolution from the element's current classes when the element has no static classes.                                                                                                                                                                                                                                   |
+| 2026-10-17 | Every resolver on an element runs, from the lowest to the highest priority. Each one receives the previous result folded back into `ClassSources` by origin, so `cn($event)` keeps what lower resolvers added or removed. See [Folding several resolvers](#folding-several-resolvers).                                                             |
+| 2026-10-17 | `$event.inherited()`, `$event.inherited(Directive)`, and the `NG0320` warning are withdrawn in favor of the fold. A directive argument would depend on match order, which consumers can't see. A consumer who wants to drop a class that a lower resolver added filters `$event`. See [Combining several resolvers](#combining-several-resolvers). |
+| 2026-10-17 | Host-level `(class)` always resolves. Only a template `(class)` next to a directive output named `class` falls back to a listener, with the dev-mode warning `NG0319` and the extended diagnostic `NG8119`. See [Directive outputs named `class`](#directive-outputs-named-class).                                                                 |
+| 2026-10-17 | No app-wide controls in core for now. App-wide default resolvers are open for comments; see [Request for comments](#request-for-comments).                                                                                                                                                                                                         |
+| 2026-10-17 | A partial declaration whose template or host uses `(class)` declares `minVersion: "22.3.0"`. See [Libraries compiled in partial mode](#libraries-compiled-in-partial-mode).                                                                                                                                                                        |
+| 2026-10-17 | The Rust compiler preprocessor (`packages/compiler-cli/preprocessor`) doesn't change, because it doesn't accept external contributions.                                                                                                                                                                                                            |
+| 2026-10-17 | Compliance (golden) tests target the TypeScript compiler.                                                                                                                                                                                                                                                                                          |
 
 No open questions remain for the prototype. The [Request for comments](#request-for-comments) asks
 about the directions after it.
@@ -116,7 +116,7 @@ host listener per event name, so a `@HostListener('class')` replaces a `host: {'
 same class.
 
 On `<ng-container>` and `<ng-template>`, `(class)` stays a plain listener, because there's no
-element to style.
+element to style. That includes a directive's host `(class)` when the directive matches one of them.
 
 ### The payload
 
@@ -125,14 +125,7 @@ export type ClassSources = readonly [
   component: readonly string[],
   directives: readonly string[],
   template: readonly string[],
-] & {
-  /**
-   * Runs the resolver that this one replaced on the element, with the same sources, and returns the
-   * class names it resolved. Without such a resolver, returns the class names the element would
-   * have without resolution. With a directive type, runs that directive's resolver instead.
-   */
-  inherited(directive?: Type<unknown>): string[];
-};
+];
 ```
 
 Angular builds the payload with these rules:
@@ -150,7 +143,11 @@ Angular builds the payload with these rules:
    existing rules for one class name.
 
 `cn($event)` works without spreading, because `clsx` and `tailwind-merge` flatten nested arrays at
-any depth. `inherited` is a method, not an array element, so `cn` and spreading ignore it.
+any depth. A plain array literal is a valid `ClassSources`, so a unit test can call a resolver
+method directly with `[['px-4'], [], ['px-2']]`.
+
+When several resolvers apply to the element, every one after the lowest receives the previous
+result in this same shape. See [Folding several resolvers](#folding-several-resolvers).
 
 ### When the handler runs
 
@@ -262,7 +259,7 @@ Four parties can declare a resolver for the same element:
 | A host directive                   | `hostDirectives: [Dir]`, where `Dir` declares a host resolver | The component author                            |
 | An attribute directive             | Matched in the consumer's template                            | Its author; the consumer applies and imports it |
 
-#### Measured behavior before delegation
+#### Measured behavior before the fold
 
 The specs under `with several resolvers on one element` in
 [`class_resolver_spec.ts`](packages/core/test/acceptance/class_resolver/class_resolver_spec.ts)
@@ -283,32 +280,28 @@ decisions in this section and in [Directive outputs named `class`](#directive-ou
 change the first and last rows. [Combining several resolvers](#combining-several-resolvers)
 compares the options.
 
-#### Delegation with `$event.inherited()`
+#### Folding several resolvers
 
-The highest-priority resolver still runs alone, but it can run the resolver it replaced:
+Every resolver on the element runs on each refresh, from the lowest to the highest priority: the
+component's host directives, the component, attribute directives in match order, then the template.
 
-- `inherited()` runs the resolver that this one replaced, with the same sources. The lowest
-  resolver gets the classes the element would have without any resolution.
-- `inherited(Tooltip)` runs the resolver of one specific directive on the element, which must rank
-  below the caller. This lets a consumer choose between host-level resolvers, a choice that only
-  `imports` order made before. It reports `NG0321` if that directive declares no resolver below the
-  caller. Templates can't reference classes directly, so the component exposes the directive type
-  as a field, as it does for `cn`.
-- Angular normalizes the result to the class names it would apply. It calls a returned function
-  with the sources, splits strings, and reads a `Set` or an object map. `cn($event.inherited())`
-  then works whatever the replaced resolver returns. Without normalization, `clsx` would drop a
-  `Set`.
-- The method isn't named `next`, because an array with a `next` method looks like an iterator to
-  code that detects iterators by duck typing.
-- It costs nothing when unused: Angular builds a lower resolver's payload only when `inherited()`
-  asks for it.
+- The lowest resolver receives the sources as Angular collected them.
+- Each later resolver receives the previous result folded back into `ClassSources`:
+  - A class keeps the source it had in the previous payload.
+  - A class that the previous resolver added goes to that resolver's own source: the component's
+    for the component and its host directives, the directives' for other directives.
+  - A class that the previous resolver left out is gone.
+- The highest resolver's result becomes the element's classes.
+- Before folding a result, Angular reads it as class names: it calls a returned function with the
+  same sources, splits strings, and reads arrays, `Set`s, and object maps. Any other value gives no
+  classes.
 
 Starting point: a library component adds a state class in its own resolver.
 
 ```ts
 @Component({
   selector: 'ui-button',
-  host: {'(class)': 'resolve($event)'},
+  host: {class: 'inline-flex h-9 px-4 bg-primary', '(class)': 'resolve($event)'},
   template: '<ng-content />',
 })
 export class UiButton {
@@ -320,66 +313,62 @@ export class UiButton {
 }
 ```
 
-Before: a consumer's `(class)` replaces UiButton's resolver, and `bg-muted` is lost.
-
 ```html
-<ui-button [disabled]="true" (class)="cn($event, 'shadow-lg')" />
+<ui-button [disabled]="true" class="px-2 bg-red-600" (class)="cn($event, 'shadow-lg')" />
 ```
-
-After: the consumer can extend it instead. The result is UiButton's classes, including `bg-muted`,
-then `shadow-lg`.
-
-```html
-<ui-button [disabled]="true" (class)="cn($event.inherited(), 'shadow-lg')" />
-```
-
-#### Warning when a resolver never runs
-
-In dev mode, Angular logs `NG0320` once per element when a directive's or component's resolver never
-runs because another directive's resolver replaced it without calling `inherited()`. Two cases stay
-silent, because their authors replace the resolver on purpose:
-
-- A template that replaces a resolver: the consumer wrote that binding.
-- A component that replaces the resolver of one of its own host directives: the component author
-  chose that host directive.
-
-  ```ts
-  @Directive({host: {'(class)': 'cn($event)'}})
-  class Elevated {}
-
-  @Component({selector: 'ui-card', hostDirectives: [Elevated], host: {'(class)': 'cn($event)'}})
-  class UiCard {}
-  ```
-
-  `<ui-card />` runs `UiCard`'s resolver and logs nothing about `Elevated`.
-
-Starting point: `<ui-button tooltip ring />`, where `UiButton` from the previous section,
-`Tooltip`, and `Ring` declare host resolvers, imported in that order.
-
-Before: Ring's resolver runs, and the resolvers of UiButton and Tooltip silently never do.
 
 ```text
-(no output)
+collected sources: [['inline-flex', 'h-9', 'px-4', 'bg-primary'], [], ['px-2', 'bg-red-600']]
 ```
 
-After:
+Before the fold: only the consumer's resolver runs, and `bg-muted` is lost.
 
 ```text
-NG0320: The class resolver of UiButton on <ui-button> never runs, because the class resolver of Ring replaces it without calling $event.inherited().
-NG0320: The class resolver of Tooltip on <ui-button> never runs, because the class resolver of Ring replaces it without calling $event.inherited().
+consumer's cn: inline-flex h-9 px-2 bg-red-600 shadow-lg
 ```
+
+With it, the consumer's template doesn't change:
+
+```text
+UiButton's cn:    inline-flex h-9 px-2 bg-muted
+folded:           [['inline-flex', 'h-9', 'bg-muted'], [], ['px-2']]
+consumer's cn:    inline-flex h-9 bg-muted px-2 shadow-lg
+```
+
+Two side effects follow from folding by origin:
+
+- A lower resolver beats a higher source only by removing that source's class, as `cn` does.
+  Appending its own class isn't enough, because the class folds into the resolver's own source,
+  below the higher one. In the example, `bg-muted` survives because UiButton's `cn` removed
+  `bg-red-600`. A resolver that returned `[...sources.flat(), 'bg-muted']` would leave both classes,
+  and the consumer's `cn` would keep `bg-red-600`.
+- Match order no longer decides whether a resolver runs, only which one merges last. That's how
+  conflicting `[class.x]` bindings from different directives already behave.
+
+Every resolver runs on every refresh, so an element with three resolvers makes three calls instead
+of one. This cost isn't measured yet. `tailwind-merge` caches its results by input string.
 
 #### Consumer controls
 
-- At the call site, `$event.inherited()` and `$event.inherited(Directive)` decide whether a
-  resolver replaces or extends the ones below it, and which one it extends.
+- At the call site, a consumer's `(class)` receives what the lower resolvers resolved. To drop a
+  class that one of them added, the consumer filters `$event`:
+
+  ```html
+  <ui-button [disabled]="true" (class)="cn(without($event, 'opacity-50'))" />
+  ```
+
+  Here `without` is the consumer's own helper that removes a class name from each source.
+
 - In userland, a consumer can import a marker directive, such as one with the selector `[cn]` and a
-  host resolver, and add its attribute to each element that should resolve. It ranks as a directive,
-  so it replaces the component's resolver unless it calls `inherited()`.
+  host resolver, and add its attribute to each element that should resolve. It ranks as a
+  directive, so it runs after the component's resolver and receives its result.
 - App-wide defaults aren't part of this proposal. The [Request for comments](#request-for-comments)
   covers them.
 
-Two other controls were rejected:
+Three other controls were rejected:
+
+- A switch that makes one resolver replace the ones below it instead of receiving their result. No
+  use case needs it yet; filtering `$event` covers removing classes.
 
 - An app-level policy for how several resolvers combine. The same template would behave differently
   per app, so libraries couldn't rely on either behavior.
@@ -547,18 +536,33 @@ host: {class: 'bg-primary', '(class)': 'cn($event, disabled() && "bg-muted")'}
 // 'bg-muted' while disabled
 ```
 
-With [delegation](#delegation-with-eventinherited), a consumer who adds their own `(class)` can keep
-such a state class by calling `$event.inherited()`.
+With the [fold](#folding-several-resolvers), a consumer who adds their own `(class)` keeps such a
+state class, because their resolver receives the component's result.
 
 ### Combining several resolvers
 
-| Option              | Behavior                                                                                             | Strengths                                                                     | Why it lost, or why it won                                                                                                                                                           |
-| ------------------- | ---------------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
-| Replace             | The highest-priority registration runs.                                                              | One call per refresh. A consumer override is one binding.                     | Lost: silent; ties between directives depend on `imports` order; logic in a replaced resolver, such as a state class it adds, is lost.                                               |
-| Race                | Every resolver runs and applies its own result.                                                      | None.                                                                         | Lost: each diff removes the classes that the others applied, so the result depends on run order.                                                                                     |
-| Queue               | Every resolver runs in priority order, and each receives the previous result.                        | Every resolver's logic applies.                                               | Lost: a resolver reads the whole element, so the previous result has no slot in `ClassSources`, and every resolver runs on every refresh, even when the last one ignores the others. |
-| Exclusive           | More than one resolver on an element is an error.                                                    | Unambiguous.                                                                  | Lost: a consumer couldn't override a library component.                                                                                                                              |
-| Delegation (chosen) | The highest-priority resolver runs, and it can call `$event.inherited()` to run the one it replaced. | Explicit. Costs nothing when unused. Authors who delegate get queue behavior. | Won. Its costs are a new method on the payload and one winner by default.                                                                                                            |
+| Option                               | Behavior                                                                                                                                                  | Strengths                                                               | Why it lost, or why it won                                                                                                                                                                                                                                                                                               |
+| ------------------------------------ | --------------------------------------------------------------------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| Replace                              | The highest-priority registration runs.                                                                                                                   | One call per refresh. A consumer override is one binding.               | Lost: silent; ties between directives depend on `imports` order; logic in a replaced resolver, such as a state class it adds, is lost.                                                                                                                                                                                   |
+| Race                                 | Every resolver runs and applies its own result.                                                                                                           | None.                                                                   | Lost: each diff removes the classes that the others applied, so the result depends on run order.                                                                                                                                                                                                                         |
+| Queue with a flat result             | Every resolver runs in priority order, and each receives the previous result as one list.                                                                 | Every resolver's logic applies.                                         | Lost: the list has no slot in `ClassSources`. Passing it as `[[...result], [], []]` would credit every class to the component.                                                                                                                                                                                           |
+| Exclusive                            | More than one resolver on an element is an error.                                                                                                         | Unambiguous.                                                            | Lost: a consumer couldn't override a library component.                                                                                                                                                                                                                                                                  |
+| Delegation with `$event.inherited()` | The highest-priority resolver runs, and it can call `$event.inherited()` to run the one it replaced, or `$event.inherited(Directive)` to run a named one. | Explicit. Costs nothing when unused.                                    | Lost: the default `cn($event)` still drops lower resolvers' logic, so it needed the `NG0320` warning. `inherited(Directive)` worked only for a directive that ranked below the caller, which depends on match order that consumers can't see. A required method made a plain array fail to type-check as `ClassSources`. |
+| Fold by origin (chosen)              | Every resolver runs in priority order, and each receives the previous result folded back into `ClassSources`.                                             | Every resolver's logic applies by default. One type. No warning needed. | Won. Its costs are a call per resolver on every refresh, and a lower resolver can beat a higher source only by removing that source's class.                                                                                                                                                                             |
+
+Delegation and the fold give the same classes when the lower resolver merges with `cn`. They differ
+when it appends a class without merging. Starting point: a component with `host: {class:
+'bg-primary'}` whose resolver returns `[...sources.flat(), 'bg-muted']`, used as `<ui-button
+class="bg-red-600" (class)="…" />`. Measured with `clsx` 2.1.1 and `tailwind-merge` 3.7.0:
+
+```text
+replace,    (class)="cn($event)":             bg-red-600
+delegation, (class)="cn($event.inherited())": bg-muted
+fold,       (class)="cn($event)":             bg-red-600
+```
+
+With delegation, the class that the lower resolver appended wins over the consumer's. With the fold,
+it ranks at the component's source, below the template, which matches the priority between sources.
 
 ### Binding syntax and placement
 
@@ -582,6 +586,8 @@ such a state class by calling `$event.inherited()`.
 | Checking the type of the handler's return value                                 | `[class]` accepts several value types; the prototype applies whatever it gets.         |
 | Language service support for `$event` in `(class)`                              | Not needed to evaluate the design.                                                     |
 | Root components with a host `(class)`                                           | Not covered by tests yet.                                                              |
+| A switch that makes a resolver replace the ones below it                        | No use case needs it yet; filtering `$event` covers removing classes.                  |
+| The cost of running every resolver on every refresh                             | Not measured yet.                                                                      |
 
 ## Compiler backends
 
@@ -655,9 +661,7 @@ export type AttributeSources = readonly [
   component: readonly string[],
   directives: readonly string[],
   template: readonly string[],
-] & {
-  inherited(directive?: Type<unknown>): string | null;
-};
+];
 ```
 
 Each slot lists the values that source sets for the attribute, static and bound. The handler returns
@@ -675,6 +679,9 @@ Problems to solve:
   named `attr.name`.
 - Type checking needs a payload and a return type for each attribute.
 - Hydration needs the same seeding rules as `class`.
+- Folding a result back by origin works for token lists such as `class` and `aria-describedby`.
+  For an attribute with a single value, a later resolver would need the previous value some other
+  way.
 
 ### Direction 2: default resolvers configured at build time
 
@@ -707,7 +714,7 @@ export default {
 
 The compiler imports the file into each compiled template and adds a resolver at the lowest priority
 for every element where that attribute has a source, as if the element declared it. An explicit
-`(class)` still runs first and can extend the default with `$event.inherited()`. Direction 2 needs
+`(class)` ranks above the default and receives its result through the fold. Direction 2 needs
 direction 1 for attributes other than `class`.
 
 The compiler, not the runtime, decides where resolvers go. In full AOT compilation it knows which
@@ -739,4 +746,5 @@ carry a resolver. That's a separate experiment.
 1. Which attributes besides `class` and `style` get conflicting values from several sources in your
    apps or libraries?
 1. For app-wide defaults, do you prefer a build-time configuration file or dependency injection?
-1. Does `$event.inherited()` cover how your libraries compose classes?
+1. Does folding by origin cover how your libraries compose classes, or do you need a resolver that
+   replaces the ones below it?
