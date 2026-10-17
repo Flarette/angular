@@ -466,3 +466,9 @@ Commit: `fix(compiler): require 22.3.0 to link class resolvers`
   - D5's normalization differs from the final application on purpose: a number from a lower
     resolver gives `[]`, while the highest resolver's number throws in dev mode; an array entry
     with a space stays one entry until a later resolver joins it.
+- WP4 (`9b5058acbc`): orchestrator 9.50, Codex 9.75.
+  - No spec covers a host `(class)` together with blocks; the same final rule handles it.
+  - The template rule also flags foreign components, which the template pipeline skips. That can
+    only over-declare `22.3.0`. Selectorless components aren't ingested yet, so none is missed.
+  - The `docs/DEFERRED.md` note about the blocks rule lowering `17.1.0` and `17.2.0` is allowed by
+    the Protocol.
