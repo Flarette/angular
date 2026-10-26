@@ -52,7 +52,8 @@ import {classKeyValueArraySet, classStringParser, toStylingKeyValueArray} from '
  * resolves the element's classes. On `<ng-container>` and `<ng-template>`, which have no classes,
  * a binding in host bindings does nothing, like the other host bindings there.
  *
- * @param resolverFn Handler compiled from the binding. Receives the `ClassSources` as `$event`.
+ * @param resolverFn Handler compiled from the binding. Receives the `ClassSources` as `$event` when
+ * it resolves, or the output's value when it listens.
  *
  * @codeGenApi
  */
