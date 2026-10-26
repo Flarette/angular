@@ -1266,6 +1266,29 @@ runInEachFileSystem(() => {
 
         expect(env.driveDiagnostics()).toEqual([]);
       });
+
+      for (const namespace of ['svg', 'math']) {
+        it(`should not infer ClassSources for an ng-container in the ${namespace} namespace`, () => {
+          env.write(
+            'test.ts',
+            `
+            import {Component} from '@angular/core';
+
+            @Component({
+              selector: 'test',
+              template: '<${namespace}><ng-container (class)="h($event)"></ng-container></${namespace}>',
+            })
+            class TestCmp {
+              h(e: number) {}
+            }
+          `,
+          );
+
+          expect(env.driveDiagnostics().map((diag) => diag.messageText)).toEqual([
+            `Argument of type 'Event' is not assignable to parameter of type 'number'.`,
+          ]);
+        });
+      }
     });
 
     describe('strictOutputEventTypes and animation event bindings', () => {

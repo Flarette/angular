@@ -352,6 +352,37 @@ runInEachFileSystem(() => {
       expect(env.driveDiagnostics()).toEqual([]);
     });
 
+    it('should infer the type of $event in a host (class) binding as ClassSources next to a host directive output aliased as class', () => {
+      env.write(
+        'test.ts',
+        `
+        import {Component, Directive, EventEmitter, Output} from '@angular/core';
+
+        @Directive()
+        export class HostDir {
+          @Output() changed = new EventEmitter<string>();
+        }
+
+        @Component({
+          template: '',
+          selector: 'ui-card',
+          host: {'(class)': 'resolve($event)'},
+          hostDirectives: [{directive: HostDir, outputs: ['changed: class']}],
+        })
+        export class Comp {
+          resolve(value: number) { return ''; }
+        }
+      `,
+      );
+
+      const diags = env.driveDiagnostics();
+      expect(diags.length).toBe(1);
+      expect(diags[0].messageText).toBe(
+        `Argument of type 'ClassSources' is not assignable to parameter of type 'number'.`,
+      );
+      expect(getDiagnosticSourceCode(diags[0])).toBe('$event');
+    });
+
     it('should check @HostListener with a target', () => {
       env.write(
         'test.ts',
