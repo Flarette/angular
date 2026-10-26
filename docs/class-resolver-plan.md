@@ -710,6 +710,18 @@ Commit: `fix(core): register nothing for host class resolvers on containers`
     and `math` namespaces (`Event`); the first specs also passed with `$event: any`. All five fail
     against the parent's `events.ts` and pass with WP5, on `ngtsc` and `ngtsc_ngp`.
   - Two upstream type-check gaps from Codex's review are in `docs/DEFERRED.md`.
+- WP6 (`313fd2d20d`, fixup `7baea83142`): orchestrator 9.25 after the fixup, Codex 9.00 before
+  the fixup and 10.00 after.
+  - The fixup adds a positive control, `<svg><g dir (class)>`, which must still warn, and a
+    `<math>` container that mustn't; the first spec would also pass if the check skipped every
+    element in `<svg>`. The container specs fail against the parent's check, and the control
+    passes before and after.
+  - The `ngp` backend doesn't implement `NG8119`, so the new positive spec joins the existing one
+    in `ngp_known_failures.ts` (R10).
+  - The agent's probe and Codex's read of the production path agree: a component whose host
+    directive exposes an output aliased as `class` gets `NG8119`, naming the host directive, which
+    matches the runtime's `hostDirectiveOutputs` fallback. The proposal's deferred row for it can
+    go at finish.
 
 ## Audit triage
 
