@@ -669,6 +669,43 @@ Commit: `fix(core): register nothing for host class resolvers on containers`
   - The event type is `ClassResolveEvent`, with `sources: ClassSources` and `resolve()`.
   - B lands in a new round, with its own plan and external audit. This round finishes WP5, WP6
     cut down to O1, and WP7, and the proposal records B at finish. A3 moves to the B round.
+- 2026-10-26, owner, on the shape of design B ("Q1 a, Q2 yes"):
+  - Full form `(attr.class)`: `$event` is a plain `ClassResolveEvent` with `sources`
+    (`ClassSources`, R1), `resolver(...extras)` (the DI resolver bound to the sources; extras rank
+    at the end of the caller's own source, as D8 ranks added classes), and `resolve(classes)`.
+  - Shorthand `(class)="F"`: `F` is one expression whose value is a function
+    `(cn) => ClassValue`, an arrow or a reference. It compiles to
+    `(attr.class)="$event.resolve((F)($event.resolver))"`. `NG8111` exempts the shorthand; a call
+    such as `(class)="classes()"` fails type checking instead.
+  - `provideClassResolver()` supplies the resolver through the element's injector, so a library
+    scopes its own with `viewProviders`. Without one, classes merge as plainly as `[class]`. R8
+    is reversed.
+  - `(attr.*)` is reserved, and the B round ships it for `class` only. Other attributes need
+    their own source shape and fold rule, in a later round.
+  - Measured with `clsx` 2.1.1 and `tailwind-merge` 3.7.0 through a D8 fold simulation: a host
+    that appends its default after the sources (`[$event, 'bg-muted']`) drops a consumer's
+    conflicting class; ranking the extras in the caller's source keeps it.
+  - The second-round details stay for `resolve()`: pass-through when it isn't called, a dev-mode
+    error for a repeated or late call, the `[class]` value type, no `resolve(fn)` overload.
+  - To check first in the B round: that the type-check block types `cn` from the argument in the
+    rewritten call (template arrow parameters are printed untyped), and whether extras accept
+    `false` for `cn(active() && 'ring')`.
+- 2026-10-26, owner ("keep the plain join from Angular"): without `provideClassResolver()`, the
+  default resolver is Angular's plain merge. It flattens the sources in order, adds each extra
+  at the end of the caller's source the way `[class]` reads a value (strings split on whitespace;
+  arrays and `Set`s add entries; object maps add keys with truthy values; `null`, `undefined`, and
+  `false` add nothing), drops empty names and duplicates keeping the first position, and joins
+  with spaces. There's no conflict resolution, so `(cn) => cn()` changes nothing, and a `false`
+  extra never removes a class another source supplied. It reuses D5's normalization.
+- 2026-10-26, owner ("Go with your recommendation"): the shorthand's result is an opaque
+  `ResolvedClasses`, like `SafeValue`. The bound resolver returns an object that holds the classes
+  and its registration. The compiler checks the shorthand's function against
+  `ClassCallback = (cn: BoundClassResolver) => ResolvedClasses`, so a callback that returns a
+  string, or ignores `cn` and calls another function, fails type checking. In dev mode, a result
+  that isn't a `ResolvedClasses`, or comes from another registration's resolver, throws with the
+  same new error code as a repeated or late `resolve()`; production skips the check. The full
+  form's `resolve()` stays raw: it accepts a class value or a `ResolvedClasses`. The object has a
+  `toString()` for logging.
 
 ## Reviews
 
