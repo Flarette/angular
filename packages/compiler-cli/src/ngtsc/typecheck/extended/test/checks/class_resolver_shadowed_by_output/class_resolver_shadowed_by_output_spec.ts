@@ -58,6 +58,26 @@ runInEachFileSystem(() => {
 
       expect(diags.length).toBe(0);
     });
+
+    it('should not produce a diagnostic on <ng-container> inside <math>', () => {
+      const diags = diagnose(
+        `<math><ng-container dir (class)="resolve($event)"></ng-container></math>`,
+        {classEvent: 'class'},
+      );
+
+      expect(diags.length).toBe(0);
+    });
+
+    it('should produce a diagnostic on an element inside <svg>', () => {
+      const diags = diagnose(`<svg><g dir (class)="resolve($event)"></g></svg>`, {
+        classEvent: 'class',
+      });
+
+      expect(diags.length).toBe(1);
+      expect(diags[0].code).toBe(ngErrorCode(ErrorCode.CLASS_RESOLVER_SHADOWED_BY_OUTPUT));
+      expect(getSourceCodeForDiagnostic(diags[0])).toBe('class');
+      expect(diags[0].messageText).toContain('the `class` output of `Dir`');
+    });
   });
 });
 
