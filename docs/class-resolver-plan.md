@@ -699,6 +699,17 @@ Commit: `fix(core): register nothing for host class resolvers on containers`
   too, because the first `<ng-template>` spec never emitted. The sweep's claim that the `-1`
   branch of `classSourceOf` is dead is wrong: two template `(class)` bindings on one element
   reach it. `63619a7871` narrows the `ɵɵclassResolver` JSDoc for containers.
+- WP5 (`922c280b2b`, fixup `31cbcf42ac`): orchestrator 9.50 after the fixup, Codex 9.00 before
+  the fixup and 10.00 after.
+  - `scope.ts` is unchanged on purpose. `claimedOutputs` holds names, so removing `class` would
+    also unclaim a targeted host `(document:class)`; checking each event in
+    `TcbUnclaimedOutputsOp` keeps every other binding as it was.
+  - The spec for a template `(class)` next to a `class` output guards unchanged behavior, so it
+    couldn't fail first.
+  - The fixup adds negative specs for the alias (`ClassSources`) and for containers in the `svg`
+    and `math` namespaces (`Event`); the first specs also passed with `$event: any`. All five fail
+    against the parent's `events.ts` and pass with WP5, on `ngtsc` and `ngtsc_ngp`.
+  - Two upstream type-check gaps from Codex's review are in `docs/DEFERRED.md`.
 
 ## Audit triage
 

@@ -12,3 +12,12 @@
   `(click)` on containers. The upstream-wide version, an error for every binding on a container
   that does nothing, is triaged and prototyped in the background session `container no-op
 bindings` (`5099d6e3`), worktree `/Users/geruch/repos/angular-cn-wt/container-no-op-bindings`.
+- Upstream: an event binding next to a directive output with the same name listens to both, but
+  the type-check block types `$event` only as the output's type. Measured for `(click)` next to a
+  `click` output on 2026-10-17; a targeted host `(document:class)` next to a `class` output has
+  the same gap (`listener.ts` registers the global listener and also subscribes to outputs). From
+  Codex's WP5 review.
+- Upstream: event bindings on `<ng-template>` that no directive claims aren't type-checked at
+  all. `appendOutputsOfElementLikeNode` in `packages/compiler/src/typecheck/ops/scope.ts` queues
+  `TcbUnclaimedOutputsOp` only for `Element` and `HostElement`. From Codex's WP5 review; relevant
+  to the background session `container no-op bindings`.
