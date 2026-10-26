@@ -49,6 +49,15 @@ runInEachFileSystem(() => {
 
       expect(diags.length).toBe(0);
     });
+
+    it('should not produce a diagnostic on <ng-container> inside <svg>', () => {
+      const diags = diagnose(
+        `<svg><ng-container dir (class)="resolve($event)"></ng-container></svg>`,
+        {classEvent: 'class'},
+      );
+
+      expect(diags.length).toBe(0);
+    });
   });
 });
 
