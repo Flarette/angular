@@ -1,117 +1,43 @@
-# Design: resolve an element's classes with a `(class)` binding
+# `(class)` bindings
 
-Status: prototype on branch `feat/class-resolver`. Not pushed. The proposal, with the decision log,
-the alternatives considered, and the open questions about several resolvers on one element, is in
-[`proposal.md`](../proposal.md).
+Status: experimental, on the `feat/class-resolver` branch of the Flarette/angular fork. The design,
+the decisions behind it, and the next steps are in [`proposal.md`](../proposal.md).
 
-Decisions confirmed on 2026-10-17. This document describes the prototype as built. Later decisions
-of the same day, listed in the proposal, change two of these once
-[`class-resolver-plan.md`](class-resolver-plan.md) is implemented: only a template `(class)` falls
-back to a listener next to a `class` output, and a resolver can run the one it replaced.
-
-- `ClassSources` is three fixed arrays of class names, `[component, directives, template]`, with
-  directives flattened, no `static`, and no grouping per binding.
-- A directive output named `class` keeps listener behavior at runtime, with a dev-mode warning, and
-  full AOT compilation warns about it too.
-- Components can resolve their own host classes with `host: {'(class)': …}`. A template `(class)`
-  overrides it.
-- The handler runs on every refresh of the view that declares the element.
-- Hydration starts the first resolution from the classes the element has when it has no static
-  classes.
-
-The `(class)` binding lets a template decide the final classes of an element. Angular collects the
-classes that the component, the other directives, and the template apply to the element. It groups
-them by source in priority order and passes them to the handler as `$event`. The handler's return
-value becomes the element's classes.
+A `(class)` binding computes an element's classes from the classes that every source applies to it.
+Angular collects the classes from the component on the element, from the other directives, and from
+the template. It groups them by source in priority order and passes them to your handler as
+`$event`. The value that the handler returns becomes the element's classes.
 
 ```html
 <ui-button class="px-2" (class)="cn($event)">Save</ui-button>
 ```
 
-The main use case is Tailwind CSS with `cn` (`clsx` plus `tailwind-merge`). Conflicting utilities
-such as `px-2` and `px-4` should resolve by which source set them, not by stylesheet order.
+The typical use is Tailwind CSS with a `cn` helper (`clsx` plus `tailwind-merge`). Conflicting
+utilities such as `px-2` and `px-4` then resolve by the source that set them, not by the order of
+rules in the stylesheet.
 
-The same binding also works in host metadata, so a component author can resolve their own host
-element's classes once instead of asking every consumer to add `(class)`.
+## Write a handler
 
-## Background
-
-### How Angular combines classes today
-
-An element's classes come from three kinds of sources:
-
-| Source                   | Static               | Dynamic                                                    |
-| ------------------------ | -------------------- | ---------------------------------------------------------- |
-| Component on the element | `host: {class: '…'}` | `host: {'[class]': '…', '[class.x]': '…'}`, `@HostBinding` |
-| Other directives         | `host: {class: '…'}` | same as the component                                      |
-| Template                 | `class="…"`          | `[class]`, `[class.x]`, `class="a {{b}}"`                  |
-
-Angular applies the union of all of them. When sources disagree about the same class name, the more
-specific source wins: template over directives over component. Within one source, `[class.x]` wins
-over `[class]`, which wins over the static value. A binding set to `undefined` defers to a lower
-priority.
-
-The union is the problem for utility CSS. `px-2` and `px-4` are different names, so both stay on the
-element, and the rule that comes later in the stylesheet wins. Which source set the class doesn't
-matter.
-
-```ts
-@Component({
-  selector: 'ui-button',
-  template: '<ng-content />',
-  host: {class: 'px-4 py-2'},
-})
-export class UiButton {}
-```
+A `(class)` handler takes one of three forms:
 
 ```html
-<!-- The consumer asks for px-2. -->
-<ui-button class="px-2">Save</ui-button>
-```
-
-```html
-<!-- Rendered today: both paddings, and the stylesheet decides. -->
-<ui-button class="px-4 py-2 px-2">Save</ui-button>
-```
-
-### When static classes are merged
-
-The preliminary design describes `static` as resolved at compile time from all sources. Each
-declaration's static classes are known at compile time: the template's are in `consts`, and each
-directive's are in its `hostAttrs`. Which directives match an element is decided at runtime, in the
-first creation pass of the template (`directiveHostFirstCreatePass`), because JIT, partial, and local
-compilation don't know the matches. That pass merges all static classes into one string,
-`tNode.classes`, which is written to the DOM when the element is created.
-
-Per-source static classes are just as cheap at that point: read `hostAttrs` of each matched directive
-and the element's own `attrs`. They're computed once per template, not on each change detection.
-
-## Proposed API
-
-### Syntax
-
-The handler accepts three forms:
-
-```html
-<!-- 1. An expression that uses $event. -->
+<!-- An expression that uses $event. -->
 <ui-button class="px-2" (class)="cn($event)" />
 
-<!-- 2. An arrow function. -->
+<!-- An arrow function. -->
 <ui-button class="px-2" (class)="(sources) => cn(sources, size())" />
 
-<!-- 3. A function reference. -->
+<!-- A function reference. -->
 <ui-button class="px-2" (class)="cn" />
 ```
 
-All three compile to a listener-style handler. Angular calls it with the `ClassSources` as `$event`.
-If the handler returns a function, as forms 2 and 3 do, Angular calls that function with the same
-sources. Angular applies the final value the way it applies a `[class]` binding: a string, an array
-of class names, a `Set`, or an object map.
+If the handler returns a function, as the last two forms do, Angular calls that function with the
+same sources.
 
-Templates can't see imports, so the component exposes `cn`:
+Templates can't see imports, so expose the helper as a field:
 
 ```ts
-import {cn} from 'cn';
+import {cn} from './cn';
 
 @Component({
   imports: [UiButton],
@@ -122,16 +48,37 @@ export class Toolbar {
 }
 ```
 
-The preliminary form `({ static, dynamic }) => cn(static, ...dynamic)` can't work, for two reasons:
+Angular applies the result the way it applies a `[class]` binding: a string, an array of class
+names, a `Set`, or an object map whose truthy keys are the classes.
 
-- The template expression parser accepts only identifier parameters in arrow functions
-  (`ArrowFunctionParameter = ArrowFunctionIdentifierParameter`). Destructuring fails with
-  `Unexpected token '=>'`.
-- `static` is a reserved word in strict mode. `({static}) => 0` is a `SyntaxError` in an ES module.
+- `null`, `undefined`, or `''` removes every class that the binding manages.
+- A nested array isn't flattened: `[['a', 'b']]` becomes the class `a,b`. Return `cn(…)` or a flat
+  array.
+- Any other type, such as a number, throws `Unsupported styling type` in dev mode.
 
-Spread in call arguments works: `cn(...$event, extra)` parses.
+## Resolve a component's own host element
 
-### The `ClassSources` payload
+A component can resolve the classes of its host element, so its consumers don't need a `(class)`
+binding:
+
+```ts
+import {cn} from './cn';
+
+@Component({
+  selector: 'ui-button',
+  host: {class: 'px-4 py-2', '(class)': 'cn($event)'},
+  template: '<ng-content />',
+})
+export class UiButton {
+  protected readonly cn = cn;
+}
+```
+
+`@HostListener('class', ['$event'])` on a method declares the same resolver. A class keeps one host
+listener per event name, so a `@HostListener('class')` replaces a `host: {'(class)': …}` on the same
+class. Directives and host directives can declare host resolvers the same way.
+
+## The `ClassSources` payload
 
 ```ts
 export type ClassSources = readonly [
@@ -143,323 +90,214 @@ export type ClassSources = readonly [
 
 Angular builds the payload with these rules:
 
-1. It always has three slots, ordered from the lowest to the highest priority. A missing source is an
-   empty array.
-1. The component slot includes the component's host directives. Angular matches them before the
-   component (`resolveHostDirectives`), so they already rank below it.
-1. All other directives share one slot, in the order Angular matched them, which is how the runtime
-   ranks them today. That order comes from the component's dependency list, so authors rarely
-   control it, and the payload doesn't try to tell directives apart.
-1. Within a slot, static classes come first, then `[class]`, then `[class.x]`.
-1. Each class name appears at most once. It's reported under the source, and at the position, of
-   the highest-priority binding that has an opinion about it. A binding set to `false`, `null`, `''`,
-   or `0` removes the class from every lower-priority source, as it does today. `undefined` defers.
+1. It always has three slots, ordered from the lowest to the highest priority. A missing source is
+   an empty array.
+1. The component slot includes the component's host directives, which Angular matches before the
+   component.
+1. All other directives share one slot, in the order Angular matched them. That order follows the
+   consuming component's `imports`.
+1. Within a slot, static classes come first, then `[class]`, then `[class.name]`.
+1. Each class name appears once, under the source and at the position of the highest-priority
+   binding that has an opinion about it. A binding set to `false`, `null`, `''`, or `0` removes the
+   class from every lower-priority source. `undefined` defers to a lower priority.
 
-### Worked example
+`cn($event)` works without spreading, because `clsx` and `tailwind-merge` flatten nested arrays. A
+plain array literal is a valid `ClassSources`, so a unit test can call a resolver method with
+`[['px-4'], [], ['px-2']]`.
 
-Initial declarations:
+## Several resolvers on one element
+
+Every resolver on an element runs, from the lowest to the highest priority: the component's host
+directives, the component, the other directives in match order, then the template.
+
+- The lowest resolver receives the sources as Angular collected them.
+- Angular reads the result of each resolver below the highest as class names. It calls a returned
+  function with the same payload, splits a string on whitespace, takes the entries of an array or a
+  `Set` and the truthy keys of an object map, and drops empty names and repeated ones. Any other value
+  gives no classes.
+- It then folds those names back into `ClassSources` for the next resolver:
+  - A class keeps the source it had in the payload.
+  - A class that the payload didn't have goes to the resolver's own source: `component` for the
+    component and its host directives, `directives` for other directives, and `template` for the
+    template.
+  - A class that the result leaves out is gone for the resolvers above it.
+- The highest resolver's result becomes the element's classes.
+
+Example: a library button adds a state class in its own resolver.
 
 ```ts
 @Component({
   selector: 'ui-button',
+  host: {class: 'inline-flex h-9 px-4 bg-primary', '(class)': 'resolve($event)'},
   template: '<ng-content />',
-  host: {
-    class: 'inline-flex px-4 py-2 rounded-md',
-    '[class.opacity-50]': 'disabled()',
-  },
 })
 export class UiButton {
   readonly disabled = input(false);
-}
 
-@Directive({selector: '[uiElevated]', host: {class: 'shadow-sm rounded-lg'}})
-export class UiElevated {}
+  protected resolve(sources: ClassSources) {
+    return cn(sources, this.disabled() && 'bg-muted');
+  }
+}
 ```
 
 ```html
-<ui-button
-  uiElevated
-  class="px-2"
-  [class.rounded-md]="false"
-  [disabled]="true"
-  (class)="cn($event)"
->
-  Save
-</ui-button>
+<ui-button [disabled]="true" class="px-2 bg-red-600" (class)="cn($event, 'shadow-lg')" />
 ```
 
-1. Creation. Angular writes the merged static classes, the same as without `(class)`:
+With `clsx` 2.1.1 and `tailwind-merge` 3.7.0:
 
-   ```html
-   <ui-button class="inline-flex px-4 py-2 rounded-md shadow-sm rounded-lg px-2"></ui-button>
-   ```
-
-1. First refresh. The template's `[class.rounded-md]` binding records `false`, and the component's
-   host binding records `opacity-50: true`. Neither touches the DOM.
-
-1. Resolution, after the host bindings. Each source contributes:
-
-   - Component: static `inline-flex px-4 py-2 rounded-md`, then `opacity-50` from its binding.
-   - Directives: static `shadow-sm rounded-lg`.
-   - Template: static `px-2`. Its `[class.rounded-md]="false"` turns off `rounded-md`, which
-     removes it from the component slot.
-
-   ```ts
-   $event = [['inline-flex', 'px-4', 'py-2', 'opacity-50'], ['shadow-sm', 'rounded-lg'], ['px-2']];
-   ```
-
-1. The handler returns `cn($event)`. With `clsx@2.1.1` and `tailwind-merge@3.7.0` that's:
-
-   ```ts
-   'inline-flex py-2 opacity-50 shadow-sm rounded-lg px-2';
-   ```
-
-1. Angular applies the difference from step 1: it removes `px-4` and `rounded-md`, and adds
-   `opacity-50`.
-
-   ```html
-   <ui-button class="inline-flex py-2 shadow-sm rounded-lg px-2 opacity-50"></ui-button>
-   ```
-
-### Why per-source arrays instead of `{static, dynamic}`
-
-In the preliminary shape, a component's dynamic class outranks the template's static class, because
-all static classes come first. Results from running the real `clsx` and `tailwind-merge`:
-
-```ts
-// {static, dynamic}: the template's static px-4 comes before the component's dynamic px-2.
-cn('px-4', [['px-2', 'py-1']]);
-// 'px-2 py-1': the template loses.
+```text
+collected:       [['inline-flex', 'h-9', 'px-4', 'bg-primary'], [], ['px-2', 'bg-red-600']]
+UiButton's cn:   inline-flex h-9 px-2 bg-muted
+folded:          [['inline-flex', 'h-9', 'bg-muted'], [], ['px-2']]
+consumer's cn:   inline-flex h-9 bg-muted px-2 shadow-lg
 ```
 
-```ts
-// Per-source arrays: the template comes last.
-cn([['px-2', 'py-1'], [], ['px-4']]);
-// 'py-1 px-4'
-```
+A lower resolver beats a higher source only by removing that source's class, as `cn` removed
+`bg-red-600` here. A class that a lower resolver appends without removing anything ranks in that
+resolver's own source, below the template.
 
-The payload must be arrays, not an object with named keys. `clsx` treats an object as a dictionary of
-class names:
+To drop a class that a lower resolver added, filter `$event` in your own handler, for example with a
+helper that removes a class name from each source.
 
-```ts
-cn({component: ['px-2'], template: ['px-4']});
-// 'component template'
-```
+## When handlers run
 
-Nesting depth doesn't matter. `clsx` (`toVal`) and `tailwind-merge` (`toValue`) both flatten arrays
-recursively, so `cn($event)`, `cn(...$event)`, and `cn([[$event]])` return the same string. Two levels
-(source, then class) are enough, and the spread is optional.
+Angular calls the handlers on every refresh of the view that declares the element, after the view's
+host bindings and before its child components. It then applies the difference between the classes
+it applied last time and the new result. Classes that something else added, for example
+`Renderer2.addClass` or an animation, stay on the element.
 
-## The requested edge cases
+Angular calls the handler while it renders the view, like a template expression:
 
-### 1. Directives that already have an output named `class`
+- Signals that the handler reads are tracked, so a change to them schedules a refresh.
+- Writing a signal in the handler throws `NG0600`.
+- Writing a plain field that the element's own bindings read leaves the element out of date. An
+  `OnPush` view, the default, doesn't report it. Dev mode reports it as `NG0100` in an `Eager` view,
+  and `provideCheckNoChangesConfig({exhaustive: true})` reports it in any view.
 
-Today `(class)="handler($event)"` subscribes to any directive output named `class`. It also adds a
-DOM listener for a `class` event.
+In an embedded view, such as an `@if` or `@for` block, each view resolves its own elements, and the
+handler reads that view's context, such as the `@for` item.
 
-| Option                                    | Behavior                                                                                                                                     | Trade-off                                                                                                                                                               |
-| ----------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| Fall back (prototype)                     | If a matched directive has a `class` output, the binding keeps listener semantics. Dev mode logs `NG0319`, and full AOT warns with `NG8119`. | Nothing breaks: the handler compiles the same way as a listener, so the old semantics are exact. The same syntax means two things, depending on which directives match. |
-| Error and migrate                         | Report a compile-time diagnostic in AOT and a runtime error otherwise.                                                                       | Unambiguous. Breaking, and a consumer can't rename an output that a third-party library declares.                                                                       |
-| Different name, such as `(class.resolve)` | No collision.                                                                                                                                | Loses the short form. `(class.x)` already reads like a modifier, as in `(keydown.enter)`.                                                                               |
+Write the handler as a function of its sources and the state it reads.
 
-The compiler can't always see the conflict. JIT, partial, and local compilation don't know which
-directives match, so the runtime makes the final call. In full AOT, the type checker does know, and
-it already types a claimed `(class)` as the directive's output. That matches the runtime fallback.
-Full AOT compilation also reports it as the extended diagnostic `classResolverShadowedByOutput`
-(`NG8119`), a warning by default.
+## Directive outputs named `class`
 
-What still breaks: a custom element that dispatches a DOM event named `class`. `(class)` on it no
-longer adds a DOM listener. `@HostListener('class')` now declares a host resolver instead of a
-listener.
+A template `(class)` binding next to a directive output named `class` listens to that output, as it
+did before `(class)` resolved classes. The output can be the directive's own or one that a host
+directive exposes under the alias `class`.
 
-### 2. `[(class)]` two-way binding
+- Dev mode logs `NG0319` once for each such binding, when Angular first creates the template.
+- Full AOT compilation reports the extended diagnostic `NG8119`.
+- Type checking gives `$event` the output's type.
 
-`[(x)]` is shorthand for `[x]` plus `(xChange)`. So `[(class)]="value"` means
-`[class]="value" (classChange)="value = $event"`. It never touches `(class)`, so the two can coexist.
+A host `(class)` always resolves its element's classes, even next to an output named `class`.
 
-`[(class)]` has a real use today. A directive can declare `model('', {alias: 'class'})`, which creates
-a `class` input and a `classChange` output, and consumers bind to it with `[(class)]`.
+An output named `class` also makes Angular drop the element's template `[class]` binding, with or
+without a `(class)` binding. The element's static `class` and its `[class.name]` bindings stay. Rename
+the output to avoid both problems.
 
-Naming the resolver `(classChange)` would create the collision this question tries to avoid.
-`[(class)]="value"` would turn its assignment `value = $event` into a resolver. It would store the
-`ClassSources` array in `value` and apply that array as classes.
+## `<ng-container>` and `<ng-template>`
 
-There's no good use case for two-way binding of the resolved string. Writing it back into the value
-that feeds `[class]` doesn't loop, because the handler runs while Angular renders: a signal write
-throws `NG0600`, and a plain field leaves the element out of date until the next refresh. The only
-other need is observing the final classes, for example to mirror them on an overlay panel. That's a
-read-only event, and `afterRenderEffect` can read `element.className` today.
+These elements have no classes:
 
-Recommendation: keep `(class)`. Don't reserve `[(class)]` or `(classChange)`.
+- A template `(class)` on them is an ordinary event binding. It listens to a directive output named
+  `class`, and Angular logs no `NG0319`.
+- A directive's host `(class)` does nothing on them, like the directive's other host bindings.
 
-### 3. Static classes concatenated ahead of time
+A `(class)` binding with a target, such as `(window:class)` or `(document:class)`, is an ordinary
+listener on any element.
 
-Yes, a resolver should change this, and the prototype does so without losing the precomputation:
+## Server rendering and hydration
 
-- The payload drops `static`. Every source reports its static classes in its own slot.
-- Per-source static classes are computed once per template, in the first creation pass. Treating
-  every source as dynamic costs nothing extra per change detection for static classes.
-- The merged `tNode.classes` string is still written when the element is created. Directive
-  constructors see the same `classList` as today. The first resolution diffs against it in the same
-  synchronous pass, before the browser paints.
+When hydration claims an element with a `(class)` binding:
 
-## Other edge cases
+- If the element has static classes, hydration rewrites its `class` attribute to them, and the first
+  resolution starts from them. Classes that only the server resolved are removed.
+- If the element has no static classes, the first resolution starts from the classes the element has
+  and removes the ones that no longer resolve. That also removes classes that a directive's
+  constructor added.
 
-| Case                                                                             | Prototype behavior                                                                                                                                                                                                                                                                                                                                                                                                                                                            |
-| -------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| A higher-priority binding turns a class off                                      | The class is absent from every slot, as today.                                                                                                                                                                                                                                                                                                                                                                                                                                |
-| A higher-priority binding turns a class on again                                 | The class moves to that binding's slot and position. `<ui-button class="px-4" [class.px-2]="true">` over a host `px-2` gives `[[], [], ['px-4', 'px-2']]`.                                                                                                                                                                                                                                                                                                                    |
-| Classes added outside bindings: `Renderer2.addClass`, `NgClass`, animations, CDK | They stay on the element, because Angular applies a diff and touches only the classes it applied. They aren't in `$event`, so `cn` can't resolve conflicts with them. Prefer `[class]` over `[ngClass]` on these elements.                                                                                                                                                                                                                                                    |
-| Order inside one `[class]` value                                                 | Not preserved. Angular normalizes a `[class]` value into a sorted key-value array, so conflicts inside one binding resolve alphabetically.                                                                                                                                                                                                                                                                                                                                    |
-| The handler returns nested arrays                                                | Applied like `[class]`, which doesn't flatten: `[['a', 'b']]` becomes the class `a,b`. Return `cn(…)` or a flat array.                                                                                                                                                                                                                                                                                                                                                        |
-| A directive with `input({alias: 'class'})`, the pattern spartan-ng uses          | The template's `[class]` feeds that input, so it isn't a source. The template's static `class` is still a source; it's also on the DOM today. Covered by a spec.                                                                                                                                                                                                                                                                                                              |
-| `<ng-container>` and `<ng-template>`                                             | `(class)` stays a listener, because there's no element to style.                                                                                                                                                                                                                                                                                                                                                                                                              |
-| Embedded views (`@if`, `@for`)                                                   | Each view resolves its own elements after its host bindings. The handler reads that view's context, such as the `@for` item.                                                                                                                                                                                                                                                                                                                                                  |
-| State that the handler reads                                                     | The handler runs on every refresh of the view that declares the element, after host bindings. Signals read inside it are tracked, so a change schedules a refresh. Writing a signal inside it throws `NG0600`. Writing a plain field that the element's own bindings read leaves the element out of date: silently in an `OnPush` view, the default, and as `NG0100` in an `Eager` view or with exhaustive `checkNoChanges`.                                                  |
-| Several `(class)` resolvers on one element                                       | Only one runs: the template's, else the attribute directive matched last (match order follows `imports` order), else the component's, else one of its host directives'. `@HostListener('class')` replaces `host: {'(class)': …}` on the same class. If any directive on the element has an output named `class`, every registration becomes a listener on it. Measured in the proposal's [Several resolvers on one element](../proposal.md#several-resolvers-on-one-element). |
-| Dev-mode `checkNoChanges` pass                                                   | Skipped. The prototype doesn't verify that the handler is stable.                                                                                                                                                                                                                                                                                                                                                                                                             |
-| Server rendering and hydration                                                   | Handled. Hydration rewrites a claimed element's `class` attribute to its static classes, and the first resolution starts from them, so classes that only the server resolved are removed. An element without static classes keeps the server's attribute, so its first resolution starts from the classes it has. That also removes classes a directive's constructor added to such an element. Covered by two specs.                                                         |
-| Performance                                                                      | No cost for elements without `(class)`: one null check per class binding update and one per view refresh. Per handler, per refresh: one `Map` over the element's classes, one call, and one sorted diff. `tailwind-merge` caches results by input string.                                                                                                                                                                                                                     |
+## Type checking
 
-## Alternatives
+With `strictTemplates`, or `strictOutputEventTypes` on its own:
 
-| Design                                                                                     | Who opts in           | Sees every source                                           | Ergonomics            | Risk                                                                                        | Typing                               |
-| ------------------------------------------------------------------------------------------ | --------------------- | ----------------------------------------------------------- | --------------------- | ------------------------------------------------------------------------------------------- | ------------------------------------ |
-| A. Template `(class)` (prototype)                                                          | Consumer, per element | Yes                                                         | Repeated at every use | `class` outputs (handled by fallback)                                                       | `$event: ClassSources`               |
-| B. Host `(class)` (prototype)                                                              | Component author      | Yes                                                         | Once per component    | Host listeners for a DOM `class` event                                                      | `$event: ClassSources`               |
-| C. `[class]="fn"`: give function values a meaning                                          | Consumer              | Only if `[class]` stops being a source on that element      | No new syntax         | Function values throw in dev mode and are ignored in production today, so the space is free | Needs a special case                 |
-| D. `provideClassResolver(cn)` through dependency injection                                 | App or subtree        | Yes                                                         | No template changes   | Changes every element below, including third-party components                               | Not applicable                       |
-| E. Component option, such as `classResolver: cn`                                           | Component author      | Yes                                                         | Once per component    | None                                                                                        | A static function, no instance state |
-| F. Userland: `input({alias: 'class'})` plus host `[class]` computed with `cn` (spartan-ng) | Component author      | No: template `[class.x]` and other directives are invisible | Works today           | Host static classes still conflict, so authors avoid them                                   | Normal input                         |
+- A `(class)` binding that resolves types `$event` as `ClassSources`, in a template and in host
+  bindings. With the option off, `$event` is `any`.
+- A host `(class)` is checked as a resolver, even next to the host's own output named `class` or a
+  host directive output aliased as `class`.
+- A template `(class)` next to a directive output named `class` gives `$event` the output's type.
+- A `(class)` on `<ng-container>`, in any namespace, is typed like any other event binding there.
 
-Recommendation: A and B together, as prototyped. They share one mechanism and one syntax. B covers
-the shadcn case without boilerplate for consumers, and A gives a consumer an override. D is the
-strongest alternative for apps that use Tailwind everywhere, but it's global and hard to reason about
-locally.
+The handler's return value isn't type-checked.
 
-## Prototype
+## Extended diagnostics
 
-### Compiler
+- `classResolverShadowedByOutput` (`NG8119`), a warning by default, reports a template `(class)` on
+  an element, other than `<ng-container>`, next to a directive output named `class`. It names the
+  directive that declares the output.
+- `uninvokedFunctionInEventBinding` (`NG8111`) doesn't report a `(class)` binding without a target,
+  so `(class)="cn"` and `(class)="(sources) => cn(sources)"` are valid.
 
-- Ingestion flags `(class)` on an element, other than `<ng-container>`, and `(class)` in host
-  bindings, as class resolvers: [`ingest.ts`](../packages/compiler/src/template/pipeline/src/ingest.ts).
-  The flag lives on `ListenerOp`, so every listener phase still applies: `$event`, view restoration,
-  naming, and returning the last expression.
-- Reification emits `ɵɵclassResolver(handlerFn)` instead of `ɵɵlistener('class', handlerFn)`:
-  [`reify.ts`](../packages/compiler/src/template/pipeline/src/phases/reify.ts).
-- Type checking types `$event` as `ClassSources` in templates and in host bindings when
-  `strictOutputEventTypes` is on, and as `any` otherwise:
-  [`events.ts`](../packages/compiler/src/typecheck/ops/events.ts). A `(class)` binding that a
-  directive output claims keeps the output's type, which matches the runtime fallback.
+The `ngp` compiler backend doesn't run these extended diagnostics.
 
-Generated code for `<div class="p-2" [class.px-4]="wide" (class)="cn($event, extra)">`:
+## Libraries compiled in partial mode
 
-```js
-if (rf & 1) {
-  ɵɵelementStart(0, 'div', 0);
-  ɵɵclassResolver(function App_div_class_0_listener($event) {
-    return ctx.cn($event, ctx.extra);
-  });
-  ɵɵelementEnd();
-}
-if (rf & 2) {
-  ɵɵclassProp('px-4', ctx.wide);
-}
-```
+A partial declaration declares `minVersion: "22.3.0"` when its template has a `(class)` binding on an
+element other than `<ng-container>`, or when its host has a `class` listener. An older linker, which
+would compile `(class)` as a plain listener, rejects the declaration.
 
-A production version might replace the `ListenerOp` flag with a dedicated op kind.
+## Error conditions
 
-Two extended diagnostics change:
+| Code or message            | When                                                                     | Effect                                                            |
+| -------------------------- | ------------------------------------------------------------------------ | ----------------------------------------------------------------- |
+| `NG0319`                   | A template `(class)` sits next to a directive output named `class`.      | Dev-mode warning. The binding listens to the output.              |
+| `NG8119`                   | The same, found by full AOT compilation.                                 | Compile-time warning by default.                                  |
+| `NG0600`                   | A handler writes a signal.                                               | Throws.                                                           |
+| `NG0100`                   | A handler writes a plain field that the element's bindings read.         | Reported in an `Eager` view, or with exhaustive `checkNoChanges`. |
+| `Unsupported styling type` | The highest resolver returns a value that `[class]` doesn't accept.      | Throws in dev mode.                                               |
+| TypeScript errors          | A handler's parameter doesn't accept `ClassSources`, or the output type. | Compile-time error with `strictTemplates`.                        |
 
-- The new `classResolverShadowedByOutput` (`NG8119`) warns when a directive output named `class`
-  claims a `(class)` binding: [`index.ts`](../packages/compiler-cli/src/ngtsc/typecheck/extended/checks/class_resolver_shadowed_by_output/index.ts).
-- `uninvokedFunctionInEventBinding` (`NG8111`) no longer flags `(class)="cn"` or an arrow function in
-  `(class)`, because Angular calls a returned function there.
+## Limitations
 
-### Runtime
+- Classes added outside bindings, for example by `Renderer2.addClass`, `NgClass`, or animations,
+  aren't in `$event`, so a resolver can't resolve conflicts with them. Prefer `[class]` over
+  `[ngClass]` on these elements.
+- Angular normalizes a `[class]` value into a list sorted by class name, so conflicts inside one
+  `[class]` value resolve alphabetically.
+- A directive with an input aliased as `class`, as spartan-ng uses, receives the template's `[class]`
+  binding, so that binding isn't a source. The template's static `class` still is.
+- The `checkNoChanges` pass doesn't run the handlers, so it doesn't verify that they're stable.
+- Every resolver on an element runs on every refresh. The cost isn't measured.
+- Root components with a host `(class)`, language service support, and a `(style)` counterpart
+  aren't covered.
 
-- [`class_resolver.ts`](../packages/core/src/render3/instructions/class_resolver.ts) holds the
-  instruction, the per-source bookkeeping, and the resolution step.
-- On the first creation pass, `ɵɵclassResolver` builds a `TClassResolver` with one segment per
-  matched directive plus the template, each with its static classes. It allocates two `LView` slots,
-  one for the handler and one for the classes it last applied.
-- On the first update pass, each class binding on such an element records its binding index in its
-  segment: [`styling.ts`](../packages/core/src/render3/instructions/styling.ts). After that, class
-  bindings on the element store their values but don't write to the DOM.
-- `refreshView` calls `refreshClassResolvers` right after host bindings and before child components:
-  [`change_detection.ts`](../packages/core/src/render3/instructions/change_detection.ts).
-
-### Tests
-
-[`class_resolver_spec.ts`](../packages/core/test/acceptance/class_resolver/class_resolver_spec.ts) runs
-25 specs through TestBed and the JIT compiler, with a stand-in `cn`. Each spec owns one rule.
-Mutating each rule fails the spec that owns it. These mutation runs predate the 16th spec, which
-covers an input named `class`, and the nine specs that measure several resolvers on one element and
-a handler that writes state.
-
-| Mutation                                                      | Failing specs |
-| ------------------------------------------------------------- | ------------- |
-| Ignore the static classes written at creation                 | 11            |
-| Keep a re-asserted class at its first position                | 1             |
-| Let class bindings write to the DOM                           | 1             |
-| Put the component's host directives with the other directives | 1             |
-| Resolve before host bindings                                  | 2             |
-| Don't call a returned function                                | 2             |
-
-[`template_typecheck_spec.ts`](../packages/compiler-cli/test/ngtsc/template_typecheck_spec.ts) checks
-the `$event` type with and without `strictOutputEventTypes`.
-[`host_bindings_type_check_spec.ts`](../packages/compiler-cli/test/ngtsc/host_bindings_type_check_spec.ts)
-checks it in host bindings; without the fix, it fails with `Argument of type 'Event'`.
-The `class_resolver_shadowed_by_output` and `uninvoked_function_in_event_binding` specs under
-`packages/compiler-cli/src/ngtsc/typecheck/extended/test/checks` cover both diagnostics.
-[`class_resolver_hydration_spec.ts`](../packages/platform-server/test/class_resolver_hydration_spec.ts)
-renders on the server and hydrates, with and without static classes.
-
-Run the runtime tests with:
+## Tests
 
 ```bash
 pnpm bazel test //packages/core/test/acceptance/class_resolver:class_resolver
 ```
 
-The compliance cases in
-[`r3_view_compiler_class_resolver`](../packages/compiler-cli/test/compliance/test_cases/r3_view_compiler_class_resolver)
-check the generated code: `(class)` on an element and on a component, an arrow function,
-`<ng-container>`, host `(class)`, and `@HostListener('class')` next to `host: {'(class)': …}`. They
-pass in full, linked, declaration-only, and instruction compilation, the partial golden is checked
-in, and they pass unchanged on the `ngp` variants of those targets and in the preprocessor's own
-compliance suite.
+```bash
+pnpm bazel test //packages/platform-server/test:test
+```
 
-### Regression runs
+```bash
+pnpm bazel test --local_test_jobs=1 //packages/compiler-cli/test/ngtsc:ngtsc
+```
 
-These existing suites pass with the change:
+```bash
+pnpm bazel test //packages/compiler-cli/src/ngtsc/typecheck/extended/test/checks/class_resolver_shadowed_by_output:test //packages/compiler-cli/src/ngtsc/typecheck/extended/test/checks/uninvoked_function_in_event_binding:test
+```
 
-- `//packages/core/test/acceptance:acceptance`, the full runtime acceptance suite.
-- `//packages/core/test:test`, `//packages/core/test/render3:render3`, and
-  `//packages/core/test/render3/ivy:ivy`.
-- `//packages/compiler/test:test` and `//packages/compiler/test/render3:test`.
-- `//packages/compiler-cli/test/compliance/full:full`. No existing golden output changed.
-- `//packages/compiler-cli/test/ngtsc:ngtsc`, and the new type checking specs on the fork's `ngp`
-  backend (`ngtsc_ngp`).
-- `//packages/core:core_api` and `//packages/core:core_errors`, after accepting the new
-  `ClassSources` type and the `CLASS_RESOLVER_OUTPUT_CONFLICT` code.
-- `pnpm ts-circular-deps:check`: no cycles.
+```bash
+pnpm bazel test --test_arg=--filter=r3_view_compiler_class_resolver //packages/compiler-cli/test/compliance/full:full //packages/compiler-cli/test/compliance/linked:linked //packages/compiler-cli/test/compliance/declaration-only:declaration-only //packages/compiler-cli/test/compliance/codegen:codegen
+```
 
-## Not done
-
-- Raising the partial declaration's `minVersion` when a template or host binding uses `(class)`, so
-  an older linker can't compile it as a listener. Templates with blocks already raise it to
-  `17.0.0`.
-- Root components (a bootstrapped host with a host `(class)` binding).
-- Checking the handler's return type.
-- `classResolverShadowedByOutput` for a host-level `(class)` binding, or for an output that
-  `hostDirectives` exposes under the alias `class`. Those cases rely on the runtime `NG0319`
-  warning alone.
-- `classResolverShadowedByOutput` on the `ngp` backend. The preprocessor doesn't run ngtsc's
-  extended diagnostics; it implements two of them itself. The spec is listed in
-  `ngp_known_failures.ts`, like the specs of other extended checks that expect a diagnostic. No change
-  is planned there, because the preprocessor doesn't accept external contributions.
-- Language service support for `$event` in `(class)`.
-- Verifying handler stability in the `checkNoChanges` pass.
-- A `(style)` counterpart.
-- Documentation on angular.dev.
+- Runtime: [`class_resolver.ts`](../packages/core/src/render3/instructions/class_resolver.ts) and
+  [`class_resolver_spec.ts`](../packages/core/test/acceptance/class_resolver/class_resolver_spec.ts).
+- Hydration:
+  [`class_resolver_hydration_spec.ts`](../packages/platform-server/test/class_resolver_hydration_spec.ts).
+- Compiler: the `isClassResolver` flag in
+  [`ingest.ts`](../packages/compiler/src/template/pipeline/src/ingest.ts), type checking in
+  [`events.ts`](../packages/compiler/src/typecheck/ops/events.ts), and the compliance cases in
+  [`r3_view_compiler_class_resolver`](../packages/compiler-cli/test/compliance/test_cases/r3_view_compiler_class_resolver).
