@@ -50,7 +50,7 @@ import {classKeyValueArraySet, classStringParser, toStylingKeyValueArray} from '
  * If a directive on the element declares an output named `class`, a binding in the template keeps
  * its existing meaning and subscribes to that output instead. A binding in host bindings always
  * resolves the element's classes. On `<ng-container>` and `<ng-template>`, which have no classes,
- * a binding in host bindings subscribes to directive outputs.
+ * a binding in host bindings does nothing, like the other host bindings there.
  *
  * @param resolverFn Handler compiled from the binding. Receives the `ClassSources` as `$event`.
  *
@@ -61,7 +61,7 @@ export function ɵɵclassResolver(resolverFn: ClassResolverFn): typeof ɵɵclass
   const tView = getTView();
   const tNode = getCurrentTNode()!;
   if (!(tNode.type & TNodeType.Element)) {
-    listenerInternal(tView, lView, lView[RENDERER], tNode, 'class', resolverFn);
+    // Only host bindings get here: the template's `(class)` on a container compiles to a listener.
     return ɵɵclassResolver;
   }
   const owner = getCurrentDirectiveIndex();

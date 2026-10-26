@@ -410,6 +410,7 @@ describe('(class) binding', () => {
 
       const fixture = await render(App);
       fixture.componentInstance.emitter.classEvent.emit('sent');
+      await fixture.whenStable();
 
       expect(fixture.componentInstance.received).toBe('sent');
       expect(classesOf(fixture.nativeElement.querySelector('div'))).toEqual(['p-2', 'p-4']);
@@ -437,6 +438,7 @@ describe('(class) binding', () => {
 
       const fixture = await render(App);
       fixture.componentInstance.emitter.classEvent.emit('sent');
+      await fixture.whenStable();
 
       expect(fixture.componentInstance.received).toBe('sent');
       expect(classesOf(fixture.nativeElement.querySelector('ui-card'))).toEqual(['p-2']);
@@ -457,32 +459,39 @@ describe('(class) binding', () => {
 
       const fixture = await render(App);
       fixture.componentInstance.emitter.classEvent.emit('sent');
+      await fixture.whenStable();
 
       expect(fixture.componentInstance.received).toBe('sent');
       expect(warn).not.toHaveBeenCalled();
     });
 
     for (const tag of ['ng-container', 'ng-template']) {
-      it(`keeps subscribing a host binding to the output on <${tag}>`, async () => {
+      it(`subscribes only the template binding to the output on <${tag}>`, async () => {
         const warn = spyOn(console, 'warn');
-        const received: unknown[] = [];
+        const recorded: unknown[] = [];
 
         @Directive({selector: '[recorder]', host: {'(class)': 'record($event)'}})
         class Recorder {
           protected record(value: unknown) {
-            received.push(value);
+            recorded.push(value);
           }
         }
 
-        @Component({imports: [Emitter, Recorder], template: `<${tag} emitter recorder />`})
+        @Component({
+          imports: [Emitter, Recorder],
+          template: `<${tag} emitter recorder (class)="received.push($event)" />`,
+        })
         class App {
+          readonly received: unknown[] = [];
           @ViewChild(Emitter) emitter!: Emitter;
         }
 
         const fixture = await render(App);
         fixture.componentInstance.emitter.classEvent.emit('sent');
+        await fixture.whenStable();
 
-        expect(received).toEqual(['sent']);
+        expect(recorded).toEqual([]);
+        expect(fixture.componentInstance.received).toEqual(['sent']);
         expect(warn).not.toHaveBeenCalledWith(jasmine.stringContaining('NG0319'));
       });
     }
@@ -825,6 +834,7 @@ describe('(class) binding', () => {
       ]);
 
       fixture.componentInstance.emitter.classEvent.emit('sent');
+      await fixture.whenStable();
 
       expect(received.filter(([, value]) => value === 'sent')).toEqual([['template', 'sent']]);
       expect(
