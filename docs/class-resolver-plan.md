@@ -482,7 +482,9 @@ Before, with `accept(event: Event)`:
 After: no diagnostic, as without `<svg>`.
 
 Tests, red first. The external audit's probes measured each of these; port them into the spec
-files above in the style of their neighbors:
+files above in the style of their neighbors. The probes are in
+`git show 717ebb9951:packages/compiler-cli/test/ngtsc/class_resolver_audit_spec.ts`; read them as
+evidence, don't add that file.
 
 - A host resolver next to its own output named `class`: no diagnostic.
 - A host resolver next to a host directive output aliased as `class`: no diagnostic.
@@ -544,14 +546,23 @@ Before and after, `NG8111` set to `warning`, `onClass` a method, `ClassEmitter` 
 <!-- before: NG8119; after: none -->
 ```
 
-Tests, red first, ported from the external audit's probes into the two checks' spec files:
+Tests, red first, ported from the external audit's probes into the two checks' spec files. The
+probes are in `git show 717ebb9951:packages/compiler-cli/test/ngtsc/class_resolver_audit_spec.ts`;
+read them as evidence, don't add that file.
 
 - `NG8111` for `(class)="h"` on `<ng-container>`, and on an element with a directive output named
   `class`.
 - No `NG8111` for `(class)="h"` on `<ng-template>`, matching `(click)="h"` there, and none on an
   element that resolves.
 - No `NG8119` on `<svg><ng-container dir (class)>` with an output named `class`.
+- Controls that pin upstream behavior, because `NG8111` changes how it finds events:
+  `<ng-container (click)="h">` gets `NG8111`, and `<ng-template (click)="h">` gets none.
 - Every existing spec stays green, unchanged.
+
+Probe and report, don't fix: a template `(class)` on an element whose component exposes a host
+directive output aliased as `class`. The runtime falls back to a listener there, but
+`getDirectivesOfNode` may not list the alias. `NG8119` for that alias is deferred; report what both
+checks do.
 
 Gates: the gate ladder, with the compiler regression targets.
 
