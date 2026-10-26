@@ -40,23 +40,23 @@ None of these is a bug or a gap. Don't fix them, soften them, or add alternative
 
 ### Owner rulings
 
-| ID  | Ruling                                                                                                                                                                                                                                                                                                                                                                          |
-| --- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| R1  | `ClassSources` is `[component, directives, template]`, each a `string[]`, ordered by source. Within a source, static classes come first, then `[class]`, then `[class.x]`. Same-name conflicts follow Angular's existing rules.                                                                                                                                                 |
-| R2  | Components and directives can declare a host resolver with `host: {'(class)': …}` or `@HostListener('class')`. The template's `(class)` ranks above all of them.                                                                                                                                                                                                                |
-| R3  | The handler runs on every refresh of the view that declares the element. It runs while the view renders, so signal reads are tracked and a signal write throws `NG0600`.                                                                                                                                                                                                        |
-| R4  | Hydration seeds the first resolution from the element's `class` attribute only when the element has no static classes.                                                                                                                                                                                                                                                          |
-| R5  | Every registration runs on each refresh, from the lowest to the highest priority (D1). The lowest receives the collected sources; each later one receives the previous result folded back into `ClassSources` (D8). The highest registration's result becomes the element's classes. There's no `$event.inherited()`.                                                           |
-| R6  | No warning about replaced resolvers: every resolver runs, so none is shadowed. There's no `NG0320` or `NG0321`.                                                                                                                                                                                                                                                                 |
-| R7  | Host-level `(class)` always resolves on an element. Only the template's `(class)` on an element with a directive output named `class` falls back to a listener, with `NG0319` in dev mode. Like a directive input that takes a property binding's name, the output takes the binding.                                                                                           |
-| R8  | No app-wide controls in core. App-wide default resolvers are open for comments in the proposal, not part of this work.                                                                                                                                                                                                                                                          |
-| R9  | A partial declaration declares `minVersion: "22.3.0"` when its template has `(class)` on an element, or its host has a `class` listener.                                                                                                                                                                                                                                        |
-| R10 | Nothing under `packages/compiler-cli/preprocessor/` changes.                                                                                                                                                                                                                                                                                                                    |
-| R11 | Compliance tests target the TypeScript compiler.                                                                                                                                                                                                                                                                                                                                |
-| R12 | Commit messages follow the repository hook: `type(scope): lowercase summary`, a blank line, and a body wrapped at 72 characters that says what and why.                                                                                                                                                                                                                         |
-| R13 | One Bazel server at a time on the machine, with the caps in `.bazelrc.user` and the Bazel lock under [Environment](#environment). Run `pnpm bazel shutdown` after each gate ladder.                                                                                                                                                                                             |
-| R14 | A host `(class)` on `<ng-container>` or `<ng-template>` registers nothing: it doesn't resolve and doesn't listen to a `class` output. Host bindings on containers do nothing, as upstream's do.                                                                                                                                                                                 |
-| R15 | The compiler classifies `(class)` as the runtime runs it. A template `(class)` resolves on an element that isn't a container in any namespace (`isNgContainer`) and has no directive output named `class`; any other template `(class)` is type-checked and diagnosed like every other event binding. A host `(class)` is type-checked once, as a resolver with `ClassSources`. |
+| ID  | Ruling                                                                                                                                                                                                                                                                                                                                                                                                                                                                  |
+| --- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| R1  | `ClassSources` is `[component, directives, template]`, each a `string[]`, ordered by source. Within a source, static classes come first, then `[class]`, then `[class.x]`. Same-name conflicts follow Angular's existing rules.                                                                                                                                                                                                                                         |
+| R2  | Components and directives can declare a host resolver with `host: {'(class)': …}` or `@HostListener('class')`. The template's `(class)` ranks above all of them.                                                                                                                                                                                                                                                                                                        |
+| R3  | The handler runs on every refresh of the view that declares the element. It runs while the view renders, so signal reads are tracked and a signal write throws `NG0600`.                                                                                                                                                                                                                                                                                                |
+| R4  | Hydration seeds the first resolution from the element's `class` attribute only when the element has no static classes.                                                                                                                                                                                                                                                                                                                                                  |
+| R5  | Every registration runs on each refresh, from the lowest to the highest priority (D1). The lowest receives the collected sources; each later one receives the previous result folded back into `ClassSources` (D8). The highest registration's result becomes the element's classes. There's no `$event.inherited()`.                                                                                                                                                   |
+| R6  | No warning about replaced resolvers: every resolver runs, so none is shadowed. There's no `NG0320` or `NG0321`.                                                                                                                                                                                                                                                                                                                                                         |
+| R7  | Host-level `(class)` always resolves on an element. Only the template's `(class)` on an element with a directive output named `class` falls back to a listener, with `NG0319` in dev mode. Like a directive input that takes a property binding's name, the output takes the binding.                                                                                                                                                                                   |
+| R8  | No app-wide controls in core. App-wide default resolvers are open for comments in the proposal, not part of this work.                                                                                                                                                                                                                                                                                                                                                  |
+| R9  | A partial declaration declares `minVersion: "22.3.0"` when its template has `(class)` on an element, or its host has a `class` listener.                                                                                                                                                                                                                                                                                                                                |
+| R10 | Nothing under `packages/compiler-cli/preprocessor/` changes.                                                                                                                                                                                                                                                                                                                                                                                                            |
+| R11 | Compliance tests target the TypeScript compiler.                                                                                                                                                                                                                                                                                                                                                                                                                        |
+| R12 | Commit messages follow the repository hook: `type(scope): lowercase summary`, a blank line, and a body wrapped at 72 characters that says what and why.                                                                                                                                                                                                                                                                                                                 |
+| R13 | One Bazel server at a time on the machine, with the caps in `.bazelrc.user` and the Bazel lock under [Environment](#environment). Run `pnpm bazel shutdown` after each gate ladder.                                                                                                                                                                                                                                                                                     |
+| R14 | A host `(class)` on `<ng-container>` or `<ng-template>` registers nothing: it doesn't resolve and doesn't listen to a `class` output. Host bindings on containers do nothing, as upstream's do.                                                                                                                                                                                                                                                                         |
+| R15 | The compiler classifies `(class)` as the runtime runs it. A template `(class)` resolves on an element that isn't a container in any namespace (`isNgContainer`) and has no directive output named `class`; any other template `(class)` is type-checked and diagnosed like every other event binding, except that `NG8111` keeps its exemption for every `(class)` until design B removes it. A host `(class)` is type-checked once, as a resolver with `ClassSources`. |
 
 ### Orchestrator defaults
 
@@ -500,73 +500,45 @@ Gates: the gate ladder, with the compiler regression targets.
 
 Commit: `fix(compiler): type-check class resolvers as the runtime runs them`
 
-### WP6: diagnose `(class)` as the runtime runs it
+### WP6: skip `NG8119` on containers in every namespace
 
-From audit finding A3 and the orchestrator's finding O1.
+From the orchestrator's finding O1. Audit finding A3 moved to the round that implements design B,
+which deletes the `NG8111` exemption (see [Errata](#errata)).
 
 Scope:
 
-- `packages/compiler-cli/src/ngtsc/typecheck/extended/checks/uninvoked_function_in_event_binding/index.ts`
-  (`NG8111`).
 - `packages/compiler-cli/src/ngtsc/typecheck/extended/checks/class_resolver_shadowed_by_output/index.ts`
   (`NG8119`).
-- One classification helper shared by both checks, in
-  `packages/compiler-cli/src/ngtsc/typecheck/extended/api/`, exported through its `index.ts`.
-- The two checks' spec files under
-  `packages/compiler-cli/src/ngtsc/typecheck/extended/test/checks/`.
+- `packages/compiler-cli/src/ngtsc/typecheck/extended/test/checks/class_resolver_shadowed_by_output/class_resolver_shadowed_by_output_spec.ts`.
 
-Behavior (R7, R15):
+Behavior (R15):
 
-- A template `(class)` (`ParsedEventType.Regular`, no target) resolves when its node is a
-  `TmplAstElement` that isn't a container in any namespace (`isNgContainer` from
-  `@angular/compiler`), and no directive on it, from `ctx.templateTypeChecker.getDirectivesOfNode`,
-  has an output named `class`.
-- `NG8111` exempts only a `(class)` that resolves. Any other `(class)` gets exactly what `(click)`
-  gets in the same place.
-- `NG8119` fires only for a template `(class)` on a non-container element with a directive output
-  named `class`. Containers in any namespace never get it.
-- Diagnostics for every other event binding don't change.
+- `NG8119` recognizes containers with `isNgContainer` from `@angular/compiler`, so a `(class)` on
+  `<ng-container>` never gets it, in any namespace.
+- Every other `NG8119` result stays the same.
 
-`NG8111` visits a `BoundEvent` without its node today, so it can't tell a container or an output
-from a resolver. It needs the owning `TmplAstElement` or `TmplAstTemplate`.
-
-Before and after, `NG8111` set to `warning`, `onClass` a method, `ClassEmitter` a directive with
-`@Output('class')`:
+Before and after, `ClassEmitter` a directive with `@Output('class')`:
 
 ```html
-<div classEmitter (class)="onClass"></div>
-<!-- before: NG8119; after: NG8119 and NG8111 -->
-<ng-container (class)="onClass"></ng-container>
-<!-- before: none; after: NG8111 -->
-<ng-template (class)="onClass"></ng-template>
-<!-- before and after: none, as for (click) -->
-<div (class)="onClass"></div>
-<!-- before and after: none; it resolves -->
 <svg><ng-container classEmitter (class)="onClass($event)"></ng-container></svg>
-<!-- before: NG8119; after: none -->
+<!-- before: NG8119; after: none, as without <svg> -->
 ```
 
-Tests, red first, ported from the external audit's probes into the two checks' spec files. The
-probes are in `git show 717ebb9951:packages/compiler-cli/test/ngtsc/class_resolver_audit_spec.ts`;
-read them as evidence, don't add that file.
+Tests, red first:
 
-- `NG8111` for `(class)="h"` on `<ng-container>`, and on an element with a directive output named
-  `class`.
-- No `NG8111` for `(class)="h"` on `<ng-template>`, matching `(click)="h"` there, and none on an
-  element that resolves.
-- No `NG8119` on `<svg><ng-container dir (class)>` with an output named `class`.
-- Controls that pin upstream behavior, because `NG8111` changes how it finds events:
-  `<ng-container (click)="h">` gets `NG8111`, and `<ng-template (click)="h">` gets none.
+- No `NG8119` on `<svg><ng-container dir (class)="resolve($event)"></ng-container></svg>` when
+  `dir` has an output named `class`. The orchestrator's probe of this case failed on all four test
+  file systems on 2026-10-26.
 - Every existing spec stays green, unchanged.
 
 Probe and report, don't fix: a template `(class)` on an element whose component exposes a host
 directive output aliased as `class`. The runtime falls back to a listener there, but
-`getDirectivesOfNode` may not list the alias. `NG8119` for that alias is deferred; report what both
-checks do.
+`getDirectivesOfNode` may not list the alias. `NG8119` for that alias is deferred; report what the
+check does.
 
 Gates: the gate ladder, with the compiler regression targets.
 
-Commit: `fix(compiler-cli): diagnose class bindings as the runtime runs them`
+Commit: `fix(compiler-cli): skip the class output warning on svg containers`
 
 ### WP7: register nothing for a host `(class)` on a container
 
@@ -681,6 +653,22 @@ Commit: `fix(core): register nothing for host class resolvers on containers`
   as upstream host bindings on containers do nothing (WP7). R7 now says "on an element".
 - 2026-10-26, orchestrator, on audit A4: the emission specs get `await fixture.whenStable()`.
   Folded into WP7, which edits the same file, so no second agent writes it.
+- 2026-10-26, owner: `(class)` switches to design B. The handler's return value is ignored, as for
+  any event. The classes go through `$event.resolve(classes)`, and the flat tuple moves to
+  `$event.sources`, so R1 holds. Reasons: the void event contract, type checking of the classes as
+  an argument, no trap where the last statement's value wins, no `NG8111` exemption, an opt-out,
+  and a typed surface for the proposal's `(attr.name)` direction. Details, all as recommended:
+  - Not calling `resolve()` passes the payload through: the next registration, or the element,
+    gets it as if this `(class)` weren't there.
+  - A repeated call, or one after the handler returns, throws one new runtime error in dev mode,
+    for example `NG0320`; D6 changes for it. In production a late call is ignored, and the last
+    call during the handler wins.
+  - `resolve()` accepts what `[class]` accepts: `string`, `readonly string[]`,
+    `ReadonlySet<string>`, `{[className: string]: unknown}`, `null`, or `undefined`.
+  - No `resolve(fn)` overload.
+  - The event type is `ClassResolveEvent`, with `sources: ClassSources` and `resolve()`.
+  - B lands in a new round, with its own plan and external audit. This round finishes WP5, WP6
+    cut down to O1, and WP7, and the proposal records B at finish. A3 moves to the B round.
 
 ## Reviews
 
@@ -718,26 +706,26 @@ The external audit's report is [`class-resolver-audit-report.md`](class-resolver
 from `717ebb9951` on `codex/feat/class-resolver-decisions-audit-1`. Its probe files stay on the
 audit branch; WP5 and WP6 port the probes into the existing spec files.
 
-| Finding  | Kind                    | Cause                                                                                                                                                         | Ruling             | Fix |
-| -------- | ----------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------ | --- |
-| A1 major | Bug from this round     | WP1 changed the runtime (R7) while type-check generation was out of scope, so `TcbDirectiveOutputsOp` still checks a host `(class)` against a `class` output. | Fix (owner)        | WP5 |
-| A2 minor | Bug in the prototype    | `TcbUnclaimedOutputsOp` compares the unsplit name `:svg:ng-container` to `ng-container`. Local.                                                               | Fix (owner)        | WP5 |
-| O1 minor | Bug in the prototype    | `NG8119` makes the same comparison. Local. Found by the orchestrator.                                                                                         | Fix (owner)        | WP6 |
-| A3 minor | Bug in the prototype    | `NG8111` exempts `(class)` by its name alone, without looking at the node. Local.                                                                             | Narrow (owner)     | WP6 |
-| A4 nit   | Test convention         | Five emission specs assert without `await fixture.whenStable()`.                                                                                              | Fix (orchestrator) | WP7 |
-| D10      | Design gap in a default | Host binding type checking can't know the host's tag, and D10's listener passed a `class` output's value to a handler typed `ClassSources`.                   | R14 (owner)        | WP7 |
+| Finding  | Kind                    | Cause                                                                                                                                                         | Ruling             | Fix     |
+| -------- | ----------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------ | ------- |
+| A1 major | Bug from this round     | WP1 changed the runtime (R7) while type-check generation was out of scope, so `TcbDirectiveOutputsOp` still checks a host `(class)` against a `class` output. | Fix (owner)        | WP5     |
+| A2 minor | Bug in the prototype    | `TcbUnclaimedOutputsOp` compares the unsplit name `:svg:ng-container` to `ng-container`. Local.                                                               | Fix (owner)        | WP5     |
+| O1 minor | Bug in the prototype    | `NG8119` makes the same comparison. Local. Found by the orchestrator.                                                                                         | Fix (owner)        | WP6     |
+| A3 minor | Bug in the prototype    | `NG8111` exempts `(class)` by its name alone, without looking at the node. Local.                                                                             | Design B (owner)   | B round |
+| A4 nit   | Test convention         | Five emission specs assert without `await fixture.whenStable()`.                                                                                              | Fix (orchestrator) | WP7     |
+| D10      | Design gap in a default | Host binding type checking can't know the host's tag, and D10's listener passed a `class` output's value to a handler typed `ClassSources`.                   | R14 (owner)        | WP7     |
 
 No finding comes from upstream behavior on its execution path. The proposed fixes are agreed,
 with three changes:
 
 - A1 is narrowed to `HostElement`; the template's `(class)` next to a `class` output keeps the
   output's type.
-- A3 follows upstream `(click)` on `<ng-template>`, which gets no `NG8111`, instead of the audit's
-  expectation of one.
+- A3 moves to the design B round, which deletes the `NG8111` exemption instead of narrowing it.
 - A4 covers all five emission specs, not only the three the audit named.
 
-The audit's structure note, one shared classification, applies within the extended diagnostics
-(WP6). The template pipeline has no directive information, so it can't share the part that
-depends on directives.
+The audit's structure note, one shared classification, moves to the design B round with A3. Once
+`NG8111` loses its exemption, `NG8119` is the only extended diagnostic that classifies `(class)`.
+The template pipeline has no directive information, so it can't share the part that depends on
+directives.
 
 Order: WP5, WP6, then WP7. Each gets a fresh agent and the review in the Protocol.
