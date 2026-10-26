@@ -7,6 +7,7 @@
  */
 
 import {AST, ImplicitReceiver, ParsedEventType, PropertyRead} from '../../expression_parser/ast';
+import {isNgContainer} from '../../ml_parser/tags';
 import {BoundAttribute, BoundEvent, Element, HostElement} from '../../render3/r3_ast';
 import {DirectiveOwner} from '../../render3/view/t2_api';
 import {TcbOp} from './base';
@@ -39,6 +40,13 @@ function tcbEventHandlerExpression(ast: AST, tcb: Context, scope: Scope): TcbExp
   return translator.translate(ast);
 }
 
+/** Whether an event binding is `(class)`, without a target such as `window:`. */
+function isClassEvent(output: BoundEvent): boolean {
+  return (
+    output.name === 'class' && output.type === ParsedEventType.Regular && output.target === null
+  );
+}
+
 /**
  * A `TcbOp` which generates code to check event bindings on an element that correspond with the
  * outputs of a directive.
@@ -68,7 +76,10 @@ export class TcbDirectiveOutputsOp extends TcbOp {
     for (const output of this.outputs) {
       if (
         output.type === ParsedEventType.LegacyAnimation ||
-        !outputs.hasBindingPropertyName(output.name)
+        !outputs.hasBindingPropertyName(output.name) ||
+        // A host `(class)` resolves the host element's classes, even next to an output named
+        // `class`, so it's checked once as unclaimed.
+        (this.node instanceof HostElement && isClassEvent(output))
       ) {
         continue;
       }
@@ -145,7 +156,10 @@ export class TcbUnclaimedOutputsOp extends TcbOp {
 
     // TODO(alxhub): this could be more efficient.
     for (const output of this.outputs) {
-      if (this.claimedOutputs?.has(output.name)) {
+      // A directive output named `class` doesn't claim a host `(class)`.
+      const isHostClassResolver = this.target instanceof HostElement && isClassEvent(output);
+
+      if (!isHostClassResolver && this.claimedOutputs?.has(output.name)) {
         // Skip this event handler as it was claimed by a directive.
         continue;
       }
@@ -163,11 +177,8 @@ export class TcbUnclaimedOutputsOp extends TcbOp {
       }
 
       if (
-        ((this.target instanceof Element && this.target.name !== 'ng-container') ||
-          this.target instanceof HostElement) &&
-        output.name === 'class' &&
-        output.type === ParsedEventType.Regular &&
-        output.target === null
+        isHostClassResolver ||
+        (this.target instanceof Element && !isNgContainer(this.target.name) && isClassEvent(output))
       ) {
         // `(class)` computes the element's classes from the `ClassSources` passed as `$event`.
         const eventType = this.tcb.env.config.checkTypeOfOutputEvents

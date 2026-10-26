@@ -1216,6 +1216,58 @@ runInEachFileSystem(() => {
       });
     });
 
+    describe('(class) bindings that listen to events', () => {
+      it('should infer the type of $event from a directive output named class', () => {
+        env.tsconfig({
+          strictTemplates: true,
+          extendedDiagnostics: {checks: {classResolverShadowedByOutput: 'suppress'}},
+        });
+        env.write(
+          'test.ts',
+          `
+          import {Component, Directive, EventEmitter, Output} from '@angular/core';
+
+          @Directive({selector: '[dir]'})
+          class TestDir {
+            @Output('class') changed = new EventEmitter<string>();
+          }
+
+          @Component({
+            selector: 'test',
+            imports: [TestDir],
+            template: '<div dir (class)="h($event)"></div>',
+          })
+          class TestCmp {
+            h(e: number) {}
+          }
+        `,
+        );
+
+        expect(env.driveDiagnostics().map((diag) => diag.messageText)).toEqual([
+          `Argument of type 'string' is not assignable to parameter of type 'number'.`,
+        ]);
+      });
+
+      it('should infer the type of $event as Event on an ng-container in the svg namespace', () => {
+        env.write(
+          'test.ts',
+          `
+          import {Component} from '@angular/core';
+
+          @Component({
+            selector: 'test',
+            template: '<svg><ng-container (class)="accept($event)"></ng-container></svg>',
+          })
+          class TestCmp {
+            accept(event: Event) {}
+          }
+        `,
+        );
+
+        expect(env.driveDiagnostics()).toEqual([]);
+      });
+    });
+
     describe('strictOutputEventTypes and animation event bindings', () => {
       beforeEach(() => {
         env.write(

@@ -279,6 +279,79 @@ runInEachFileSystem(() => {
       expect(getDiagnosticSourceCode(diags[0])).toBe('$event');
     });
 
+    it('should infer the type of $event in a host (class) binding as ClassSources next to an output named class', () => {
+      env.write(
+        'test.ts',
+        `
+        import {Component, EventEmitter, Output} from '@angular/core';
+
+        @Component({
+          template: '',
+          selector: 'ui-button',
+          host: {'(class)': 'resolve($event)'},
+        })
+        export class Comp {
+          @Output('class') changed = new EventEmitter<string>();
+          resolve(value: number) { return ''; }
+        }
+      `,
+      );
+
+      const diags = env.driveDiagnostics();
+      expect(diags.length).toBe(1);
+      expect(diags[0].messageText).toBe(
+        `Argument of type 'ClassSources' is not assignable to parameter of type 'number'.`,
+      );
+      expect(getDiagnosticSourceCode(diags[0])).toBe('$event');
+    });
+
+    it('should not check a host (class) binding against an own output named class', () => {
+      env.write(
+        'test.ts',
+        `
+        import {ClassSources, Component, EventEmitter, Output} from '@angular/core';
+
+        @Component({
+          template: '',
+          selector: 'ui-card',
+          host: {'(class)': 'resolve($event)'},
+        })
+        export class Comp {
+          @Output('class') changed = new EventEmitter<string>();
+          resolve(sources: ClassSources) { return ''; }
+        }
+      `,
+      );
+
+      expect(env.driveDiagnostics()).toEqual([]);
+    });
+
+    it('should not check a host (class) binding against a host directive output aliased as class', () => {
+      env.write(
+        'test.ts',
+        `
+        import {ClassSources, Component, Directive, EventEmitter, Output} from '@angular/core';
+
+        @Directive()
+        export class HostDir {
+          @Output() changed = new EventEmitter<string>();
+        }
+
+        @Component({
+          template: '',
+          selector: 'ui-card',
+          host: {'(class)': 'resolve($event)'},
+          hostDirectives: [{directive: HostDir, outputs: ['changed: class']}],
+        })
+        export class Comp {
+          resolve(sources: ClassSources) { return ''; }
+        }
+      `,
+      );
+
+      expect(env.driveDiagnostics()).toEqual([]);
+    });
+
     it('should check @HostListener with a target', () => {
       env.write(
         'test.ts',
