@@ -258,8 +258,9 @@ A directive takes a binding's name without an error, so `(class)` does too, and 
 emission.
 
 `NG8111` still exempts every `(class)` binding, including one that listens to an output, where a
-function reference never runs. The [next design](#next-the-resolve-class-event) removes the
-exemption, so the narrower rule isn't built for this prototype.
+function reference never runs. The [next design](#next-the-resolve-class-event) narrows the
+exemption to the shorthand that resolves, where type checking backs it, so the narrower rule isn't
+built for this prototype.
 
 ### `<ng-container>` and `<ng-template>`
 
@@ -642,18 +643,18 @@ it ranks at the component's source, below the template, which matches the priori
 
 ## Deferred
 
-| Item                                                                            | Reason                                                                                                                               |
-| ------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------ |
-| A `[static, bound]` split inside each source                                    | No case needs it yet; it only deepens the type. See [Payload shape](#payload-shape).                                                 |
-| App-wide default resolvers                                                      | Decided for the next design as `provideClassResolver()`. See [Next: the `resolve()` class event](#next-the-resolve-class-event).     |
-| Resolution for attributes other than `class`, including a `(style)` counterpart | The next design reserves `(attr.*)` and ships `class`. Other attributes need their own source shape and fold rule, in a later round. |
-| Checking the type of the handler's result                                       | The next design checks it: `resolve()` takes a class value, and the shorthand must return a `ResolvedClasses`.                       |
-| `NG8111` for a `(class)` that listens to an output                              | The next design removes the `NG8111` exemption for `(class)` bindings, so the narrower exemption isn't built for this prototype.     |
-| An error for bindings that do nothing on `<ng-container>` and `<ng-template>`   | Upstream accepts class bindings and `(click)` there without a diagnostic, so it's an upstream-wide question.                         |
-| Language service support for `$event` in `(class)`                              | Not needed to evaluate the design.                                                                                                   |
-| Root components with a host `(class)`                                           | Not covered by tests yet.                                                                                                            |
-| A switch that makes a resolver replace the ones below it                        | No use case needs it yet; filtering `$event` covers removing classes.                                                                |
-| The cost of running every resolver on every refresh                             | Not measured yet.                                                                                                                    |
+| Item                                                                            | Reason                                                                                                                                   |
+| ------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------- |
+| A `[static, bound]` split inside each source                                    | No case needs it yet; it only deepens the type. See [Payload shape](#payload-shape).                                                     |
+| App-wide default resolvers                                                      | Decided for the next design as `provideClassResolver()`. See [Next: the `resolve()` class event](#next-the-resolve-class-event).         |
+| Resolution for attributes other than `class`, including a `(style)` counterpart | The next design reserves `(attr.*)` and ships `class`. Other attributes need their own source shape and fold rule, in a later round.     |
+| Checking the type of the handler's result                                       | The next design checks it: `resolve()` takes a class value, and the shorthand must return a `ResolvedClasses`.                           |
+| `NG8111` for a `(class)` that listens to an output                              | The next design narrows the `NG8111` exemption to the shorthand that resolves, so the narrower exemption isn't built for this prototype. |
+| An error for bindings that do nothing on `<ng-container>` and `<ng-template>`   | Upstream accepts class bindings and `(click)` there without a diagnostic, so it's an upstream-wide question.                             |
+| Language service support for `$event` in `(class)`                              | Not needed to evaluate the design.                                                                                                       |
+| Root components with a host `(class)`                                           | Not covered by tests yet.                                                                                                                |
+| A switch that makes a resolver replace the ones below it                        | No use case needs it yet; filtering `$event` covers removing classes.                                                                    |
+| The cost of running every resolver on every refresh                             | Not measured yet.                                                                                                                        |
 
 ## Compiler backends
 
@@ -707,7 +708,8 @@ compiler doesn't catch:
   binding manages.
 - The return value isn't type-checked. `(class)="count()"` compiles, and a number throws only at
   runtime, in dev mode.
-- `NG8111` needs an exemption, because `(class)="cn"` passes a function on purpose.
+- `NG8111` has to exempt every `(class)` binding, because `(class)="cn"` passes a function on
+  purpose, even where the binding only listens and the function never runs.
 - A handler can't skip resolving for one refresh.
 
 ### The full form: `(attr.class)`
@@ -753,8 +755,10 @@ interface ClassResolveEvent {
   that returns a string, or ignores `cn` and calls another function, fails type checking. In dev
   mode, a result that isn't a `ResolvedClasses`, or that came from another element's resolver,
   throws with the same error code as a late `resolve()`. Production skips the check.
-- `NG8111` doesn't report the shorthand. Calling the callback by mistake, as in
-  `(class)="classes()"`, fails type checking instead, because the argument is missing.
+- `NG8111` doesn't report a shorthand that resolves, because its function is passed on purpose.
+  Calling the callback by mistake, as in `(class)="classes()"`, fails type checking instead,
+  because the argument is missing. `NG8111` reports `(attr.class)` and a listening `(class)` like
+  any other event binding.
 
 A component can define its callback once and bind it by reference:
 

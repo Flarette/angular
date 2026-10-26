@@ -35,7 +35,7 @@ anything else built on the binding.
   its handler received a sibling's output value while typed as `ClassSources`, and threw. Upstream
   host bindings on containers do nothing either, so no new warning was added.
 - The audit's finding that `NG8111` exempts too many `(class)` bindings wasn't fixed here, because
-  the next design removes the exemption altogether.
+  the next design narrows it to the shorthand, where type checking backs it.
 
 ### What it set up next
 
@@ -46,7 +46,7 @@ While triaging the audit, the owner moved `(class)` to a new design, recorded in
 opaque `ResolvedClasses` that the bound resolver creates. `provideClassResolver()` supplies the
 resolver, with Angular's plain merge as the default. The reasons: an event binding keeps its void
 contract, the result is type-checked, a later statement can't silently replace the classes, `NG8111`
-needs no exemption, and a component's default classes rank below the consumer's. A measured
+exempts only the shorthand, and a component's default classes rank below the consumer's. A measured
 simulation showed that a host appending its default after the sources drops the consumer's
 conflicting class. The design gets its own implementation round.
 
