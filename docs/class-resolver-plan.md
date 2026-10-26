@@ -759,6 +759,16 @@ Commit: `fix(core): register nothing for host class resolvers on containers`
     directive exposes an output aliased as `class` gets `NG8119`, naming the host directive, which
     matches the runtime's `hostDirectiveOutputs` fallback. The proposal's deferred row for it can
     go at finish.
+- WP7 (`6fac4f5d0e`, fixup `f43680af2d`): orchestrator 9.75, Codex 9.90 before the fixup and
+  10.00 after.
+  - The two container specs now record the host `(class)` and the template's `(class)` separately:
+    the host never runs, and the template listener still receives `'sent'`. Their titles changed
+    to describe the new behavior.
+  - A4 is complete: all five emissions await `fixture.whenStable()`.
+  - The fixup makes the `resolverFn` JSDoc name both payloads: `ClassSources` when it resolves,
+    the output's value when it listens.
+  - Only the compiler keeps a template `(class)` on a container away from `ɵɵclassResolver`; the
+    runtime doesn't check it. Codex traced every caller, including JIT and the root component.
 
 ## Audit triage
 
