@@ -44,6 +44,11 @@ order of rules in the stylesheet.
 | 2026-10-26 | The compiler classifies `(class)` as the runtime runs it. A host `(class)` is type-checked as a resolver even next to an output named `class`, and `<ng-container>` counts as a container in every namespace, in type checking and in `NG8119`.                                                                                                    |
 | 2026-10-26 | A template `(class)` next to an output named `class` keeps listening to it, consistent with how a directive input takes a property binding's name. No new warning for `(class)` on containers, because upstream diagnoses no class binding there either. See [Directive outputs named `class`](#directive-outputs-named-class).                    |
 | 2026-10-26 | The next design replaces the return value with `$event.resolve()`, adds the callback shorthand `(class)="(cn) => cn('x')"` and `provideClassResolver()`, and reverses the 2026-10-17 decision against app-wide controls. It gets its own implementation round. See [Next: the `resolve()` class event](#next-the-resolve-class-event).             |
+| 2026-10-28 | In the next design, `(class)` always resolves, also next to a directive output named `class`. The resolver shadows the output, the way an output shadows a native event, and a template can't listen to that output. See [Collisions and other names](#collisions-and-other-names).                                                                |
+| 2026-10-28 | In the next design, a generic check for bindings that do nothing on `<ng-container>` and `<ng-template>` reports `(class)` and `(attr.class)` there. The next design adds no check of its own.                                                                                                                                                     |
+| 2026-10-28 | `@HostListener('class')` is a compile error that points to `@HostListener('attr.class', ['$event'])`. A shorthand for the decorator is left to the maintainers.                                                                                                                                                                                    |
+| 2026-10-28 | The extras accept `false`. Whether a `false` extra is dropped or becomes a class named `false` is still open.                                                                                                                                                                                                                                      |
+| 2026-10-28 | Other `(attr.*)` names stay ordinary event bindings. Reserving the namespace is left to the maintainers, and the code marks where the reservation would go.                                                                                                                                                                                        |
 
 No open questions remain for the prototype. The [Request for comments](#request-for-comments) asks
 about the directions after it.
@@ -184,7 +189,8 @@ Write the handler as a function of its sources and the state it reads.
 A template `(class)` binding next to a directive output named `class` listens to that output, as it
 did before this feature. Angular logs `NG0319` in dev mode, and full AOT compilation reports
 `NG8119`. A host-level `(class)` always resolves: a component's or directive's own resolver isn't
-turned off by an unrelated directive on the same element.
+turned off by an unrelated directive on the same element. The next design reverses this rule, so
+`(class)` always resolves. See [Collisions and other names](#collisions-and-other-names).
 
 Starting point:
 
@@ -294,7 +300,8 @@ Now:    resolve never runs. A template (class) on the same container still recei
 
 Upstream also accepts class bindings and `(click)` on containers without a diagnostic, so a `(class)`
 on a container gets no new warning here. An error for every binding that does nothing on a
-container is an upstream-wide question, outside this proposal.
+container is an upstream-wide question, outside this proposal. The next design relies on a generic
+check for it, developed separately.
 
 ### `[(class)]`
 
@@ -643,18 +650,18 @@ it ranks at the component's source, below the template, which matches the priori
 
 ## Deferred
 
-| Item                                                                            | Reason                                                                                                                                   |
-| ------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------- |
-| A `[static, bound]` split inside each source                                    | No case needs it yet; it only deepens the type. See [Payload shape](#payload-shape).                                                     |
-| App-wide default resolvers                                                      | Decided for the next design as `provideClassResolver()`. See [Next: the `resolve()` class event](#next-the-resolve-class-event).         |
-| Resolution for attributes other than `class`, including a `(style)` counterpart | The next design reserves `(attr.*)` and ships `class`. Other attributes need their own source shape and fold rule, in a later round.     |
-| Checking the type of the handler's result                                       | The next design checks it: `resolve()` takes a class value, and the shorthand must return a `ResolvedClasses`.                           |
-| `NG8111` for a `(class)` that listens to an output                              | The next design narrows the `NG8111` exemption to the shorthand that resolves, so the narrower exemption isn't built for this prototype. |
-| An error for bindings that do nothing on `<ng-container>` and `<ng-template>`   | Upstream accepts class bindings and `(click)` there without a diagnostic, so it's an upstream-wide question.                             |
-| Language service support for `$event` in `(class)`                              | Not needed to evaluate the design.                                                                                                       |
-| Root components with a host `(class)`                                           | Not covered by tests yet.                                                                                                                |
-| A switch that makes a resolver replace the ones below it                        | No use case needs it yet; filtering `$event` covers removing classes.                                                                    |
-| The cost of running every resolver on every refresh                             | Not measured yet.                                                                                                                        |
+| Item                                                                            | Reason                                                                                                                                                                                    |
+| ------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| A `[static, bound]` split inside each source                                    | No case needs it yet; it only deepens the type. See [Payload shape](#payload-shape).                                                                                                      |
+| App-wide default resolvers                                                      | Decided for the next design as `provideClassResolver()`. See [Next: the `resolve()` class event](#next-the-resolve-class-event).                                                          |
+| Resolution for attributes other than `class`, including a `(style)` counterpart | The next design ships `(attr.class)` only. Other attributes need their own source shape and fold rule, in a later round. Reserving `(attr.*)` meanwhile is left to the maintainers.       |
+| Checking the type of the handler's result                                       | The next design checks it: `resolve()` takes a class value, and the shorthand must return a `ResolvedClasses`.                                                                            |
+| `NG8111` for a `(class)` that listens to an output                              | The next design narrows the `NG8111` exemption to the shorthand that resolves, so the narrower exemption isn't built for this prototype.                                                  |
+| An error for bindings that do nothing on `<ng-container>` and `<ng-template>`   | Upstream accepts class bindings and `(click)` there without a diagnostic, so it's an upstream-wide question. A generic check is in progress separately, and the next design relies on it. |
+| Language service support for `$event` in `(class)`                              | Not needed to evaluate the design.                                                                                                                                                        |
+| Root components with a host `(class)`                                           | Not covered by tests yet.                                                                                                                                                                 |
+| A switch that makes a resolver replace the ones below it                        | No use case needs it yet; filtering `$event` covers removing classes.                                                                                                                     |
+| The cost of running every resolver on every refresh                             | Not measured yet.                                                                                                                                                                         |
 
 ## Compiler backends
 
@@ -757,8 +764,7 @@ interface ClassResolveEvent {
   throws with the same error code as a late `resolve()`. Production skips the check.
 - `NG8111` doesn't report a shorthand that resolves, because its function is passed on purpose.
   Calling the callback by mistake, as in `(class)="classes()"`, fails type checking instead,
-  because the argument is missing. `NG8111` reports `(attr.class)` and a listening `(class)` like
-  any other event binding.
+  because the argument is missing. `NG8111` reports `(attr.class)` like any other event binding.
 
 A component can define its callback once and bind it by reference:
 
@@ -790,6 +796,28 @@ bootstrapApplication(App, {providers: [provideClassResolver(cn)]});
   repeated names (keeping the first position), and joins the rest with spaces. It doesn't resolve
   conflicts, so `(class)="(cn) => cn()"` changes nothing, and adopting `(class)` changes no app until
   it provides a resolver.
+
+### Collisions and other names
+
+Decided on 2026-10-28.
+
+- **An output named `class`.** `(class)` always resolves, in a template and in host bindings, even
+  next to a directive output named `class`. The resolver shadows the output, the way a directive
+  output shadows a native event's `$event` type. Unlike that case, the output's emissions don't
+  reach the binding, because the binding passes a callback rather than listening. A template can't
+  listen to an output named `class`, which is rare. The prototype's fallback to a listener goes. The
+  same rule applies to `(attr.class)` and an output named `attr.class`.
+- **Containers.** `(class)` and `(attr.class)` on `<ng-container>` or `<ng-template>` do nothing,
+  like the other bindings there. A generic check for all such bindings, developed separately,
+  reports them. The next design adds no check of its own for `class`.
+- **`@HostListener`.** `@HostListener('class')` is a compile error that points to
+  `@HostListener('attr.class', ['$event'])`. A decorator always calls its method, so it can't pass
+  the callback that the shorthand needs. A shorthand for the decorator is a quality-of-life choice
+  for the maintainers.
+- **Other `(attr.*)` names.** Only `(attr.class)` resolves. Other `(attr.*)` names stay ordinary
+  event bindings, so the namespace isn't reserved. Reserving it is a choice for the maintainers, to
+  make together with [resolving any attribute](#direction-1-resolve-any-attribute). The code that
+  recognizes `(attr.class)` carries the reservation as a commented-out check.
 
 ### Why extras rank in the caller's source
 
@@ -832,10 +860,10 @@ component that must win over the consumer uses the full form.
 
 - The type-check block prints template arrow parameters without a type, so TypeScript should infer
   `cn` from the argument in the rewritten call. Measure it before building on it.
-- Whether extras accept `false`, so that `cn(active() && 'ring')` type-checks.
-- A directive output named `attr.<name>`, or a custom DOM event with that name, collides with
-  `(attr.*)`. The rule for outputs named `class` extends to it: the output takes the binding, with a
-  warning.
+- The extras accept `false`. Whether the runtime drops a `false` extra or renders a class named
+  `false` is open: `[class]` asserts on a top-level `false` in dev mode, and renders `false` from an
+  array or an interpolation.
+- Whether a diagnostic tells the author that `(class)` shadows an output named `class`.
 
 ## Request for comments
 
@@ -844,8 +872,9 @@ is welcome, and they can combine.
 
 ### Direction 1: resolve any attribute
 
-Status: the [next design](#next-the-resolve-class-event) reserves `(attr.*)` and ships it for
-`class`, with `(class)` as its shorthand. Other attributes stay open.
+Status: the [next design](#next-the-resolve-class-event) ships `(attr.class)`, with `(class)` as
+its shorthand. Other `(attr.*)` names stay ordinary event bindings, and whether to reserve them is
+open.
 
 `class` is one case of a broader problem: several sources can set the same attribute on one element,
 and Angular has no way to combine them. Static attributes already follow a priority order, because
