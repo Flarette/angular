@@ -132,16 +132,12 @@ Listed for the owner at review.
   - A shell hook may compress `cat` output; `/bin/cat` prints files as they are.
   - The commit hook runs `ng-dev format staged`, which can reformat staged files, and validates
     the message shape in R12.
-- Pre-existing failures in the gate targets:
-  - All eight `//packages/core/test/bundling/*:symbol_test` targets fail, because
-    `change_detection.ts` imports the resolver runtime unconditionally. Measured on 2026-10-28:
-    `standalone_bootstrap` has 26 symbols missing from its golden, among them
-    `refreshClassResolvers`, `collectClassSources`, `toStylingKeyValueArray`, `classStringParser`,
-    and `SafeValueImpl`. WP0 fixes them; they're gates from WP0 on.
-  - Everything else: no code changed since round 1's last gated commit (`git diff --stat
-7132fa8d43 HEAD -- packages goldens tools` is empty), where every gate target below passed.
-    WP0's agent re-runs the full ladder before its edits, because the worktree is new, and
-    reports any failure as a list.
+- Pre-existing failures in the gate targets: none. Measured by the WP0 agent on 2026-10-28, every
+  gate target below passes after WP0's commit, including the eight
+  `//packages/core/test/bundling/*:symbol_test` targets that failed before it. The resolver
+  runtime reaches bundles only through two hooks, `_refreshClassResolvers` and
+  `_registerClassResolverBinding`, in `packages/core/src/render3/instructions/class_resolver_hook.ts`.
+  A bundling golden may hold those two hook symbols, never a resolver function.
 
 ### Gate ladder
 
@@ -582,3 +578,19 @@ set. Waiving B13 for the two forms bundles was rejected, because B13 is an owner
 holder object was rejected, because it departs from the codebase's hook idiom to save one symbol in
 two goldens. The plan's claim that `_locateOrCreateElementNode` is only in the hydration golden was
 wrong; it's in six.
+
+## Reviews
+
+- WP0 (`adcbf79418`, fixup `d7f4b0254c`): orchestrator 9.00, Codex 9.00 before the fixup.
+  - One scope question, ruled by the orchestrator: `styling.ts` joins WP0 (see Errata).
+  - The bundles lose every resolver function and gain only hook symbols: `_refreshClassResolvers`
+    in all eight goldens, `_registerClassResolverBinding` in the two forms goldens.
+  - The fixup sets the hooks before `tNode.classResolver`, so the order the commit message states
+    holds. Behavior doesn't change.
+  - Codex traced every writer of `tNode.classResolver` and `tView.classResolvers`, TView retries
+    after a failed first pass, `TestBed`, SSR, and `checkNoChanges`, and found no path that reads
+    a hook while it's `null`.
+  - A JIT app still carries the runtime, as it carries every instruction through the JIT
+    environment. B13 is measured on AOT bundles.
+  - For a refactoring round: the binding hook's signature is written out twice in the hook module,
+    and three comments restate the same invariant, more than the existing hooks carry.
