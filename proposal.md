@@ -53,6 +53,7 @@ order of rules in the stylesheet.
 | 2026-10-28 | `cn(...extras)` and `[class]` both stay allowed on an element with a resolver. They differ as [`[class]` next to extras](#class-next-to-extras) shows.                                                                                                                                                                                                                                                                                                                                        |
 | 2026-10-28 | A second `(class)` or `(attr.class)` on one template element is a compile error.                                                                                                                                                                                                                                                                                                                                                                                                              |
 | 2026-10-28 | The next design's runtime is tree-shakable: an app without a `(class)` binding doesn't carry it.                                                                                                                                                                                                                                                                                                                                                                                              |
+| 2026-10-28 | A flag on `provideClassResolver` turns on automatic resolution, which resolves classes wherever sources can conflict, without a `(class)` binding. A component opts its template out by providing the resolver again without the flag. This reverses the 2026-10-26 rule that a resolver applies only where a `(class)` binding asks for it. The flag's shape and exact scope are still open. See [Automatic resolution](#automatic-resolution).                                              |
 
 No open questions remain for the prototype. The [Request for comments](#request-for-comments) asks
 about the directions after it.
@@ -819,7 +820,8 @@ bootstrapApplication(App, {providers: [provideClassResolver(twMerge)]});
 - Angular looks the resolver up through the element's injector, so a library scopes its own with
   `viewProviders`. Plain `providers` would also reach content that consumers project into the
   component.
-- It applies only where a `(class)` binding asks for it. Elements without one don't change.
+- Without [automatic resolution](#automatic-resolution), it applies only where a `(class)` binding
+  asks for it, and elements without one don't change.
 - Without a registration, the resolver is Angular's plain merge. It flattens the sources in order,
   adds each extra at the end of the caller's source, drops empty and repeated names (keeping the
   first position), and joins the rest with spaces. It doesn't resolve conflicts, so
@@ -926,7 +928,9 @@ The `cn(v)` column follows the design, since the next design isn't built. Both f
 
 - The type-check block prints template arrow parameters without a type, so TypeScript should infer
   `cn` from the argument in the rewritten call. Measure it before building on it.
-- Whether resolution should happen without a `(class)` binding, for example on every component host.
+- The shape and scope of [automatic resolution](#automatic-resolution).
+- The cost on the Angular side of collecting, normalizing, and diffing an element's classes on each
+  refresh. Only the resolver's own cost is measured so far.
 
 ## Notes for maintainers
 
@@ -975,6 +979,25 @@ doesn't take outside contributions. Two ways forward:
 - Hold the feature until the preprocessor lands, possibly until the next major release.
 
 The checks are small, so either is acceptable.
+
+### Automatic resolution
+
+The rule that a resolver applies only where a `(class)` binding asks for it dates from before the
+resolver came from dependency injection. With a provider, an app can turn resolution on everywhere
+sources can conflict, and a component can opt its template out by providing the resolver again
+without the flag. The reasons to allow it:
+
+- An app that adopts Tailwind wants resolution everywhere. Writing `(class)` on each element is one
+  more decision per element, and a forgotten one fails silently, whether a person or an agent writes
+  the template.
+- React apps call `cn` in nearly every component, and that cost is accepted.
+- The resolver is cheap. Measured on Node 26 with `tailwind-merge` 3.7.0, `twMerge` takes
+  0.03–0.04 µs per call when its cache has the input, and 0.7–2.4 µs when it doesn't.
+
+The constraint: Angular sets up an element's resolver data once per template, in its first creation
+pass, and the element's class bindings join it during the first update pass. A provider is resolved
+per instance. A provider that turns resolution on can't reach templates that were created before
+it, so turning it on belongs in the app's root providers, while opting out works anywhere.
 
 ### Other open points
 
