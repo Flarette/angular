@@ -1,12 +1,12 @@
-import {Component} from '@angular/core';
+import {BoundClassResolver, Component, ResolvedClasses} from '@angular/core';
 
 @Component({
   selector: 'my-component',
   template: '',
-  host: {class: 'px-4', '(class)': 'resolve($event)'},
+  host: {class: 'px-4', '(class)': 'classes'},
 })
 export class MyComponent {
-  resolve(sources: unknown): string {
-    return '';
+  classes(cn: BoundClassResolver): ResolvedClasses {
+    return cn();
   }
 }

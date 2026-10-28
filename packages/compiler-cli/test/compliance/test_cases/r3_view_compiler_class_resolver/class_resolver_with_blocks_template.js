@@ -5,8 +5,8 @@ function MyComponent_Conditional_0_Template(rf, ctx) {
     $r3$.ɵɵclassResolver(function MyComponent_Conditional_0_Template_div_class_0_listener($event) {
       $r3$.ɵɵrestoreView($_r1$);
       const $ctx_r1$ = $r3$.ɵɵnextContext();
-      return $r3$.ɵɵresetView($ctx_r1$.cn($event));
-    });
+      return $r3$.ɵɵresetView($event.resolve($ctx_r1$.classes($event.resolver)));
+    }, 3);
     $r3$.ɵɵdomElementEnd();
   }
 }

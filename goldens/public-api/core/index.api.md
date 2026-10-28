@@ -262,6 +262,12 @@ export interface ClassResolveEvent {
 export type ClassResolver = (...classes: string[]) => string;
 
 // @public
+export interface ClassResolverFeature {
+    // (undocumented)
+    readonly ɵbrand: 'ClassResolverFeature';
+}
+
+// @public
 export interface ClassSansProvider {
     useClass: Type<any>;
 }
@@ -1543,6 +1549,9 @@ export function provideCheckNoChangesConfig(options: {
     interval?: number;
     exhaustive: true;
 }): EnvironmentProviders;
+
+// @public
+export function provideClassResolver(resolver: ClassResolver, ...features: ClassResolverFeature[]): Provider;
 
 // @public
 export function provideEnvironmentInitializer(initializerFn: () => void): EnvironmentProviders;

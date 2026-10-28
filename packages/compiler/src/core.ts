@@ -327,11 +327,11 @@ export const enum AttributeMarker {
  * Flags of a `ɵɵclassResolver` registration.
  */
 export const enum ClassResolverFlags {
-  /** The handler receives the `ClassSources` and returns the classes. */
-  None = 0,
-
   /** The handler receives a `ClassResolveEvent`. */
   FullForm = 1 << 0,
+
+  /** The handler was compiled from a `(class)` shorthand, whose result must come from its event. */
+  Shorthand = 1 << 1,
 }
 
 export {SecurityContext} from './schema/dom_security_schema';

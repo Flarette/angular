@@ -32,7 +32,7 @@
       ]
     },
     {
-      "description": "should return an arrow function from a (class) handler",
+      "description": "should call an arrow function from a (class) shorthand with the resolver",
       "inputFiles": ["class_resolver_arrow_function.ts"],
       "expectations": [
         {

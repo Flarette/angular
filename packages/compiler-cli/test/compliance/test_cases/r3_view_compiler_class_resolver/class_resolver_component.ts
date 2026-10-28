@@ -1,4 +1,4 @@
-import {Component} from '@angular/core';
+import {BoundClassResolver, Component, ResolvedClasses} from '@angular/core';
 
 @Component({
   selector: 'ui-button',
@@ -9,10 +9,10 @@ export class UiButton {}
 @Component({
   selector: 'my-component',
   imports: [UiButton],
-  template: `<ui-button class="px-2" (class)="cn($event)">Save</ui-button>`,
+  template: `<ui-button class="px-2" (class)="classes">Save</ui-button>`,
 })
 export class MyComponent {
-  cn(...inputs: unknown[]): string {
-    return '';
+  classes(cn: BoundClassResolver): ResolvedClasses {
+    return cn();
   }
 }

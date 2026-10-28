@@ -6,13 +6,17 @@
  * found in the LICENSE file at https://angular.dev/license
  */
 
-import {formatRuntimeError, RuntimeError, RuntimeErrorCode} from '../../errors';
+import {InternalInjectFlags} from '../../di/interface/injector';
+import {RuntimeError, RuntimeErrorCode} from '../../errors';
 import {KeyValueArray} from '../../util/array_utils';
 import {EMPTY_ARRAY} from '../../util/empty';
+import {CLASS_RESOLVER} from '../class_resolver_provider';
+import {getOrCreateInjectable, setIncludeViewProviders} from '../di';
 import {AttributeMarker} from '../interfaces/attribute_marker';
 import {
   ClassBindingValue,
   ClassResolveEvent,
+  ClassResolver,
   ClassResolverFlags,
   ClassResolverFn,
   ClassSource,
@@ -22,7 +26,7 @@ import {
   ɵRESOLVED_CLASSES_BRAND,
 } from '../interfaces/class_resolver';
 import {DirectiveDef} from '../interfaces/definition';
-import {TAttributes, TNode, TNodeType} from '../interfaces/node';
+import {TAttributes, TDirectiveHostNode, TNode, TNodeType} from '../interfaces/node';
 import {Renderer} from '../interfaces/renderer';
 import {RElement} from '../interfaces/renderer_dom';
 import {TStylingKey} from '../interfaces/styling';
@@ -41,7 +45,6 @@ import {getNativeByTNode} from '../util/view_utils';
 import {allocExpando} from '../view/construction';
 
 import {enableClassResolverHooks} from './class_resolver_hook';
-import {listenerInternal} from './listener';
 import {classKeyValueArraySet, classStringParser, toStylingKeyValueArray} from './styling';
 
 /**
@@ -53,22 +56,20 @@ import {classKeyValueArraySet, classStringParser, toStylingKeyValueArray} from '
  * classes, and each later one receives the previous one's result folded back into `ClassSources`.
  * The classes that the highest one resolves become the element's classes.
  *
- * If a directive on the element declares an output named `class`, a `(class)` binding in the
- * template keeps its existing meaning and subscribes to that output instead. A binding in host
- * bindings always resolves the element's classes, and so does `(attr.class)`. On `<ng-container>`
- * and `<ng-template>`, which have no classes, a binding in host bindings does nothing, like the
- * other host bindings there.
+ * The binding resolves the element's classes even if a directive on the element declares an output
+ * with the same name; the output's emissions don't reach it. On `<ng-container>` and
+ * `<ng-template>`, which have no classes, a binding in host bindings does nothing, like the other
+ * host bindings there.
  *
- * @param resolverFn Handler compiled from the binding. With `ClassResolverFlags.FullForm`, it
- * receives a `ClassResolveEvent` as `$event`. Otherwise it receives the `ClassSources` as `$event`
- * when it resolves, or the output's value when it listens.
+ * @param resolverFn Handler compiled from the binding, which receives a `ClassResolveEvent` as
+ * `$event`.
  * @param flags `ClassResolverFlags` of the binding.
  *
  * @codeGenApi
  */
 export function ɵɵclassResolver(
   resolverFn: ClassResolverFn,
-  flags: ClassResolverFlags = ClassResolverFlags.None,
+  flags: number,
 ): typeof ɵɵclassResolver {
   const lView = getLView<{} | null>();
   const tView = getTView();
@@ -78,20 +79,6 @@ export function ɵɵclassResolver(
     return ɵɵclassResolver;
   }
   const owner = getCurrentDirectiveIndex();
-  if (owner === -1 && !(flags & ClassResolverFlags.FullForm) && hasClassOutput(tNode)) {
-    if (ngDevMode && tView.firstCreatePass) {
-      console.warn(
-        formatRuntimeError(
-          RuntimeErrorCode.CLASS_RESOLVER_OUTPUT_CONFLICT,
-          `The \`(class)\` binding on <${tNode.value}> listens to a directive output named ` +
-            `\`class\` instead of resolving the element's classes. Rename the output to use ` +
-            `\`(class)\` as a class resolver on this element.`,
-        ),
-      );
-    }
-    listenerInternal(tView, lView, lView[RENDERER], tNode, 'class', resolverFn);
-    return ɵɵclassResolver;
-  }
   // Appending keeps the priority order: element creation runs the directives' host bindings in
   // match order, before the template's `(class)` registers.
   if (tView.firstCreatePass) {
@@ -99,6 +86,9 @@ export function ɵɵclassResolver(
   }
   const tClassResolver = tNode.classResolver!;
   ((lView[tClassResolver.index] ??= []) as ClassResolverFn[]).push(resolverFn);
+  ((lView[tClassResolver.index + 2] ??= []) as Array<ClassResolver | null>).push(
+    injectClassResolver(tNode, lView, owner),
+  );
   const appliedIndex = tClassResolver.index + 1;
   if (!wasLastNodeCreated() && tNode.classes === null && lView[appliedIndex] === null) {
     // Hydration claimed the element. With static classes, the `class` attribute was rewritten to
@@ -115,8 +105,24 @@ export function ɵɵclassResolver(
   return ɵɵclassResolver;
 }
 
-function hasClassOutput(tNode: TNode): boolean {
-  return !!(tNode.outputs?.['class'] || tNode.hostDirectiveOutputs?.['class']);
+/**
+ * Looks up the registered `ClassResolver` from the element's injector, the way the registration's
+ * owner injects it: only the component on the element sees its own `viewProviders`.
+ */
+function injectClassResolver(tNode: TNode, lView: LView, owner: number): ClassResolver | null {
+  const isComponent =
+    tNode.componentOffset > -1 && owner === tNode.directiveStart + tNode.componentOffset;
+  const previousIncludeViewProviders = setIncludeViewProviders(isComponent);
+  try {
+    return getOrCreateInjectable(
+      tNode as TDirectiveHostNode,
+      lView,
+      CLASS_RESOLVER,
+      InternalInjectFlags.Optional,
+    );
+  } finally {
+    setIncludeViewProviders(previousIncludeViewProviders);
+  }
 }
 
 function classResolverFirstCreatePass(
@@ -153,7 +159,7 @@ function classResolverFirstCreatePass(
   // only for nodes and views that have resolver data.
   enableClassResolverHooks(refreshClassResolvers, registerClassResolverBinding);
   tNode.classResolver = {
-    index: allocExpando(tView, lView, 2, null),
+    index: allocExpando(tView, lView, 3, null),
     owners: [owner],
     flags: [flags],
     segments,
@@ -226,18 +232,24 @@ export function refreshClassResolvers(tView: TView, lView: LView): void {
       const tNode = tView.data[resolverNodes[i]] as TNode;
       const tClassResolver = tNode.classResolver!;
       const resolverFns = lView[tClassResolver.index] as ClassResolverFn[];
+      const classResolvers = lView[tClassResolver.index + 2] as Array<ClassResolver | null>;
       const lastLevel = resolverFns.length - 1;
       let sources = collectClassSources(tView.data, lView, tClassResolver);
       for (let level = 0; level < lastLevel; level++) {
         const ownerSource = classSourceOf(tNode, tClassResolver.owners[level]);
-        const classNames = toClassNames(
-          runClassResolver(resolverFns[level], tClassResolver.flags[level], sources, ownerSource),
+        const classNames = resolveThroughEvent(
+          resolverFns[level],
+          tClassResolver.flags[level],
+          classResolvers[level],
+          sources,
+          ownerSource,
         );
         sources = foldClassNames(sources, classNames, ownerSource);
       }
-      const resolved = runClassResolver(
+      const resolved = resolveThroughEvent(
         resolverFns[lastLevel],
         tClassResolver.flags[lastLevel],
+        classResolvers[lastLevel],
         sources,
         classSourceOf(tNode, tClassResolver.owners[lastLevel]),
       );
@@ -258,25 +270,18 @@ export function refreshClassResolvers(tView: TView, lView: LView): void {
 
 type CollectedClassSources = [component: string[], directives: string[], template: string[]];
 
-function runClassResolver(
-  resolverFn: ClassResolverFn,
-  flags: ClassResolverFlags,
-  sources: CollectedClassSources,
-  ownerSource: ClassSource,
-): unknown {
-  if (flags & ClassResolverFlags.FullForm) {
-    return resolveThroughEvent(resolverFn, sources, ownerSource);
-  }
-  const resolved = resolverFn(sources);
-  return typeof resolved === 'function' ? resolved(sources) : resolved;
-}
-
 /**
- * Calls the handler of an `(attr.class)` binding with a new `ClassResolveEvent` and returns the
- * classes that it resolved. If the handler doesn't call `resolve()`, the sources pass through.
+ * Calls the handler of a `(class)` or `(attr.class)` binding with a new `ClassResolveEvent` and
+ * returns the classes that it resolved. If the handler doesn't call `resolve()`, the sources pass
+ * through.
+ *
+ * @param classResolver The `ClassResolver` that the event's resolver calls, or `null` for the plain
+ *     merge.
  */
 function resolveThroughEvent(
   resolverFn: ClassResolverFn,
+  flags: ClassResolverFlags,
+  classResolver: ClassResolver | null,
   sources: CollectedClassSources,
   ownerSource: ClassSource,
 ): string[] {
@@ -287,20 +292,35 @@ function resolveThroughEvent(
   const event: ClassResolveEvent = {
     sources,
     resolver: (...extras) =>
-      new ResolvedClassesImpl(mergeClassSources(sources, extras, ownerSource), event),
+      new ResolvedClassesImpl(
+        mergeClassSources(sources, extras, ownerSource, classResolver),
+        event,
+      ),
     resolve: (classes) => {
       if (ngDevMode && (sealed || calls > 0)) {
+        const form = flags & ClassResolverFlags.Shorthand ? '`(class)`' : '`(attr.class)`';
         throw new RuntimeError(
           RuntimeErrorCode.INVALID_CLASS_RESOLUTION,
           sealed
-            ? 'An `(attr.class)` handler called `resolve()` after it returned. Call it while the ' +
+            ? `The ${form} handler called \`resolve()\` after it returned. Call it while the ` +
                 'handler runs.'
-            : 'An `(attr.class)` handler called `resolve()` more than once. Call it at most once.',
+            : `The ${form} handler called \`resolve()\` more than once. Call it at most once.`,
         );
       }
       // In production, a late call is ignored.
       if (sealed) {
         return;
+      }
+      if (
+        ngDevMode &&
+        flags & ClassResolverFlags.Shorthand &&
+        !(classes instanceof ResolvedClassesImpl && classes.event === event)
+      ) {
+        throw new RuntimeError(
+          RuntimeErrorCode.INVALID_CLASS_RESOLUTION,
+          "The `(class)` callback returned a value that its own resolver didn't create. Return " +
+            "the result of the resolver that the callback receives, such as `(cn) => cn('px-4')`.",
+        );
       }
       // Count the call before reading `classes`, whose getters can call `resolve()` again. In
       // production, the call that starts last wins.
@@ -334,20 +354,21 @@ class ResolvedClassesImpl implements ResolvedClasses {
 }
 
 /**
- * Merges the sources with the extras of a `ClassResolveEvent`'s resolver. The extras rank at the
- * end of the source of the binding's owner.
+ * Merges the sources with the extras of a `ClassResolveEvent`'s resolver, with `classResolver` or
+ * the plain merge. The extras rank at the end of the source of the binding's owner.
  */
 function mergeClassSources(
   sources: CollectedClassSources,
   extras: ClassBindingValue[],
   ownerSource: ClassSource,
+  classResolver: ClassResolver | null,
 ): string[] {
   const classes = sources.map((classNames, source) => {
     const names =
       source === ownerSource ? [...classNames, ...extras.flatMap(readClassNames)] : classNames;
     return names.join(' ');
   });
-  return readClassNames(mergeClasses(...classes));
+  return readClassNames((classResolver ?? mergeClasses)(...classes));
 }
 
 /**
@@ -367,30 +388,25 @@ function readClassNames(value: unknown): string[] {
   if (value instanceof ResolvedClassesImpl) {
     return value.classNames;
   }
-  // A string splits on whitespace, so only the names of an array, a `Set`, or an object map can
-  // contain a space.
-  return toClassNames(value).filter((className) => !className.includes(' '));
-}
-
-/** Reads the classes that a `(class)` shorthand returned. */
-function toClassNames(resolved: unknown): string[] {
   const classNames = new Set<string>();
   const add = (className: unknown) => {
     const name = String(className);
-    if (name !== '') {
+    // A string splits on whitespace, so only the names of an array, a `Set`, or an object map can
+    // contain a space.
+    if (name !== '' && !name.includes(' ')) {
       classNames.add(name);
     }
   };
-  if (typeof resolved === 'string') {
-    for (const className of resolved.split(/\s+/)) {
+  if (typeof value === 'string') {
+    for (const className of value.split(/\s+/)) {
       add(className);
     }
-  } else if (Array.isArray(resolved) || resolved instanceof Set) {
-    for (const className of resolved) {
+  } else if (Array.isArray(value) || value instanceof Set) {
+    for (const className of value) {
       add(className);
     }
-  } else if (resolved !== null && typeof resolved === 'object') {
-    const classMap = resolved as {[className: string]: unknown};
+  } else if (value !== null && typeof value === 'object') {
+    const classMap = value as {[className: string]: unknown};
     for (const className of Object.keys(classMap)) {
       if (classMap[className]) {
         add(className);
@@ -495,13 +511,9 @@ function applyResolvedClasses(
   tNode: TNode,
   lView: LView,
   appliedIndex: number,
-  resolved: unknown,
+  resolved: string[],
 ): void {
-  const next = toStylingKeyValueArray(
-    classKeyValueArraySet,
-    classStringParser,
-    resolved as string | string[] | Set<string> | {[key: string]: unknown} | null | undefined,
-  );
+  const next = toStylingKeyValueArray(classKeyValueArraySet, classStringParser, resolved);
   // Before the first resolution, an element that wasn't hydrated has the static classes from all
   // sources. `ɵɵclassResolver` records the classes of a hydrated element instead.
   const previous =

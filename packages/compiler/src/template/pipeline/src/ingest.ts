@@ -270,19 +270,22 @@ function ingestHostEvent(job: HostBindingCompilationJob, event: e.ParsedEvent) {
         ? [null, event.targetOrPhase]
         : [event.targetOrPhase, null];
 
+    // `(class)` and `(attr.class)` in host bindings compute the host element's classes.
+    const classResolverForm = getClassResolverForm(event.name, event.type, target, 'host');
     const listenerOp = ir.createListenerOp(
       job.root.xref,
       new ir.SlotHandle(),
       event.name,
       null,
-      makeListenerHandlerOps(job.root, event.handler, event.handlerSpan),
+      classResolverForm === 'shorthand'
+        ? makeClassShorthandHandlerOps(job.root, event.handler, event.handlerSpan)
+        : makeListenerHandlerOps(job.root, event.handler, event.handlerSpan),
       phase,
       target,
       true,
       event.sourceSpan,
     );
-    // `(class)` and `(attr.class)` in host bindings compute the host element's classes.
-    listenerOp.classResolverForm = getClassResolverForm(event.name, event.type, target, 'host');
+    listenerOp.classResolverForm = classResolverForm;
     eventBinding = listenerOp;
   }
   job.root.create.push(eventBinding);
@@ -1647,25 +1650,28 @@ function ingestElementBindings(
         ),
       );
     } else {
-      const listenerOp = ir.createListenerOp(
-        op.xref,
-        op.handle,
-        output.name,
-        op.tag,
-        makeListenerHandlerOps(unit, output.handler, output.handlerSpan),
-        output.phase,
-        output.target,
-        false,
-        output.sourceSpan,
-      );
       // `(class)` and `(attr.class)` on an element compute the element's classes. Containers have
       // no classes, so they keep listening to directive outputs.
-      listenerOp.classResolverForm = getClassResolverForm(
+      const classResolverForm = getClassResolverForm(
         output.name,
         output.type,
         output.target,
         isNgContainer(element.name) ? 'container' : 'element',
       );
+      const listenerOp = ir.createListenerOp(
+        op.xref,
+        op.handle,
+        output.name,
+        op.tag,
+        classResolverForm === 'shorthand'
+          ? makeClassShorthandHandlerOps(unit, output.handler, output.handlerSpan)
+          : makeListenerHandlerOps(unit, output.handler, output.handlerSpan),
+        output.phase,
+        output.target,
+        false,
+        output.sourceSpan,
+      );
+      listenerOp.classResolverForm = classResolverForm;
       unit.create.push(listenerOp);
     }
   }
@@ -1987,6 +1993,37 @@ function makeListenerHandlerOps(
     ),
   );
   handlerOps.push(ir.createStatementOp(new o.ReturnStatement(returnExpr, returnExpr.sourceSpan)));
+  return handlerOps;
+}
+
+/**
+ * Makes the handler of a `(class)` shorthand. `(class)="F"` means exactly
+ * `(attr.class)="$event.resolve((F)($event.resolver))"`. Like any listener, the expressions before
+ * the last one in a chain run as statements.
+ */
+function makeClassShorthandHandlerOps(
+  unit: CompilationUnit,
+  handler: e.AST,
+  handlerSpan: ParseSourceSpan,
+): ir.UpdateOp[] {
+  handler = astOf(handler);
+  const handlerOps = new Array<ir.UpdateOp>();
+  const handlerExprs: e.AST[] = handler instanceof e.Chain ? handler.expressions : [handler];
+  if (handlerExprs.length === 0) {
+    throw new Error('Expected listener to have non-empty expression list.');
+  }
+  const expressions = handlerExprs.map((expr) => convertAst(expr, unit.job, handlerSpan));
+  const callback = expressions.pop()!;
+  handlerOps.push(
+    ...expressions.map((e) =>
+      ir.createStatementOp<ir.UpdateOp>(new o.ExpressionStatement(e, e.sourceSpan)),
+    ),
+  );
+  const resolver = new ir.LexicalReadExpr('$event').prop('resolver');
+  const resolveExpr = new ir.LexicalReadExpr('$event')
+    .prop('resolve')
+    .callFn([callback.callFn([resolver], callback.sourceSpan)], callback.sourceSpan);
+  handlerOps.push(ir.createStatementOp(new o.ReturnStatement(resolveExpr, callback.sourceSpan)));
   return handlerOps;
 }
 

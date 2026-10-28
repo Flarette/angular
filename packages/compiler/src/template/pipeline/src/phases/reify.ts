@@ -331,9 +331,9 @@ function reifyCreateOperations(unit: CompilationUnit, ops: ir.OpList<ir.CreateOp
         }
         if (op.classResolverForm !== null) {
           const flags =
-            op.classResolverForm === 'fullForm'
-              ? ClassResolverFlags.FullForm
-              : ClassResolverFlags.None;
+            op.classResolverForm === 'shorthand'
+              ? ClassResolverFlags.FullForm | ClassResolverFlags.Shorthand
+              : ClassResolverFlags.FullForm;
           ir.OpList.replace(op, ng.classResolver(listenerFn, flags, op.sourceSpan));
           break;
         }

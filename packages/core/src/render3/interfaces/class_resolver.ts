@@ -8,8 +8,7 @@
 
 /**
  * Classes that each source applies to an element, ordered from the lowest to the highest priority.
- * A `(class)` binding receives them as `$event` and returns the classes the element should have; an
- * `(attr.class)` binding receives them as `$event.sources`.
+ * An `(attr.class)` binding receives them as `$event.sources`.
  *
  * - `component`: the component on the element, including the component's host directives.
  * - `directives`: all other directives on the element, in matching order.
@@ -19,9 +18,10 @@
  * bindings. A class that a higher-priority binding turns off (for example with
  * `[class.name]="false"`) isn't present in any source.
  *
- * When several `(class)` bindings apply to an element, each one after the lowest-priority one
- * receives the classes that the previous one returned, grouped the same way. A class keeps its
- * source, and a class that the previous binding added is reported under that binding's source.
+ * When several `(class)` or `(attr.class)` bindings apply to an element, each one after the
+ * lowest-priority one receives the classes that the previous one resolved, grouped the same way. A
+ * class keeps its source, and a class that the previous binding added is reported under that
+ * binding's source.
  *
  * @experimental 22.3
  */
@@ -109,14 +109,20 @@ export interface ClassResolveEvent {
 export type ClassResolver = (...classes: string[]) => string;
 
 /**
- * Handler compiled from a `(class)` or `(attr.class)` binding.
+ * A feature of the class resolver that `provideClassResolver` registers.
  *
- * With `ClassResolverFlags.FullForm`, it receives a `ClassResolveEvent` as `$event` and its return
- * value is ignored. Otherwise, it receives the element's `ClassSources` as `$event` and returns the
- * classes the element should have, in any form a `[class]` binding accepts. If it returns a
- * function, that function is called with the same `ClassSources`.
+ * @experimental 22.3
  */
-export type ClassResolverFn = (event: ClassSources | ClassResolveEvent) => unknown;
+export interface ClassResolverFeature {
+  readonly ɵbrand: 'ClassResolverFeature';
+}
+
+/**
+ * Handler compiled from a `(class)` or `(attr.class)` binding. It receives a `ClassResolveEvent` as
+ * `$event`, and its return value is ignored. The handler of `(class)="F"` is
+ * `$event.resolve((F)($event.resolver))`.
+ */
+export type ClassResolverFn = (event: ClassResolveEvent) => unknown;
 
 /**
  * Flags of a `ɵɵclassResolver` registration.
@@ -124,11 +130,11 @@ export type ClassResolverFn = (event: ClassSources | ClassResolveEvent) => unkno
  * NOTE: Ensure changes here are in sync with `packages/compiler/src/core.ts`.
  */
 export const enum ClassResolverFlags {
-  /** The handler receives the `ClassSources` and returns the classes. */
-  None = 0,
-
   /** The handler receives a `ClassResolveEvent`. */
   FullForm = 1 << 0,
+
+  /** The handler was compiled from a `(class)` shorthand, whose result must come from its event. */
+  Shorthand = 1 << 1,
 }
 
 /** Position of a source in `ClassSources`. */
@@ -161,6 +167,8 @@ export interface TClassResolver {
    * - `index + 1`: `KeyValueArray` of the classes applied by the previous resolution. Before the
    *   first resolution it holds the classes of an element claimed by hydration, or `null` if the
    *   element still has the static classes it was created with.
+   * - `index + 2`: the `ClassResolver` that each registration's owner injects, in the order of
+   *   `owners`, or `null` for the plain merge.
    */
   index: number;
 

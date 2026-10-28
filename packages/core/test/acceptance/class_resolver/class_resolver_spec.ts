@@ -7,10 +7,12 @@
  */
 
 import {
+  BoundClassResolver,
   ChangeDetectionStrategy,
   ClassBindingValue,
   ClassCallback,
   ClassResolveEvent,
+  ClassResolver,
   ClassSources,
   Component,
   Directive,
@@ -24,6 +26,7 @@ import {
   Input,
   Output,
   provideCheckNoChangesConfig,
+  provideClassResolver,
   Provider,
   Renderer2,
   ResolvedClasses,
@@ -54,6 +57,11 @@ function cn(...inputs: unknown[]): string {
   return [...byPrefix.values()].join(' ');
 }
 
+/** A resolver that adds a class named after itself, to show which resolver merged the classes. */
+function markingResolver(name: string): ClassResolver {
+  return (...classes) => [...classes, `by-${name}`].join(' ');
+}
+
 async function render<T>(component: Type<T>) {
   const fixture = TestBed.createComponent(component);
   await fixture.whenStable();
@@ -65,6 +73,83 @@ function classesOf(element: Element): string[] {
 }
 
 describe('(class) binding', () => {
+  describe('in a template', () => {
+    @Component({selector: 'ui-button', template: '', host: {class: 'bg-primary px-4'}})
+    class UiButton {}
+
+    @Component({
+      imports: [UiButton],
+      template: `<ui-button class="bg-red-600" (class)="(cn) => cn('shadow-lg')" />`,
+    })
+    class App {}
+
+    it('merges the sources and the extras without a registered resolver', async () => {
+      const fixture = await render(App);
+
+      expect(classesOf(fixture.nativeElement.querySelector('ui-button'))).toEqual([
+        'bg-primary',
+        'bg-red-600',
+        'px-4',
+        'shadow-lg',
+      ]);
+    });
+
+    it('merges the sources and the extras with the registered resolver', async () => {
+      TestBed.configureTestingModule({providers: [provideClassResolver(cn)]});
+
+      const fixture = await render(App);
+
+      expect(classesOf(fixture.nativeElement.querySelector('ui-button'))).toEqual([
+        'bg-red-600',
+        'px-4',
+        'shadow-lg',
+      ]);
+    });
+  });
+
+  describe("in a component's host bindings", () => {
+    const variant = signal<'default' | 'muted'>('default');
+
+    @Component({
+      selector: 'ui-button',
+      template: '',
+      host: {class: 'inline-flex px-4 bg-primary', '(class)': 'classes'},
+    })
+    class UiButton {
+      protected readonly classes = (cn: BoundClassResolver) =>
+        cn(variant() === 'muted' && 'bg-muted');
+    }
+
+    @Component({imports: [UiButton], template: `<ui-button />`})
+    class App {}
+
+    beforeEach(() => variant.set('default'));
+
+    it('merges the sources and the extras without a registered resolver', async () => {
+      const fixture = await render(App);
+      const button = fixture.nativeElement.querySelector('ui-button');
+      expect(classesOf(button)).toEqual(['bg-primary', 'inline-flex', 'px-4']);
+
+      variant.set('muted');
+      await fixture.whenStable();
+
+      expect(classesOf(button)).toEqual(['bg-muted', 'bg-primary', 'inline-flex', 'px-4']);
+    });
+
+    it('merges the sources and the extras with the registered resolver', async () => {
+      TestBed.configureTestingModule({providers: [provideClassResolver(cn)]});
+
+      const fixture = await render(App);
+      const button = fixture.nativeElement.querySelector('ui-button');
+      expect(classesOf(button)).toEqual(['bg-primary', 'inline-flex', 'px-4']);
+
+      variant.set('muted');
+      await fixture.whenStable();
+
+      expect(classesOf(button)).toEqual(['bg-muted', 'inline-flex', 'px-4']);
+    });
+  });
+
   it('passes the classes of each source in priority order', async () => {
     @Directive({host: {class: 'ring'}})
     class Ring {}
@@ -90,16 +175,15 @@ describe('(class) binding', () => {
           class="tpl-static"
           [class]="'tpl-map'"
           [class.tpl-prop]="true"
-          (class)="capture($event)"
+          (attr.class)="capture($event)"
         />
       `,
     })
     class App {
       sources: ClassSources | null = null;
 
-      capture(sources: ClassSources) {
-        this.sources = sources;
-        return cn(sources);
+      capture(event: ClassResolveEvent) {
+        this.sources = event.sources;
       }
     }
 
@@ -112,7 +196,9 @@ describe('(class) binding', () => {
     ]);
   });
 
-  it('applies only the returned classes', async () => {
+  it('applies only the resolved classes', async () => {
+    TestBed.configureTestingModule({providers: [provideClassResolver(cn)]});
+
     @Component({
       selector: 'ui-button',
       template: '',
@@ -122,11 +208,9 @@ describe('(class) binding', () => {
 
     @Component({
       imports: [UiButton],
-      template: `<ui-button class="px-4 rounded-lg" (class)="cn($event)" />`,
+      template: `<ui-button class="px-4 rounded-lg" (class)="(cn) => cn()" />`,
     })
-    class App {
-      protected readonly cn = cn;
-    }
+    class App {}
 
     const fixture = await render(App);
 
@@ -140,14 +224,14 @@ describe('(class) binding', () => {
 
     @Component({
       imports: [UiButton],
-      template: `<ui-button class="px-4" [class.px-2]="true" (class)="capture($event)" />`,
+      template: `<ui-button class="px-4" [class.px-2]="true" (attr.class)="capture($event)" />`,
     })
     class App {
       sources: ClassSources | null = null;
 
-      capture(sources: ClassSources) {
-        this.sources = sources;
-        return cn(sources);
+      capture(event: ClassResolveEvent) {
+        this.sources = event.sources;
+        event.resolve(cn(event.sources));
       }
     }
 
@@ -158,6 +242,7 @@ describe('(class) binding', () => {
   });
 
   it('resolves again when a template or host binding changes', async () => {
+    TestBed.configureTestingModule({providers: [provideClassResolver(cn)]});
     const tall = signal(false);
     const wide = signal(false);
 
@@ -172,10 +257,9 @@ describe('(class) binding', () => {
 
     @Component({
       imports: [UiButton],
-      template: `<ui-button [class.px-8]="wide()" (class)="cn($event)" />`,
+      template: `<ui-button [class.px-8]="wide()" (class)="(cn) => cn()" />`,
     })
     class App {
-      protected readonly cn = cn;
       protected readonly wide = wide;
     }
 
@@ -199,14 +283,13 @@ describe('(class) binding', () => {
 
     @Component({
       imports: [UiCard],
-      template: `<ui-card [class.rounded]="false" (class)="capture($event)" />`,
+      template: `<ui-card [class.rounded]="false" (attr.class)="capture($event)" />`,
     })
     class App {
       sources: ClassSources | null = null;
 
-      capture(sources: ClassSources) {
-        this.sources = sources;
-        return cn(sources);
+      capture(event: ClassResolveEvent) {
+        this.sources = event.sources;
       }
     }
 
@@ -225,14 +308,13 @@ describe('(class) binding', () => {
 
     @Component({
       imports: [UiButton],
-      template: `<ui-button class="py-1" [class]="'px-4'" (class)="capture($event)" />`,
+      template: `<ui-button class="py-1" [class]="'px-4'" (attr.class)="capture($event)" />`,
     })
     class App {
       sources: ClassSources | null = null;
 
-      capture(sources: ClassSources) {
-        this.sources = sources;
-        return cn(sources);
+      capture(event: ClassResolveEvent) {
+        this.sources = event.sources;
       }
     }
 
@@ -241,19 +323,23 @@ describe('(class) binding', () => {
     expect(fixture.componentInstance.sources).toEqual([['px-2'], [], ['py-1']]);
   });
 
-  for (const [form, handler] of [
-    ['an expression that uses $event', `cn($event, 'm-1')`],
-    ['an arrow function', `(sources) => cn(sources, 'm-1')`],
-    ['a function reference', `withMargin`],
+  for (const [form, callback] of [
+    ['an arrow function', `(cn) => cn('m-1')`],
+    ['a reference to a field', `withMargin`],
+    ['an expression that returns a callback', `margin('m-1')`],
   ]) {
     it(`accepts ${form}`, async () => {
+      TestBed.configureTestingModule({providers: [provideClassResolver(cn)]});
       // A variable, so that formatters don't rewrite the interpolated template.
-      const template = `<div class="p-2 m-4" (class)="${handler}"></div>`;
+      const template = `<div class="p-2 m-4" (class)="${callback}"></div>`;
 
       @Component({template})
       class App {
-        protected readonly cn = cn;
-        protected readonly withMargin = (sources: ClassSources) => cn(sources, 'm-1');
+        protected readonly withMargin = (cn: BoundClassResolver) => cn('m-1');
+
+        protected margin(size: string): ClassCallback {
+          return (cn) => cn(size);
+        }
       }
 
       const fixture = await render(App);
@@ -262,10 +348,11 @@ describe('(class) binding', () => {
     });
   }
 
-  it('resolves again when state read by the handler changes', async () => {
-    @Component({template: `<div class="p-2" (class)="cn($event, size())"></div>`})
+  it('resolves again when state read by the callback changes', async () => {
+    TestBed.configureTestingModule({providers: [provideClassResolver(cn)]});
+
+    @Component({template: `<div class="p-2" (class)="(cn) => cn(size())"></div>`})
     class App {
-      protected readonly cn = cn;
       readonly size = signal('text-sm');
     }
 
@@ -279,6 +366,8 @@ describe('(class) binding', () => {
   });
 
   it('keeps classes that were added outside of class bindings', async () => {
+    TestBed.configureTestingModule({providers: [provideClassResolver(cn)]});
+
     @Directive({selector: '[focusRing]'})
     class FocusRing {
       constructor() {
@@ -288,10 +377,9 @@ describe('(class) binding', () => {
 
     @Component({
       imports: [FocusRing],
-      template: `<div focusRing class="p-2" [class.p-4]="large()" (class)="cn($event)"></div>`,
+      template: `<div focusRing class="p-2" [class.p-4]="large()" (class)="(cn) => cn()"></div>`,
     })
     class App {
-      protected readonly cn = cn;
       readonly large = signal(false);
     }
 
@@ -305,15 +393,16 @@ describe('(class) binding', () => {
   });
 
   it('resolves elements in embedded views with their own context', async () => {
+    TestBed.configureTestingModule({providers: [provideClassResolver(cn)]});
+
     @Component({
       template: `
         @for (size of sizes(); track $index) {
-          <span class="p-1 text-xs" (class)="cn($event, size)"></span>
+          <span class="p-1 text-xs" (class)="(cn) => cn(size)"></span>
         }
       `,
     })
     class App {
-      protected readonly cn = cn;
       readonly sizes = signal(['text-sm', 'text-lg']);
     }
 
@@ -332,17 +421,95 @@ describe('(class) binding', () => {
     ]);
   });
 
+  it('calls the callback once with the resolver of its event', async () => {
+    const runs: Array<{event: ClassResolveEvent; calls: unknown[]}> = [];
+
+    @Component({template: `<div class="c" (class)="resolveWith($event)"></div>`})
+    class App {
+      protected resolveWith(event: ClassResolveEvent): ClassCallback {
+        const run = {event, calls: [] as unknown[]};
+        runs.push(run);
+        return (cn) => {
+          run.calls.push(cn);
+          return cn('a');
+        };
+      }
+    }
+
+    const fixture = await render(App);
+
+    expect(runs.length).toBeGreaterThan(0);
+    for (const run of runs) {
+      expect(run.calls).toEqual([run.event.resolver]);
+    }
+    expect(classesOf(fixture.nativeElement.querySelector('div'))).toEqual(['a', 'c']);
+  });
+
+  describe('when the callback returns classes that its own resolver did not create', () => {
+    it('reports a value of another type in dev mode', async () => {
+      @Component({template: `<div (class)="(asString)"></div>`})
+      class App {
+        protected readonly asString = () => 'a' as unknown as ResolvedClasses;
+      }
+
+      await expectAsync(render(App)).toBeRejectedWithError(/NG0320: .*`\(class\)`/);
+    });
+
+    it("reports classes from another element's resolver in dev mode", async () => {
+      @Component({
+        template: `<div (class)="(keep)"></div>
+          <span (class)="(reuse)"></span>`,
+      })
+      class App {
+        private kept: ResolvedClasses | null = null;
+        protected readonly keep = (cn: BoundClassResolver) => (this.kept = cn('a'));
+        protected readonly reuse = (cn: BoundClassResolver) => this.kept!;
+      }
+
+      await expectAsync(render(App)).toBeRejectedWithError(/NG0320: .*`\(class\)`/);
+    });
+
+    it('reports classes from an earlier refresh in dev mode', async () => {
+      const errors: unknown[] = [];
+      TestBed.configureTestingModule({
+        rethrowApplicationErrors: false,
+        providers: [
+          {provide: ErrorHandler, useValue: {handleError: (e: unknown) => errors.push(e)}},
+        ],
+      });
+
+      @Component({template: `<div (class)="(keep)"></div>`})
+      class App {
+        readonly reuse = signal(false);
+        private kept: ResolvedClasses | null = null;
+        protected readonly keep = (cn: BoundClassResolver) =>
+          this.reuse() ? this.kept! : (this.kept = cn('a'));
+      }
+
+      const fixture = await render(App);
+      expect(errors).toEqual([]);
+
+      // Each refresh has its own event, so the classes of an earlier one are foreign.
+      fixture.componentInstance.reuse.set(true);
+      await fixture.whenStable();
+
+      expect(errors.map(String).join('\n')).toMatch(/NG0320: .*`\(class\)`/);
+    });
+  });
+
   describe('in host bindings', () => {
     @Component({
       selector: 'ui-button',
       template: '',
-      host: {class: 'px-2 py-1', '(class)': 'merge($event)'},
+      host: {class: 'px-2 py-1', '(class)': 'merge'},
     })
     class UiButton {
-      protected readonly merge = cn;
+      protected readonly merge = (cn: BoundClassResolver) => cn();
     }
 
     it('lets a component resolve the classes of its host element', async () => {
+      TestBed.configureTestingModule({providers: [provideClassResolver(cn)]});
+
       @Component({imports: [UiButton], template: `<ui-button class="px-4" />`})
       class App {}
 
@@ -351,17 +518,18 @@ describe('(class) binding', () => {
       expect(classesOf(fixture.nativeElement.querySelector('ui-button'))).toEqual(['px-4', 'py-1']);
     });
 
-    it("passes the component's resolved classes to the template (class) binding", async () => {
+    it("passes the component's resolved classes to the template's binding", async () => {
+      TestBed.configureTestingModule({providers: [provideClassResolver(cn)]});
+
       @Component({
         imports: [UiButton],
-        template: `<ui-button class="px-4" (class)="keepAll($event)" />`,
+        template: `<ui-button class="px-4" (attr.class)="capture($event)" />`,
       })
       class App {
         sources: ClassSources | null = null;
 
-        protected keepAll(sources: ClassSources) {
-          this.sources = sources;
-          return sources.flat();
+        protected capture(event: ClassResolveEvent) {
+          this.sources = event.sources;
         }
       }
 
@@ -375,12 +543,12 @@ describe('(class) binding', () => {
       it(`runs no resolver on <${tag}>`, async () => {
         const received: unknown[] = [];
 
-        @Directive({selector: '[recorder]', host: {'(class)': 'record($event)'}})
+        @Directive({selector: '[recorder]', host: {'(class)': 'record'}})
         class Recorder {
-          protected record(value: unknown) {
-            received.push(value);
-            return ['by-recorder'];
-          }
+          protected readonly record = (cn: BoundClassResolver) => {
+            received.push(cn);
+            return cn('by-recorder');
+          };
         }
 
         @Component({imports: [Recorder], template: `<${tag} recorder />`})
@@ -400,28 +568,38 @@ describe('(class) binding', () => {
       @Output('class') readonly classEvent = new EventEmitter<string>();
     }
 
-    it('keeps subscribing to the output on an element', async () => {
+    it('resolves the classes of an element and ignores the output', async () => {
       const warn = spyOn(console, 'warn');
 
       @Component({
         imports: [Emitter],
-        template: `<div emitter class="p-2" [class.p-4]="true" (class)="received = $event"></div>`,
+        template: `<div emitter class="p-2" [class.p-4]="true" (class)="record($event)"></div>`,
       })
       class App {
-        received = '';
+        readonly received: unknown[] = [];
         @ViewChild(Emitter) emitter!: Emitter;
+
+        protected record(event: unknown): ClassCallback {
+          this.received.push(event);
+          return (cn) => cn('resolved');
+        }
       }
 
       const fixture = await render(App);
       fixture.componentInstance.emitter.classEvent.emit('sent');
       await fixture.whenStable();
 
-      expect(fixture.componentInstance.received).toBe('sent');
-      expect(classesOf(fixture.nativeElement.querySelector('div'))).toEqual(['p-2', 'p-4']);
-      expect(warn).toHaveBeenCalledWith(jasmine.stringContaining('NG0319'));
+      expect(classesOf(fixture.nativeElement.querySelector('div'))).toEqual([
+        'p-2',
+        'p-4',
+        'resolved',
+      ]);
+      expect(fixture.componentInstance.received.length).toBeGreaterThan(0);
+      expect(fixture.componentInstance.received).not.toContain('sent');
+      expect(warn).not.toHaveBeenCalled();
     });
 
-    it('keeps subscribing to the output of a host directive', async () => {
+    it('resolves the classes of an element and ignores the output of a host directive', async () => {
       const warn = spyOn(console, 'warn');
 
       @Component({
@@ -433,20 +611,29 @@ describe('(class) binding', () => {
 
       @Component({
         imports: [UiCard],
-        template: `<ui-card class="p-2" (class)="received = $event" />`,
+        template: `<ui-card class="p-2" (class)="record($event)" />`,
       })
       class App {
-        received = '';
+        readonly received: unknown[] = [];
         @ViewChild(Emitter) emitter!: Emitter;
+
+        protected record(event: unknown): ClassCallback {
+          this.received.push(event);
+          return (cn) => cn('resolved');
+        }
       }
 
       const fixture = await render(App);
       fixture.componentInstance.emitter.classEvent.emit('sent');
       await fixture.whenStable();
 
-      expect(fixture.componentInstance.received).toBe('sent');
-      expect(classesOf(fixture.nativeElement.querySelector('ui-card'))).toEqual(['p-2']);
-      expect(warn).toHaveBeenCalledWith(jasmine.stringContaining('NG0319'));
+      expect(classesOf(fixture.nativeElement.querySelector('ui-card'))).toEqual([
+        'p-2',
+        'resolved',
+      ]);
+      expect(fixture.componentInstance.received.length).toBeGreaterThan(0);
+      expect(fixture.componentInstance.received).not.toContain('sent');
+      expect(warn).not.toHaveBeenCalled();
     });
 
     it('keeps subscribing to the output on <ng-container>', async () => {
@@ -471,14 +658,14 @@ describe('(class) binding', () => {
 
     for (const tag of ['ng-container', 'ng-template']) {
       it(`subscribes only the template binding to the output on <${tag}>`, async () => {
-        const warn = spyOn(console, 'warn');
         const recorded: unknown[] = [];
 
-        @Directive({selector: '[recorder]', host: {'(class)': 'record($event)'}})
+        @Directive({selector: '[recorder]', host: {'(class)': 'record'}})
         class Recorder {
-          protected record(value: unknown) {
-            recorded.push(value);
-          }
+          protected readonly record = (cn: BoundClassResolver) => {
+            recorded.push(cn);
+            return cn();
+          };
         }
 
         @Component({
@@ -496,7 +683,6 @@ describe('(class) binding', () => {
 
         expect(recorded).toEqual([]);
         expect(fixture.componentInstance.received).toEqual(['sent']);
-        expect(warn).not.toHaveBeenCalledWith(jasmine.stringContaining('NG0319'));
       });
     }
   });
@@ -506,10 +692,10 @@ describe('(class) binding', () => {
     let runs: string[] = [];
     beforeEach(() => (runs = []));
 
-    function resolver(name: string) {
-      return (sources: ClassSources) => {
+    function resolver(name: string): ClassCallback {
+      return (cn) => {
         runs.push(name);
-        return [...sources.flat(), `by-${name}`];
+        return cn(`by-${name}`);
       };
     }
 
@@ -529,7 +715,7 @@ describe('(class) binding', () => {
       return errors;
     }
 
-    @Directive({host: {'(class)': 'resolve($event)'}})
+    @Directive({host: {'(class)': 'resolve'}})
     class Supplied {
       protected readonly resolve = resolver('supplied');
     }
@@ -538,19 +724,19 @@ describe('(class) binding', () => {
       selector: 'ui-button',
       template: '',
       hostDirectives: [Supplied],
-      host: {class: 'cmp', '(class)': 'resolve($event)'},
+      host: {class: 'cmp', '(class)': 'resolve'},
     })
     class UiButton {
       protected readonly resolve = resolver('cmp-host');
       private readonly listen = resolver('cmp-listener');
 
-      @HostListener('class', ['$event'])
-      onClass(sources: ClassSources) {
-        return this.listen(sources);
+      @HostListener('class')
+      onClass(): ClassCallback {
+        return this.listen;
       }
     }
 
-    @Directive({selector: '[tooltip]', host: {'(class)': 'resolve($event)'}})
+    @Directive({selector: '[tooltip]', host: {'(class)': 'resolve'}})
     class Tooltip {
       protected readonly resolve = resolver('tooltip');
     }
@@ -560,24 +746,24 @@ describe('(class) binding', () => {
       @HostBinding('class') readonly ringClass = 'ring';
       private readonly resolve = resolver('ring');
 
-      @HostListener('class', ['$event'])
-      onClass(sources: ClassSources) {
-        return this.resolve(sources);
+      @HostListener('class')
+      onClass(): ClassCallback {
+        return this.resolve;
       }
     }
 
     it('runs every resolver from the lowest to the highest priority', async () => {
       @Component({
         imports: [UiButton, Tooltip, Ring],
-        template: `<ui-button tooltip ring class="tpl" (class)="capture($event)" />`,
+        template: `<ui-button tooltip ring class="tpl" (attr.class)="capture($event)" />`,
       })
       class App {
         sources: ClassSources | null = null;
-        private readonly resolve = resolver('template');
 
-        protected capture(sources: ClassSources) {
-          this.sources = sources;
-          return this.resolve(sources);
+        protected capture(event: ClassResolveEvent) {
+          runs.push('template');
+          this.sources = event.sources;
+          event.resolve(event.resolver('by-template'));
         }
       }
 
@@ -628,24 +814,26 @@ describe('(class) binding', () => {
       expect(ranResolvers()).toEqual(['supplied', 'cmp-listener']);
     });
 
-    it('passes the next resolver only the classes that a lower resolver returned', async () => {
-      @Directive({selector: '[tidy]', host: {class: 'dir', '(class)': 'tidy($event)'}})
+    it('passes the next resolver only the classes that a lower resolver resolved', async () => {
+      @Directive({selector: '[tidy]', host: {class: 'dir', '(attr.class)': 'tidy($event)'}})
       class Tidy {
-        protected tidy(sources: ClassSources) {
-          return [...sources.flat().filter((className) => className !== 'drop'), 'added'];
+        protected tidy(event: ClassResolveEvent) {
+          event.resolve([
+            ...event.sources.flat().filter((className) => className !== 'drop'),
+            'added',
+          ]);
         }
       }
 
       @Component({
         imports: [Tidy],
-        template: `<div tidy class="keep drop" (class)="capture($event)"></div>`,
+        template: `<div tidy class="keep drop" (attr.class)="capture($event)"></div>`,
       })
       class App {
         sources: ClassSources | null = null;
 
-        protected capture(sources: ClassSources) {
-          this.sources = sources;
-          return sources.flat();
+        protected capture(event: ClassResolveEvent) {
+          this.sources = event.sources;
         }
       }
 
@@ -659,24 +847,23 @@ describe('(class) binding', () => {
       ]);
     });
 
-    it('keeps the order of the classes that a lower resolver returned', async () => {
-      @Directive({selector: '[lower]', host: {class: 'x y', '(class)': 'resolve($event)'}})
+    it('keeps the order of the classes that a lower resolver resolved', async () => {
+      @Directive({selector: '[lower]', host: {class: 'x y', '(attr.class)': 'resolve($event)'}})
       class Lower {
-        protected resolve(sources: ClassSources) {
-          return sources.flat().reverse();
+        protected resolve(event: ClassResolveEvent) {
+          event.resolve(event.sources.flat().reverse());
         }
       }
 
       @Component({
         imports: [Lower],
-        template: `<div lower class="a b" (class)="capture($event)"></div>`,
+        template: `<div lower class="a b" (attr.class)="capture($event)"></div>`,
       })
       class App {
         sources: ClassSources | null = null;
 
-        protected capture(sources: ClassSources) {
-          this.sources = sources;
-          return sources.flat();
+        protected capture(event: ClassResolveEvent) {
+          this.sources = event.sources;
         }
       }
 
@@ -689,24 +876,22 @@ describe('(class) binding', () => {
       @Component({
         selector: 'ui-badge',
         template: '',
-        host: {class: 'bg-primary', '(class)': 'resolve($event)'},
+        host: {class: 'bg-primary', '(class)': 'resolve'},
       })
       class UiBadge {
-        protected resolve(sources: ClassSources) {
-          return [...sources.flat(), 'bg-muted'];
-        }
+        protected readonly resolve = (cn: BoundClassResolver) => cn('bg-muted');
       }
 
       @Component({
         imports: [UiBadge],
-        template: `<ui-badge class="bg-red-600" (class)="capture($event)" />`,
+        template: `<ui-badge class="bg-red-600" (attr.class)="capture($event)" />`,
       })
       class App {
         sources: ClassSources | null = null;
 
-        protected capture(sources: ClassSources) {
-          this.sources = sources;
-          return cn(sources);
+        protected capture(event: ClassResolveEvent) {
+          this.sources = event.sources;
+          event.resolve(cn(event.sources));
         }
       }
 
@@ -730,24 +915,21 @@ describe('(class) binding', () => {
       ['null', null, []],
       ['a number', 42, []],
     ] as Array<[string, unknown, string[]]>) {
-      it(`passes the next resolver only the classes of ${form} that a lower resolver returned`, async () => {
-        @Directive({selector: '[lower]', host: {'(class)': 'resolve()'}})
+      it(`passes the next resolver only the classes of ${form} that a lower resolver resolved`, async () => {
+        @Directive({selector: '[lower]', host: {'(attr.class)': '$event.resolve(value)'}})
         class Lower {
-          protected resolve() {
-            return value;
-          }
+          protected readonly value = value;
         }
 
         @Component({
           imports: [Lower],
-          template: `<div lower class="c" (class)="capture($event)"></div>`,
+          template: `<div lower class="c" (attr.class)="capture($event)"></div>`,
         })
         class App {
           sources: ClassSources | null = null;
 
-          protected capture(sources: ClassSources) {
-            this.sources = sources;
-            return sources.flat();
+          protected capture(event: ClassResolveEvent) {
+            this.sources = event.sources;
           }
         }
 
@@ -757,47 +939,8 @@ describe('(class) binding', () => {
       });
     }
 
-    it('calls a function that a lower resolver returned once with the same $event', async () => {
-      const runs: Array<{sources: ClassSources; calls: unknown[]}> = [];
-
-      @Directive({selector: '[lower]', host: {'(class)': 'resolve($event)'}})
-      class Lower {
-        protected resolve(sources: ClassSources) {
-          const run = {sources, calls: [] as unknown[]};
-          runs.push(run);
-          return (received: unknown) => {
-            run.calls.push(received);
-            return ['a', 'b'];
-          };
-        }
-      }
-
-      @Component({
-        imports: [Lower],
-        template: `<div lower class="c" (class)="capture($event)"></div>`,
-      })
-      class App {
-        sources: ClassSources | null = null;
-
-        protected capture(sources: ClassSources) {
-          this.sources = sources;
-          return sources.flat();
-        }
-      }
-
-      const fixture = await render(App);
-
-      expect(runs.length).toBeGreaterThan(0);
-      for (const run of runs) {
-        expect(run.calls.length).toBe(1);
-        expect(run.calls[0]).toBe(run.sources);
-      }
-      expect(fixture.componentInstance.sources!.flat()).toEqual(['a', 'b']);
-    });
-
-    it('keeps host resolvers next to a directive output named class', async () => {
+    it('runs the host and template resolvers next to a directive output named class', async () => {
       const warn = spyOn(console, 'warn');
-      const received: Array<[string, unknown]> = [];
 
       @Directive({selector: '[emitter]'})
       class Emitter {
@@ -807,13 +950,10 @@ describe('(class) binding', () => {
       @Component({
         selector: 'ui-card',
         template: '',
-        host: {class: 'cmp', '(class)': 'record($event)'},
+        host: {class: 'cmp', '(class)': 'resolve'},
       })
       class UiCard {
-        protected record(sources: ClassSources) {
-          received.push(['component', sources]);
-          return [...sources.flat(), 'by-cmp'];
-        }
+        protected readonly resolve = resolver('cmp-host');
       }
 
       @Component({
@@ -821,18 +961,20 @@ describe('(class) binding', () => {
         template: `<ui-card emitter class="tpl" (class)="record($event)" />`,
       })
       class App {
+        readonly received: unknown[] = [];
         @ViewChild(Emitter) emitter!: Emitter;
 
-        protected record(value: unknown) {
-          received.push(['template', value]);
+        protected record(event: unknown): ClassCallback {
+          this.received.push(event);
+          return resolver('template');
         }
       }
 
       const fixture = await render(App);
-      expect(received).toContain(['component', [['cmp'], [], ['tpl']]]);
-      expect(received.every(([handler]) => handler === 'component')).toBeTrue();
+      expect(ranResolvers()).toEqual(['cmp-host', 'template']);
       expect(classesOf(fixture.nativeElement.querySelector('ui-card'))).toEqual([
-        'by-cmp',
+        'by-cmp-host',
+        'by-template',
         'cmp',
         'tpl',
       ]);
@@ -840,15 +982,11 @@ describe('(class) binding', () => {
       fixture.componentInstance.emitter.classEvent.emit('sent');
       await fixture.whenStable();
 
-      expect(received.filter(([, value]) => value === 'sent')).toEqual([['template', 'sent']]);
-      expect(
-        warn.calls.allArgs().filter(([message]) => String(message).includes('NG0319')).length,
-      ).toBe(1);
+      expect(fixture.componentInstance.received).not.toContain('sent');
+      expect(warn).not.toHaveBeenCalled();
     });
 
     it("runs the component's resolver next to a host directive output aliased as class", async () => {
-      const warn = spyOn(console, 'warn');
-
       @Directive()
       class Emitter {
         @Output() readonly changed = new EventEmitter<string>();
@@ -858,7 +996,7 @@ describe('(class) binding', () => {
         selector: 'ui-card',
         template: '',
         hostDirectives: [{directive: Emitter, outputs: ['changed: class']}],
-        host: {class: 'cmp', '(class)': 'resolve($event)'},
+        host: {class: 'cmp', '(class)': 'resolve'},
       })
       class UiCard {
         protected readonly resolve = resolver('cmp-host');
@@ -874,20 +1012,19 @@ describe('(class) binding', () => {
         'by-cmp-host',
         'cmp',
       ]);
-      expect(warn).not.toHaveBeenCalledWith(jasmine.stringContaining('NG0319'));
     });
 
     it('reports a resolver that writes a signal', async () => {
       const errors = captureErrors();
 
-      @Component({template: `<div class="p-2" (class)="record($event)"></div>`})
+      @Component({template: `<div class="p-2" (class)="(record)"></div>`})
       class App {
-        readonly received = signal<ClassSources | null>(null);
+        readonly resolutions = signal(0);
 
-        protected record(sources: ClassSources) {
-          this.received.set(sources);
-          return sources.flat();
-        }
+        protected readonly record = (cn: BoundClassResolver) => {
+          this.resolutions.update((count) => count + 1);
+          return cn();
+        };
       }
 
       await render(App);
@@ -897,15 +1034,15 @@ describe('(class) binding', () => {
 
     describe('when a resolver changes state that its own bindings read', () => {
       @Component({
-        template: `<div [class.odd]="resolutions % 2 === 1" (class)="track($event)"></div>`,
+        template: `<div [class.odd]="resolutions % 2 === 1" (class)="(track)"></div>`,
       })
       class App {
         resolutions = 0;
 
-        protected track(sources: ClassSources) {
+        protected readonly track = (cn: BoundClassResolver) => {
           this.resolutions++;
-          return sources.flat();
-        }
+          return cn();
+        };
       }
 
       it('leaves an OnPush element out of date without an error', async () => {
@@ -931,7 +1068,7 @@ describe('(class) binding', () => {
         const errors = captureErrors();
 
         @Component({
-          template: `<div [class.odd]="resolutions % 2 === 1" (class)="track($event)"></div>`,
+          template: `<div [class.odd]="resolutions % 2 === 1" (class)="(track)"></div>`,
           changeDetection: ChangeDetectionStrategy.Eager,
         })
         class EagerApp extends App {}
@@ -941,6 +1078,93 @@ describe('(class) binding', () => {
         expect(errors.map(String).join('\n')).toContain('NG0100');
       });
     });
+  });
+});
+
+describe('provideClassResolver', () => {
+  @Component({
+    selector: 'ui-panel',
+    template: `<div class="inner" (class)="(cn) => cn()"></div>
+      <ng-content />`,
+    viewProviders: [provideClassResolver(markingResolver('view'))],
+  })
+  class UiPanel {}
+
+  it("resolves a component's template with its view resolver and projected content with the outer one", async () => {
+    @Component({
+      imports: [UiPanel],
+      template: `<ui-panel><span class="projected" (class)="(cn) => cn()"></span></ui-panel>`,
+      providers: [provideClassResolver(markingResolver('outer'))],
+    })
+    class App {}
+
+    const fixture = await render(App);
+
+    expect(classesOf(fixture.nativeElement.querySelector('div'))).toEqual(['by-view', 'inner']);
+    expect(classesOf(fixture.nativeElement.querySelector('span'))).toEqual([
+      'by-outer',
+      'projected',
+    ]);
+  });
+
+  it("resolves a component's own host binding with its view resolver and the template's with the outer one", async () => {
+    @Component({
+      selector: 'ui-badge',
+      template: '',
+      host: {'(class)': 'resolve'},
+      viewProviders: [provideClassResolver(markingResolver('view'))],
+    })
+    class UiBadge {
+      protected readonly resolve = (cn: BoundClassResolver) => cn('by-host');
+    }
+
+    @Component({
+      imports: [UiBadge],
+      template: `<ui-badge (attr.class)="capture($event)" />`,
+      providers: [provideClassResolver(markingResolver('outer'))],
+    })
+    class App {
+      sources: ClassSources | null = null;
+
+      protected capture(event: ClassResolveEvent) {
+        this.sources = event.sources;
+        event.resolve(event.resolver());
+      }
+    }
+
+    const fixture = await render(App);
+
+    expect(fixture.componentInstance.sources).toEqual([['by-host', 'by-view'], [], []]);
+    expect(classesOf(fixture.nativeElement.querySelector('ui-badge'))).toEqual([
+      'by-host',
+      'by-outer',
+      'by-view',
+    ]);
+  });
+
+  it('resolves a directive on a component host with the outer resolver', async () => {
+    @Component({
+      selector: 'ui-badge',
+      template: '',
+      viewProviders: [provideClassResolver(markingResolver('view'))],
+    })
+    class UiBadge {}
+
+    @Directive({selector: '[elevated]', host: {'(class)': 'resolve'}})
+    class Elevated {
+      protected readonly resolve = (cn: BoundClassResolver) => cn();
+    }
+
+    @Component({
+      imports: [UiBadge, Elevated],
+      template: `<ui-badge elevated />`,
+      providers: [provideClassResolver(markingResolver('outer'))],
+    })
+    class App {}
+
+    const fixture = await render(App);
+
+    expect(classesOf(fixture.nativeElement.querySelector('ui-badge'))).toEqual(['by-outer']);
   });
 });
 
@@ -1186,39 +1410,41 @@ describe('(attr.class) binding', () => {
     }
   });
 
-  it('keeps names that contain a space for the next (class) shorthand', async () => {
-    @Directive({selector: '[lower]', host: {'(class)': 'resolve()'}})
+  /** Resolves `['a b', 'c']` in a lower `(class)` shorthand, below a resolving template binding. */
+  function renderBelowSpacedNames(callback: ClassCallback) {
+    @Directive({selector: '[lower]', host: {'(class)': 'resolve'}})
     class Lower {
-      protected resolve() {
-        return ['a b', 'c'];
-      }
+      protected readonly resolve = callback;
     }
 
-    @Component({imports: [Lower], template: `<div lower (class)="capture($event)"></div>`})
+    @Component({imports: [Lower], template: `<div lower (attr.class)="resolveWith($event)"></div>`})
     class App {
       sources: ClassSources | null = null;
 
-      protected capture(sources: ClassSources) {
-        this.sources = sources;
-        return sources.flat();
+      protected resolveWith(event: ClassResolveEvent) {
+        this.sources = event.sources;
+        event.resolve(event.resolver());
       }
     }
 
-    const fixture = await render(App);
+    return render(App);
+  }
 
-    expect(fixture.componentInstance.sources).toEqual([[], ['a b', 'c'], []]);
+  it('leaves out names that contain a space that a lower (class) shorthand resolves', async () => {
+    const fixture = await renderBelowSpacedNames((cn) => cn(['a b', 'c']));
+
+    expect(fixture.componentInstance.sources).toEqual([[], ['c'], []]);
+    expect(classesOf(fixture.nativeElement.querySelector('div'))).toEqual(['c']);
   });
 
-  it('receives the classes that a lower (class) shorthand returned', async () => {
+  it('receives the classes that a lower (class) shorthand resolved', async () => {
     @Component({
       selector: 'ui-badge',
       template: '',
-      host: {class: 'bg-primary', '(class)': 'resolve($event)'},
+      host: {class: 'bg-primary', '(class)': 'resolve'},
     })
     class UiBadge {
-      protected resolve(sources: ClassSources) {
-        return [...sources.flat(), 'by-host'];
-      }
+      protected readonly resolve = (cn: BoundClassResolver) => cn('by-host');
     }
 
     @Component({
@@ -1347,6 +1573,31 @@ describe('(attr.class) binding', () => {
       const fixture = await render(ReentrantApp);
 
       expect(classesOf(fixture.nativeElement.querySelector('div'))).toEqual(['inner']);
+    });
+
+    it('leaves out names that contain a space that a lower (class) callback returns', async () => {
+      const fixture = await renderBelowSpacedNames(
+        () => ['a b', 'c'] as unknown as ResolvedClasses,
+      );
+
+      expect(fixture.componentInstance.sources).toEqual([[], ['c'], []]);
+      expect(classesOf(fixture.nativeElement.querySelector('div'))).toEqual(['c']);
+    });
+
+    it("applies classes from another element's resolver that a (class) callback returns", async () => {
+      @Component({
+        template: `<div (class)="(keep)"></div>
+          <span (class)="(reuse)"></span>`,
+      })
+      class App {
+        private kept: ResolvedClasses | null = null;
+        protected readonly keep = (cn: BoundClassResolver) => (this.kept = cn('a'));
+        protected readonly reuse = (cn: BoundClassResolver) => this.kept!;
+      }
+
+      const fixture = await render(App);
+
+      expect(classesOf(fixture.nativeElement.querySelector('span'))).toEqual(['a']);
     });
   });
 

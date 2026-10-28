@@ -9,7 +9,7 @@
 import {DOCUMENT, isPlatformServer} from '@angular/common';
 import {
   ApplicationRef,
-  ClassSources,
+  BoundClassResolver,
   Component,
   destroyPlatform,
   inject,
@@ -63,9 +63,8 @@ describe('(class) binding with hydration', () => {
     class App {
       private readonly isServer = isPlatformServer(inject(PLATFORM_ID));
 
-      protected resolve(sources: ClassSources) {
-        return [...sources.flat(), this.isServer ? 'server-only' : 'client-only'];
-      }
+      protected readonly resolve = (cn: BoundClassResolver) =>
+        cn(this.isServer ? 'server-only' : 'client-only');
     }
 
     const html = await ssr(App);
@@ -81,13 +80,13 @@ describe('(class) binding with hydration', () => {
   }
 
   it('removes a class that only the server resolved', async () => {
-    expect(await hydratedClasses(`<div class="p-2" (class)="resolve($event)"></div>`)).toEqual([
+    expect(await hydratedClasses(`<div class="p-2" (class)="resolve"></div>`)).toEqual([
       'client-only',
       'p-2',
     ]);
   });
 
   it('removes a class that only the server resolved on an element without static classes', async () => {
-    expect(await hydratedClasses(`<div (class)="resolve($event)"></div>`)).toEqual(['client-only']);
+    expect(await hydratedClasses(`<div (class)="resolve"></div>`)).toEqual(['client-only']);
   });
 });

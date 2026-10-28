@@ -1,14 +1,14 @@
-import {Component} from '@angular/core';
+import {BoundClassResolver, Component, ResolvedClasses} from '@angular/core';
 
 @Component({
   selector: 'my-component',
   template: `@if (show) { <span></span> }`,
-  host: {'(class)': 'resolve($event)'},
+  host: {'(class)': 'classes'},
 })
 export class MyComponent {
   show = true;
 
-  resolve(sources: unknown): string {
-    return '';
+  classes(cn: BoundClassResolver): ResolvedClasses {
+    return cn();
   }
 }

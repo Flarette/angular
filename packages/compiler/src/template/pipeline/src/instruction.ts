@@ -241,11 +241,7 @@ export function classResolver(
   flags: ClassResolverFlags,
   sourceSpan: ParseSourceSpan,
 ): ir.CreateOp {
-  const args = [handlerFn];
-  if (flags !== ClassResolverFlags.None) {
-    args.push(o.literal(flags));
-  }
-  return call(Identifiers.classResolver, args, sourceSpan);
+  return call(Identifiers.classResolver, [handlerFn, o.literal(flags)], sourceSpan);
 }
 
 export function twoWayBindingSet(target: o.Expression, value: o.Expression): o.Expression {

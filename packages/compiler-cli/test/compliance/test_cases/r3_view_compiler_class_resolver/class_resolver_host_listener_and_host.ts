@@ -1,16 +1,14 @@
-import {Directive, HostListener} from '@angular/core';
+import {ClassCallback, Directive, HostListener} from '@angular/core';
 
 @Directive({
   selector: '[myDir]',
-  host: {'(class)': 'fromHost($event)'},
+  host: {'(class)': 'fromHost'},
 })
 export class MyDirective {
-  fromHost(sources: unknown): string {
-    return '';
-  }
+  fromHost: ClassCallback = (cn) => cn();
 
-  @HostListener('class', ['$event'])
-  fromDecorator(sources: unknown): string {
-    return '';
+  @HostListener('class')
+  fromDecorator(): ClassCallback {
+    return (cn) => cn();
   }
 }

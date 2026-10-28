@@ -6,28 +6,29 @@ import * as i0 from "@angular/core";
 export class MyComponent {
     wide = true;
     extra = 'py-1';
-    cn(...inputs) {
-        return '';
+    classes(cn) {
+        return cn(this.extra);
     }
     static ɵfac = i0.ɵɵngDeclareFactory({ minVersion: "12.0.0", version: "0.0.0-PLACEHOLDER", ngImport: i0, type: MyComponent, deps: [], target: i0.ɵɵFactoryTarget.Component });
-    static ɵcmp = i0.ɵɵngDeclareComponent({ minVersion: "22.3.0", version: "0.0.0-PLACEHOLDER", type: MyComponent, isStandalone: true, selector: "my-component", ngImport: i0, template: `<div class="p-2" [class.px-4]="wide" (class)="cn($event, extra)"></div>`, isInline: true });
+    static ɵcmp = i0.ɵɵngDeclareComponent({ minVersion: "22.3.0", version: "0.0.0-PLACEHOLDER", type: MyComponent, isStandalone: true, selector: "my-component", ngImport: i0, template: `<div class="p-2" [class.px-4]="wide" (class)="classes"></div>`, isInline: true });
 }
 i0.ɵɵngDeclareClassMetadata({ minVersion: "12.0.0", version: "0.0.0-PLACEHOLDER", ngImport: i0, type: MyComponent, decorators: [{
             type: Component,
             args: [{
                     selector: 'my-component',
-                    template: `<div class="p-2" [class.px-4]="wide" (class)="cn($event, extra)"></div>`,
+                    template: `<div class="p-2" [class.px-4]="wide" (class)="classes"></div>`,
                 }]
         }] });
 
 /****************************************************************************************************
  * PARTIAL FILE: class_resolver_element.d.ts
  ****************************************************************************************************/
+import { BoundClassResolver, ResolvedClasses } from '@angular/core';
 import * as i0 from "@angular/core";
 export declare class MyComponent {
     wide: boolean;
     extra: string;
-    cn(...inputs: unknown[]): string;
+    classes(cn: BoundClassResolver): ResolvedClasses;
     static ɵfac: i0.ɵɵFactoryDeclaration<MyComponent, never>;
     static ɵcmp: i0.ɵɵComponentDeclaration<MyComponent, "my-component", never, {}, {}, never, never, true, never>;
 }
@@ -49,31 +50,32 @@ i0.ɵɵngDeclareClassMetadata({ minVersion: "12.0.0", version: "0.0.0-PLACEHOLDE
                 }]
         }] });
 export class MyComponent {
-    cn(...inputs) {
-        return '';
+    classes(cn) {
+        return cn();
     }
     static ɵfac = i0.ɵɵngDeclareFactory({ minVersion: "12.0.0", version: "0.0.0-PLACEHOLDER", ngImport: i0, type: MyComponent, deps: [], target: i0.ɵɵFactoryTarget.Component });
-    static ɵcmp = i0.ɵɵngDeclareComponent({ minVersion: "22.3.0", version: "0.0.0-PLACEHOLDER", type: MyComponent, isStandalone: true, selector: "my-component", ngImport: i0, template: `<ui-button class="px-2" (class)="cn($event)">Save</ui-button>`, isInline: true, dependencies: [{ kind: "component", type: UiButton, selector: "ui-button" }] });
+    static ɵcmp = i0.ɵɵngDeclareComponent({ minVersion: "22.3.0", version: "0.0.0-PLACEHOLDER", type: MyComponent, isStandalone: true, selector: "my-component", ngImport: i0, template: `<ui-button class="px-2" (class)="classes">Save</ui-button>`, isInline: true, dependencies: [{ kind: "component", type: UiButton, selector: "ui-button" }] });
 }
 i0.ɵɵngDeclareClassMetadata({ minVersion: "12.0.0", version: "0.0.0-PLACEHOLDER", ngImport: i0, type: MyComponent, decorators: [{
             type: Component,
             args: [{
                     selector: 'my-component',
                     imports: [UiButton],
-                    template: `<ui-button class="px-2" (class)="cn($event)">Save</ui-button>`,
+                    template: `<ui-button class="px-2" (class)="classes">Save</ui-button>`,
                 }]
         }] });
 
 /****************************************************************************************************
  * PARTIAL FILE: class_resolver_component.d.ts
  ****************************************************************************************************/
+import { BoundClassResolver, ResolvedClasses } from '@angular/core';
 import * as i0 from "@angular/core";
 export declare class UiButton {
     static ɵfac: i0.ɵɵFactoryDeclaration<UiButton, never>;
     static ɵcmp: i0.ɵɵComponentDeclaration<UiButton, "ui-button", never, {}, {}, never, ["*"], true, never>;
 }
 export declare class MyComponent {
-    cn(...inputs: unknown[]): string;
+    classes(cn: BoundClassResolver): ResolvedClasses;
     static ɵfac: i0.ɵɵFactoryDeclaration<MyComponent, never>;
     static ɵcmp: i0.ɵɵComponentDeclaration<MyComponent, "my-component", never, {}, {}, never, never, true, never>;
 }
@@ -85,17 +87,14 @@ import { Component } from '@angular/core';
 import * as i0 from "@angular/core";
 export class MyComponent {
     size = 'px-2';
-    cn(...inputs) {
-        return '';
-    }
     static ɵfac = i0.ɵɵngDeclareFactory({ minVersion: "12.0.0", version: "0.0.0-PLACEHOLDER", ngImport: i0, type: MyComponent, deps: [], target: i0.ɵɵFactoryTarget.Component });
-    static ɵcmp = i0.ɵɵngDeclareComponent({ minVersion: "22.3.0", version: "0.0.0-PLACEHOLDER", type: MyComponent, isStandalone: true, selector: "my-component", ngImport: i0, template: `<div (class)="(sources) => cn(sources, size)"></div>`, isInline: true });
+    static ɵcmp = i0.ɵɵngDeclareComponent({ minVersion: "22.3.0", version: "0.0.0-PLACEHOLDER", type: MyComponent, isStandalone: true, selector: "my-component", ngImport: i0, template: `<div (class)="(cn) => cn(size)"></div>`, isInline: true });
 }
 i0.ɵɵngDeclareClassMetadata({ minVersion: "12.0.0", version: "0.0.0-PLACEHOLDER", ngImport: i0, type: MyComponent, decorators: [{
             type: Component,
             args: [{
                     selector: 'my-component',
-                    template: `<div (class)="(sources) => cn(sources, size)"></div>`,
+                    template: `<div (class)="(cn) => cn(size)"></div>`,
                 }]
         }] });
 
@@ -105,7 +104,6 @@ i0.ɵɵngDeclareClassMetadata({ minVersion: "12.0.0", version: "0.0.0-PLACEHOLDE
 import * as i0 from "@angular/core";
 export declare class MyComponent {
     size: string;
-    cn(...inputs: unknown[]): string;
     static ɵfac: i0.ɵɵFactoryDeclaration<MyComponent, never>;
     static ɵcmp: i0.ɵɵComponentDeclaration<MyComponent, "my-component", never, {}, {}, never, never, true, never>;
 }
@@ -116,24 +114,27 @@ export declare class MyComponent {
 import { Component } from '@angular/core';
 import * as i0 from "@angular/core";
 export class MyComponent {
-    onClass(value) { }
+    classes(cn) {
+        return cn();
+    }
     static ɵfac = i0.ɵɵngDeclareFactory({ minVersion: "12.0.0", version: "0.0.0-PLACEHOLDER", ngImport: i0, type: MyComponent, deps: [], target: i0.ɵɵFactoryTarget.Component });
-    static ɵcmp = i0.ɵɵngDeclareComponent({ minVersion: "14.0.0", version: "0.0.0-PLACEHOLDER", type: MyComponent, isStandalone: true, selector: "my-component", ngImport: i0, template: `<ng-container (class)="onClass($event)"></ng-container>`, isInline: true });
+    static ɵcmp = i0.ɵɵngDeclareComponent({ minVersion: "14.0.0", version: "0.0.0-PLACEHOLDER", type: MyComponent, isStandalone: true, selector: "my-component", ngImport: i0, template: `<ng-container (class)="classes"></ng-container>`, isInline: true });
 }
 i0.ɵɵngDeclareClassMetadata({ minVersion: "12.0.0", version: "0.0.0-PLACEHOLDER", ngImport: i0, type: MyComponent, decorators: [{
             type: Component,
             args: [{
                     selector: 'my-component',
-                    template: `<ng-container (class)="onClass($event)"></ng-container>`,
+                    template: `<ng-container (class)="classes"></ng-container>`,
                 }]
         }] });
 
 /****************************************************************************************************
  * PARTIAL FILE: class_resolver_ng_container.d.ts
  ****************************************************************************************************/
+import { BoundClassResolver, ResolvedClasses } from '@angular/core';
 import * as i0 from "@angular/core";
 export declare class MyComponent {
-    onClass(value: unknown): void;
+    classes(cn: BoundClassResolver): ResolvedClasses;
     static ɵfac: i0.ɵɵFactoryDeclaration<MyComponent, never>;
     static ɵcmp: i0.ɵɵComponentDeclaration<MyComponent, "my-component", never, {}, {}, never, never, true, never>;
 }
@@ -144,27 +145,28 @@ export declare class MyComponent {
 import { Component } from '@angular/core';
 import * as i0 from "@angular/core";
 export class MyComponent {
-    resolve(sources) {
-        return '';
+    classes(cn) {
+        return cn();
     }
     static ɵfac = i0.ɵɵngDeclareFactory({ minVersion: "12.0.0", version: "0.0.0-PLACEHOLDER", ngImport: i0, type: MyComponent, deps: [], target: i0.ɵɵFactoryTarget.Component });
-    static ɵcmp = i0.ɵɵngDeclareComponent({ minVersion: "22.3.0", version: "0.0.0-PLACEHOLDER", type: MyComponent, isStandalone: true, selector: "my-component", host: { listeners: { "class": "resolve($event)" }, classAttribute: "px-4" }, ngImport: i0, template: '', isInline: true });
+    static ɵcmp = i0.ɵɵngDeclareComponent({ minVersion: "22.3.0", version: "0.0.0-PLACEHOLDER", type: MyComponent, isStandalone: true, selector: "my-component", host: { listeners: { "class": "classes" }, classAttribute: "px-4" }, ngImport: i0, template: '', isInline: true });
 }
 i0.ɵɵngDeclareClassMetadata({ minVersion: "12.0.0", version: "0.0.0-PLACEHOLDER", ngImport: i0, type: MyComponent, decorators: [{
             type: Component,
             args: [{
                     selector: 'my-component',
                     template: '',
-                    host: { class: 'px-4', '(class)': 'resolve($event)' },
+                    host: { class: 'px-4', '(class)': 'classes' },
                 }]
         }] });
 
 /****************************************************************************************************
  * PARTIAL FILE: class_resolver_host.d.ts
  ****************************************************************************************************/
+import { BoundClassResolver, ResolvedClasses } from '@angular/core';
 import * as i0 from "@angular/core";
 export declare class MyComponent {
-    resolve(sources: unknown): string;
+    classes(cn: BoundClassResolver): ResolvedClasses;
     static ɵfac: i0.ɵɵFactoryDeclaration<MyComponent, never>;
     static ɵcmp: i0.ɵɵComponentDeclaration<MyComponent, "my-component", never, {}, {}, never, never, true, never>;
 }
@@ -175,33 +177,32 @@ export declare class MyComponent {
 import { Directive, HostListener } from '@angular/core';
 import * as i0 from "@angular/core";
 export class MyDirective {
-    fromHost(sources) {
-        return '';
-    }
-    fromDecorator(sources) {
-        return '';
+    fromHost = (cn) => cn();
+    fromDecorator() {
+        return (cn) => cn();
     }
     static ɵfac = i0.ɵɵngDeclareFactory({ minVersion: "12.0.0", version: "0.0.0-PLACEHOLDER", ngImport: i0, type: MyDirective, deps: [], target: i0.ɵɵFactoryTarget.Directive });
-    static ɵdir = i0.ɵɵngDeclareDirective({ minVersion: "22.3.0", version: "0.0.0-PLACEHOLDER", type: MyDirective, isStandalone: true, selector: "[myDir]", host: { listeners: { "class": "fromDecorator($event)" } }, ngImport: i0 });
+    static ɵdir = i0.ɵɵngDeclareDirective({ minVersion: "22.3.0", version: "0.0.0-PLACEHOLDER", type: MyDirective, isStandalone: true, selector: "[myDir]", host: { listeners: { "class": "fromDecorator()" } }, ngImport: i0 });
 }
 i0.ɵɵngDeclareClassMetadata({ minVersion: "12.0.0", version: "0.0.0-PLACEHOLDER", ngImport: i0, type: MyDirective, decorators: [{
             type: Directive,
             args: [{
                     selector: '[myDir]',
-                    host: { '(class)': 'fromHost($event)' },
+                    host: { '(class)': 'fromHost' },
                 }]
         }], propDecorators: { fromDecorator: [{
                 type: HostListener,
-                args: ['class', ['$event']]
+                args: ['class']
             }] } });
 
 /****************************************************************************************************
  * PARTIAL FILE: class_resolver_host_listener_and_host.d.ts
  ****************************************************************************************************/
+import { ClassCallback } from '@angular/core';
 import * as i0 from "@angular/core";
 export declare class MyDirective {
-    fromHost(sources: unknown): string;
-    fromDecorator(sources: unknown): string;
+    fromHost: ClassCallback;
+    fromDecorator(): ClassCallback;
     static ɵfac: i0.ɵɵFactoryDeclaration<MyDirective, never>;
     static ɵdir: i0.ɵɵDirectiveDeclaration<MyDirective, "[myDir]", never, {}, {}, never, never, true, never>;
 }
@@ -213,27 +214,28 @@ import { Component } from '@angular/core';
 import * as i0 from "@angular/core";
 export class MyComponent {
     show = true;
-    cn(...inputs) {
-        return '';
+    classes(cn) {
+        return cn();
     }
     static ɵfac = i0.ɵɵngDeclareFactory({ minVersion: "12.0.0", version: "0.0.0-PLACEHOLDER", ngImport: i0, type: MyComponent, deps: [], target: i0.ɵɵFactoryTarget.Component });
-    static ɵcmp = i0.ɵɵngDeclareComponent({ minVersion: "22.3.0", version: "0.0.0-PLACEHOLDER", type: MyComponent, isStandalone: true, selector: "my-component", ngImport: i0, template: `@if (show) { <div (class)="cn($event)"></div> }`, isInline: true });
+    static ɵcmp = i0.ɵɵngDeclareComponent({ minVersion: "22.3.0", version: "0.0.0-PLACEHOLDER", type: MyComponent, isStandalone: true, selector: "my-component", ngImport: i0, template: `@if (show) { <div (class)="classes"></div> }`, isInline: true });
 }
 i0.ɵɵngDeclareClassMetadata({ minVersion: "12.0.0", version: "0.0.0-PLACEHOLDER", ngImport: i0, type: MyComponent, decorators: [{
             type: Component,
             args: [{
                     selector: 'my-component',
-                    template: `@if (show) { <div (class)="cn($event)"></div> }`,
+                    template: `@if (show) { <div (class)="classes"></div> }`,
                 }]
         }] });
 
 /****************************************************************************************************
  * PARTIAL FILE: class_resolver_with_blocks.d.ts
  ****************************************************************************************************/
+import { BoundClassResolver, ResolvedClasses } from '@angular/core';
 import * as i0 from "@angular/core";
 export declare class MyComponent {
     show: boolean;
-    cn(...inputs: unknown[]): string;
+    classes(cn: BoundClassResolver): ResolvedClasses;
     static ɵfac: i0.ɵɵFactoryDeclaration<MyComponent, never>;
     static ɵcmp: i0.ɵɵComponentDeclaration<MyComponent, "my-component", never, {}, {}, never, never, true, never>;
 }
@@ -245,28 +247,29 @@ import { Component } from '@angular/core';
 import * as i0 from "@angular/core";
 export class MyComponent {
     show = true;
-    resolve(sources) {
-        return '';
+    classes(cn) {
+        return cn();
     }
     static ɵfac = i0.ɵɵngDeclareFactory({ minVersion: "12.0.0", version: "0.0.0-PLACEHOLDER", ngImport: i0, type: MyComponent, deps: [], target: i0.ɵɵFactoryTarget.Component });
-    static ɵcmp = i0.ɵɵngDeclareComponent({ minVersion: "22.3.0", version: "0.0.0-PLACEHOLDER", type: MyComponent, isStandalone: true, selector: "my-component", host: { listeners: { "class": "resolve($event)" } }, ngImport: i0, template: `@if (show) { <span></span> }`, isInline: true });
+    static ɵcmp = i0.ɵɵngDeclareComponent({ minVersion: "22.3.0", version: "0.0.0-PLACEHOLDER", type: MyComponent, isStandalone: true, selector: "my-component", host: { listeners: { "class": "classes" } }, ngImport: i0, template: `@if (show) { <span></span> }`, isInline: true });
 }
 i0.ɵɵngDeclareClassMetadata({ minVersion: "12.0.0", version: "0.0.0-PLACEHOLDER", ngImport: i0, type: MyComponent, decorators: [{
             type: Component,
             args: [{
                     selector: 'my-component',
                     template: `@if (show) { <span></span> }`,
-                    host: { '(class)': 'resolve($event)' },
+                    host: { '(class)': 'classes' },
                 }]
         }] });
 
 /****************************************************************************************************
  * PARTIAL FILE: class_resolver_host_with_blocks.d.ts
  ****************************************************************************************************/
+import { BoundClassResolver, ResolvedClasses } from '@angular/core';
 import * as i0 from "@angular/core";
 export declare class MyComponent {
     show: boolean;
-    resolve(sources: unknown): string;
+    classes(cn: BoundClassResolver): ResolvedClasses;
     static ɵfac: i0.ɵɵFactoryDeclaration<MyComponent, never>;
     static ɵcmp: i0.ɵɵComponentDeclaration<MyComponent, "my-component", never, {}, {}, never, never, true, never>;
 }
