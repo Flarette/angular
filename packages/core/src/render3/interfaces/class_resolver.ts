@@ -47,13 +47,18 @@ export type ClassBindingValue =
   | undefined
   | false;
 
+// Type-only brand of `ResolvedClasses`; no value carries it at runtime.
+export const ɵRESOLVED_CLASSES_BRAND: unique symbol = /* @__PURE__ */ Symbol();
+
 /**
  * Classes that a `ClassResolveEvent`'s resolver merged for an element. Only that resolver creates
  * one; pass it to `ClassResolveEvent.resolve` to apply it.
  *
  * @experimental 22.3
  */
-export interface ResolvedClasses {}
+export interface ResolvedClasses {
+  readonly [ɵRESOLVED_CLASSES_BRAND]: true;
+}
 
 /**
  * The resolver of a `ClassResolveEvent`. It merges the event's sources with the extras, which rank

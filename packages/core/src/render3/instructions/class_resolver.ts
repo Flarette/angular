@@ -19,6 +19,7 @@ import {
   ResolvedClasses,
   TClassResolver,
   TClassSourceSegment,
+  ɵRESOLVED_CLASSES_BRAND,
 } from '../interfaces/class_resolver';
 import {DirectiveDef} from '../interfaces/definition';
 import {TAttributes, TNode, TNodeType} from '../interfaces/node';
@@ -280,6 +281,7 @@ function resolveThroughEvent(
   ownerSource: ClassSource,
 ): string[] {
   let resolved: string[] | null = null;
+  let calls = 0;
   let sealed = false;
   // `resolver` and `resolve` close over this refresh, so they work when called on their own.
   const event: ClassResolveEvent = {
@@ -287,7 +289,7 @@ function resolveThroughEvent(
     resolver: (...extras) =>
       new ResolvedClassesImpl(mergeClassSources(sources, extras, ownerSource), event),
     resolve: (classes) => {
-      if (ngDevMode && (sealed || resolved !== null)) {
+      if (ngDevMode && (sealed || calls > 0)) {
         throw new RuntimeError(
           RuntimeErrorCode.INVALID_CLASS_RESOLUTION,
           sealed
@@ -296,9 +298,16 @@ function resolveThroughEvent(
             : 'An `(attr.class)` handler called `resolve()` more than once. Call it at most once.',
         );
       }
-      // In production, a late call is ignored and the last call while the handler runs wins.
-      if (!sealed) {
-        resolved = toClassNames(classes);
+      // In production, a late call is ignored.
+      if (sealed) {
+        return;
+      }
+      // Count the call before reading `classes`, whose getters can call `resolve()` again. In
+      // production, the call that starts last wins.
+      const call = ++calls;
+      const classNames = readClassNames(classes);
+      if (call === calls) {
+        resolved = classNames;
       }
     },
   };
@@ -312,6 +321,8 @@ function resolveThroughEvent(
 
 /** Classes that a `ClassResolveEvent`'s resolver merged, with the event that created them. */
 class ResolvedClassesImpl implements ResolvedClasses {
+  declare readonly [ɵRESOLVED_CLASSES_BRAND]: true;
+
   constructor(
     readonly classNames: string[],
     readonly event: ClassResolveEvent,
@@ -333,10 +344,10 @@ function mergeClassSources(
 ): string[] {
   const classes = sources.map((classNames, source) => {
     const names =
-      source === ownerSource ? [...classNames, ...extras.flatMap(toClassNames)] : classNames;
+      source === ownerSource ? [...classNames, ...extras.flatMap(readClassNames)] : classNames;
     return names.join(' ');
   });
-  return toClassNames(mergeClasses(...classes));
+  return readClassNames(mergeClasses(...classes));
 }
 
 /**
@@ -344,17 +355,25 @@ function mergeClassSources(
  * names, keeping the first position, and joins them with spaces.
  */
 function mergeClasses(...classes: string[]): string {
-  return toClassNames(classes.join(' ')).join(' ');
+  return readClassNames(classes.join(' ')).join(' ');
 }
 
 /**
- * Reads classes the way a `[class]` binding reads them, as names without empty and repeated ones.
- * A `ResolvedClasses` gives its own names.
+ * Reads classes for the extras, `resolve()`, and the plain merge the way a `[class]` binding reads
+ * them: names without empty and repeated ones, and without the names of an array, a `Set`, or an
+ * object map that contain a space. A `ResolvedClasses` gives its own names.
  */
-function toClassNames(resolved: unknown): string[] {
-  if (resolved instanceof ResolvedClassesImpl) {
-    return resolved.classNames;
+function readClassNames(value: unknown): string[] {
+  if (value instanceof ResolvedClassesImpl) {
+    return value.classNames;
   }
+  // A string splits on whitespace, so only the names of an array, a `Set`, or an object map can
+  // contain a space.
+  return toClassNames(value).filter((className) => !className.includes(' '));
+}
+
+/** Reads the classes that a `(class)` shorthand returned. */
+function toClassNames(resolved: unknown): string[] {
   const classNames = new Set<string>();
   const add = (className: unknown) => {
     const name = String(className);

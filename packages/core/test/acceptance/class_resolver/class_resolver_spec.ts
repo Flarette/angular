@@ -9,6 +9,7 @@
 import {
   ChangeDetectionStrategy,
   ClassBindingValue,
+  ClassCallback,
   ClassResolveEvent,
   ClassSources,
   Component,
@@ -1071,6 +1072,41 @@ describe('(attr.class) binding', () => {
       expect(merged).toBe('cmp extra dir tpl');
       expect(fixture.componentInstance.sources).toEqual([['cmp', 'extra'], ['dir'], ['tpl']]);
     });
+
+    it("from a directive's host", async () => {
+      let merged = '';
+
+      @Component({selector: 'ui-card', template: '', host: {class: 'cmp'}})
+      class UiCard {}
+
+      @Directive({
+        selector: '[elevated]',
+        host: {class: 'dir', '(attr.class)': `$event.resolve(record($event.resolver('extra')))`},
+      })
+      class Elevated {
+        protected record(classes: ResolvedClasses) {
+          merged = String(classes);
+          return classes;
+        }
+      }
+
+      @Component({
+        imports: [UiCard, Elevated],
+        template: `<ui-card elevated class="tpl" (attr.class)="capture($event.sources)" />`,
+      })
+      class App {
+        sources: ClassSources | null = null;
+
+        protected capture(sources: ClassSources) {
+          this.sources = sources;
+        }
+      }
+
+      const fixture = await render(App);
+
+      expect(merged).toBe('cmp dir extra tpl');
+      expect(fixture.componentInstance.sources).toEqual([['cmp'], ['dir', 'extra'], ['tpl']]);
+    });
   });
 
   for (const [form, value, expected] of [
@@ -1095,6 +1131,225 @@ describe('(attr.class) binding', () => {
     });
   }
 
+  describe('leaves out names that contain a space', () => {
+    for (const [form, value] of [
+      ['an array', ['a b', 'c']],
+      ['a Set', new Set(['a b', 'c'])],
+      ['an object map', {'a b': true, c: true}],
+    ] as Array<[string, ClassBindingValue]>) {
+      it(`of ${form} passed to resolve()`, async () => {
+        @Component({template: `<div class="d" (attr.class)="$event.resolve(value)"></div>`})
+        class App {
+          protected readonly value = value;
+        }
+
+        const fixture = await render(App);
+
+        expect(classesOf(fixture.nativeElement.querySelector('div'))).toEqual(['c']);
+      });
+
+      it(`of ${form} passed to the resolver`, async () => {
+        @Component({
+          template: `<div class="d" (attr.class)="$event.resolve($event.resolver(value))"></div>`,
+        })
+        class App {
+          protected readonly value = value;
+        }
+
+        const fixture = await render(App);
+
+        expect(classesOf(fixture.nativeElement.querySelector('div'))).toEqual(['c', 'd']);
+      });
+
+      it(`of ${form} that a lower registration resolves`, async () => {
+        @Directive({selector: '[lower]', host: {'(attr.class)': '$event.resolve(value)'}})
+        class Lower {
+          protected readonly value = value;
+        }
+
+        @Component({
+          imports: [Lower],
+          template: `<div lower class="d" (attr.class)="capture($event.sources)"></div>`,
+        })
+        class App {
+          sources: ClassSources | null = null;
+
+          protected capture(sources: ClassSources) {
+            this.sources = sources;
+          }
+        }
+
+        const fixture = await render(App);
+
+        expect(fixture.componentInstance.sources).toEqual([[], ['c'], []]);
+      });
+    }
+  });
+
+  it('keeps names that contain a space for the next (class) shorthand', async () => {
+    @Directive({selector: '[lower]', host: {'(class)': 'resolve()'}})
+    class Lower {
+      protected resolve() {
+        return ['a b', 'c'];
+      }
+    }
+
+    @Component({imports: [Lower], template: `<div lower (class)="capture($event)"></div>`})
+    class App {
+      sources: ClassSources | null = null;
+
+      protected capture(sources: ClassSources) {
+        this.sources = sources;
+        return sources.flat();
+      }
+    }
+
+    const fixture = await render(App);
+
+    expect(fixture.componentInstance.sources).toEqual([[], ['a b', 'c'], []]);
+  });
+
+  it('receives the classes that a lower (class) shorthand returned', async () => {
+    @Component({
+      selector: 'ui-badge',
+      template: '',
+      host: {class: 'bg-primary', '(class)': 'resolve($event)'},
+    })
+    class UiBadge {
+      protected resolve(sources: ClassSources) {
+        return [...sources.flat(), 'by-host'];
+      }
+    }
+
+    @Component({
+      imports: [UiBadge],
+      template: `<ui-badge class="tpl" (attr.class)="resolveWith($event)" />`,
+    })
+    class App {
+      sources: ClassSources | null = null;
+      merged = '';
+
+      protected resolveWith(event: ClassResolveEvent) {
+        this.sources = event.sources;
+        const classes = event.resolver('extra');
+        this.merged = String(classes);
+        event.resolve(classes);
+      }
+    }
+
+    const fixture = await render(App);
+
+    expect(fixture.componentInstance.sources).toEqual([['bg-primary', 'by-host'], [], ['tpl']]);
+    expect(fixture.componentInstance.merged).toBe('bg-primary by-host tpl extra');
+    expect(classesOf(fixture.nativeElement.querySelector('ui-badge'))).toEqual([
+      'bg-primary',
+      'by-host',
+      'extra',
+      'tpl',
+    ]);
+  });
+
+  it('resolves again on each refresh with a new event', async () => {
+    @Component({template: `<div class="c" (attr.class)="resolveWith($event, size())"></div>`})
+    class App {
+      readonly size = signal('text-sm');
+      readonly events: ClassResolveEvent[] = [];
+
+      protected resolveWith(event: ClassResolveEvent, size: string) {
+        this.events.push(event);
+        event.resolve(event.resolver(size));
+      }
+    }
+
+    const fixture = await render(App);
+    const div = fixture.nativeElement.querySelector('div');
+    const {events} = fixture.componentInstance;
+    const firstRefreshes = events.length;
+    expect(classesOf(div)).toEqual(['c', 'text-sm']);
+
+    fixture.componentInstance.size.set('text-lg');
+    await fixture.whenStable();
+
+    expect(classesOf(div)).toEqual(['c', 'text-lg']);
+    expect(events.length).toBeGreaterThan(firstRefreshes);
+    expect(new Set(events).size).toBe(events.length);
+    expect(() => events[0].resolve('late')).toThrowError(/NG0320/);
+  });
+
+  it('seals the event of a handler that throws', async () => {
+    const events: ClassResolveEvent[] = [];
+
+    @Component({template: `<div (attr.class)="fail($event)"></div>`})
+    class App {
+      protected fail(event: ClassResolveEvent) {
+        events.push(event);
+        throw new Error('Handler failed');
+      }
+    }
+
+    await expectAsync(render(App)).toBeRejectedWithError(/Handler failed/);
+
+    expect(() => events[0].resolve('late')).toThrowError(/NG0320/);
+  });
+
+  /** Resolves classes with a value whose getter calls `resolve()` again while it's read. */
+  @Component({template: `<div (attr.class)="$event.resolve(reentrant($event))"></div>`})
+  class ReentrantApp {
+    protected reentrant(event: ClassResolveEvent) {
+      return {
+        get outer() {
+          event.resolve('inner');
+          return true;
+        },
+      };
+    }
+  }
+
+  it('reports a call to resolve() from a value that resolve() reads in dev mode', async () => {
+    await expectAsync(render(ReentrantApp)).toBeRejectedWithError(/NG0320/);
+  });
+
+  describe('in production mode', () => {
+    const _global: {ngDevMode: unknown} = globalThis as any;
+    let savedNgDevMode: unknown;
+    beforeEach(() => {
+      savedNgDevMode = _global.ngDevMode;
+      _global.ngDevMode = false;
+    });
+    afterEach(() => (_global.ngDevMode = savedNgDevMode));
+
+    it('ignores a call to resolve() after the handler returns', async () => {
+      @Component({template: `<div class="c" (attr.class)="keep($event)"></div>`})
+      class App {
+        event: ClassResolveEvent | null = null;
+
+        protected keep(event: ClassResolveEvent) {
+          this.event = event;
+        }
+      }
+
+      const fixture = await render(App);
+
+      expect(() => fixture.componentInstance.event!.resolve('late')).not.toThrow();
+      expect(classesOf(fixture.nativeElement.querySelector('div'))).toEqual(['c']);
+    });
+
+    it('applies the last call to resolve() while the handler runs', async () => {
+      @Component({template: `<div (attr.class)="$event.resolve('a'); $event.resolve('b')"></div>`})
+      class App {}
+
+      const fixture = await render(App);
+
+      expect(classesOf(fixture.nativeElement.querySelector('div'))).toEqual(['b']);
+    });
+
+    it('applies the call to resolve() from a value that resolve() reads', async () => {
+      const fixture = await render(ReentrantApp);
+
+      expect(classesOf(fixture.nativeElement.querySelector('div'))).toEqual(['inner']);
+    });
+  });
+
   it('reports a second call to resolve() in dev mode', async () => {
     @Component({template: `<div (attr.class)="$event.resolve('a'); $event.resolve('b')"></div>`})
     class App {}
@@ -1117,3 +1372,15 @@ describe('(attr.class) binding', () => {
     expect(() => fixture.componentInstance.event!.resolve('late')).toThrowError(/NG0320/);
   });
 });
+
+/**
+ * Typing tests.
+ */
+
+// @ts-expect-error: only a resolver creates `ResolvedClasses`, so a string isn't one.
+const resolveToString: ClassCallback = (cn) => 'x';
+
+function resolveNumber(event: ClassResolveEvent) {
+  // @ts-expect-error: a number is neither a class value nor `ResolvedClasses`.
+  event.resolve(42);
+}

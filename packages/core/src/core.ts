@@ -34,6 +34,7 @@ export {
   ClassResolver,
   ClassSources,
   ResolvedClasses,
+  ɵRESOLVED_CLASSES_BRAND,
 } from './render3/interfaces/class_resolver';
 export {
   APP_INITIALIZER,

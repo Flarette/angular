@@ -1691,6 +1691,8 @@ export const REQUEST_CONTEXT: InjectionToken<unknown>;
 
 // @public
 export interface ResolvedClasses {
+    // (undocumented)
+    readonly [ɵRESOLVED_CLASSES_BRAND]: true;
 }
 
 // @public
