@@ -223,8 +223,11 @@ export type ClassBindingValue =
   | undefined
   | false;
 
+// Type-only brand, like `ɵINPUT_SIGNAL_BRAND_WRITE_TYPE`; no value at runtime.
+export const ɵRESOLVED_CLASSES_BRAND: unique symbol;
+
 export interface ResolvedClasses {
-  /* opaque */
+  readonly [ɵRESOLVED_CLASSES_BRAND]: true;
 }
 
 export type BoundClassResolver = (...extras: ClassBindingValue[]) => ResolvedClasses;
@@ -604,6 +607,16 @@ Codex's WP1 review found that the classifier returns `null` for any binding on a
 `NG8121` (WP4) and the container emission for `NG0321` (WP5) couldn't tell a resolver binding from
 an ordinary event there. WP4 extends the classifier to keep the form on containers, separately from
 whether the node resolves, and WP5's scope gains the pipeline's ingest for the emission.
+
+### 2026-10-28: `ResolvedClasses` carries a type-only brand
+
+The WP2 agent measured that an empty `ResolvedClasses` interface accepts any value: `(cn) => 'x'`
+is assignable to `ClassCallback`, and `resolve(42)` compiles. B2's type-checking rule couldn't
+hold. The orchestrator ruled: `ResolvedClasses` carries a `ɵ`-prefixed `unique symbol` brand, the
+way `ɵINPUT_SIGNAL_BRAND_WRITE_TYPE` brands signal inputs, and the internal class declares it
+without a runtime value. From the same review: the full form's normalization drops names that
+contain a space, as `[class]` does, while the shorthand keeps its behavior until WP3 (D1). Strict
+template checking of `(attr.class)` stays in WP4; Codex agreed that the gap is planned.
 
 ## Reviews
 
