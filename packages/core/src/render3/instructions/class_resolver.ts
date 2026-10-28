@@ -136,10 +136,10 @@ function classResolverFirstCreatePass(
     bindings: [],
   });
 
-  tNode.classResolver = {index: allocExpando(tView, lView, 2, null), owners: [owner], segments};
   // Change detection and the styling instructions reach the runtime only through these hooks, and
   // only for nodes and views that have resolver data.
   enableClassResolverHooks(refreshClassResolvers, registerClassResolverBinding);
+  tNode.classResolver = {index: allocExpando(tView, lView, 2, null), owners: [owner], segments};
   (tView.classResolvers ??= []).push(tNode.index);
 }
 
