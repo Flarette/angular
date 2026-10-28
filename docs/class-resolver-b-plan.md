@@ -565,4 +565,6 @@ Commit: `feat(core): resolve classes automatically when the root opts in`.
 
 ## Errata
 
-None yet.
+### 2026-10-28: execution starts
+
+The owner agreed to start with the defaults as written. WP0 is dispatched first.
