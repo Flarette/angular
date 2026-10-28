@@ -162,10 +162,11 @@ pnpm bazel test //packages/core/test/bundling/animations-standalone:symbol_test 
 pnpm ts-circular-deps:check
 ```
 
-Compiler regression targets (WP1 to WP5):
+Compiler regression targets (WP1 to WP5). Before WP4's commit, the `output_shadowed_by_class_resolver`
+check is named `class_resolver_shadowed_by_output`:
 
 ```bash
-pnpm bazel test //packages/compiler-cli/src/ngtsc/typecheck/test:test //packages/compiler-cli/src/ngtsc/typecheck/test:test_ngp //packages/compiler-cli/src/ngtsc/typecheck/extended/test/checks/class_resolver_shadowed_by_output:test //packages/compiler-cli/src/ngtsc/typecheck/extended/test/checks/class_resolver_shadowed_by_output:test_ngp //packages/compiler-cli/src/ngtsc/typecheck/extended/test/checks/uninvoked_function_in_event_binding:test //packages/compiler-cli/src/ngtsc/typecheck/extended/test/checks/uninvoked_function_in_event_binding:test_ngp //packages/compiler/test:test
+pnpm bazel test //packages/compiler-cli/src/ngtsc/typecheck/test:test //packages/compiler-cli/src/ngtsc/typecheck/test:test_ngp //packages/compiler-cli/src/ngtsc/typecheck/extended/test/checks/output_shadowed_by_class_resolver:test //packages/compiler-cli/src/ngtsc/typecheck/extended/test/checks/output_shadowed_by_class_resolver:test_ngp //packages/compiler-cli/src/ngtsc/typecheck/extended/test/checks/uninvoked_function_in_event_binding:test //packages/compiler-cli/src/ngtsc/typecheck/extended/test/checks/uninvoked_function_in_event_binding:test_ngp //packages/compiler/test:test
 ```
 
 ```bash
@@ -205,7 +206,7 @@ and in which form. Today seven places decide this separately:
 | `packages/compiler/src/render3/partial/component.ts` (around 304)                              | the template uses `(class)`, for `minVersion` |
 | `packages/compiler/src/render3/partial/directive.ts` (around 171)                              | the host uses `(class)`, for `minVersion`     |
 | `NG8111`'s check (`uninvoked_function_in_event_binding/index.ts`, around line 56)              | the exemption                                 |
-| `NG8119`'s check (`class_resolver_shadowed_by_output/index.ts`, around line 38)                | which bindings it reports                     |
+| `NG8120`'s check (`output_shadowed_by_class_resolver/index.ts`; `NG8119` before WP4)           | which bindings it reports                     |
 
 Containers are recognized with `isNgContainer()` and `isNgTemplate()` from
 `packages/compiler/src/ml_parser/tags.ts`, never by comparing the raw tag name: inside `<svg>`
@@ -456,10 +457,12 @@ Commit: `feat(core): add the class shorthand and class resolver provider`.
 
 ### WP4: type checking and diagnostics
 
-Scope: `packages/compiler/src/typecheck/ops/events.ts`,
-`packages/compiler-cli/src/ngtsc/typecheck/host_bindings.ts` (around lines 376 to 392), the
-`NG8111` and `NG8119` checks, the classifier (`packages/compiler/src/render3/r3_class_resolver.ts`),
-and their specs. For the new codes: `packages/compiler-cli/src/ngtsc/diagnostics/src/error_code.ts`,
+Scope: `packages/compiler/src/typecheck/ops/events.ts`, the `NG8111` and `NG8119` checks, the
+classifier (`packages/compiler/src/render3/r3_class_resolver.ts`), and their specs.
+`packages/compiler/src/typecheck/host_bindings.ts` only if a red spec shows a need. For `NG8121`:
+the out-of-band recorder's interface (`packages/compiler/src/typecheck/oob.ts`), its
+implementation (`packages/compiler-cli/src/ngtsc/typecheck/src/oob.ts`), and `NoopOobRecorder`
+(`packages/compiler-cli/src/ngtsc/typecheck/testing/index.ts`). For the new codes: `packages/compiler-cli/src/ngtsc/diagnostics/src/error_code.ts`,
 `extended_template_diagnostic_name.ts`, the extended checks' registry
 (`packages/compiler-cli/src/ngtsc/typecheck/extended/index.ts`), and the reference pages
 `adev/src/content/reference/extended-diagnostics/NG8119.md` (renamed to `NG8120.md`) and
@@ -482,9 +485,17 @@ to this WP's gates.
   `TcbUnclaimedOutputsOp` skips.
 - `NG8111`: only a shorthand that resolves is exempt (B3).
 - B7's warning moves from `NG8119` to `NG8120` (D4): a template `(class)` next to a directive
-  output named `class` resolves, and the warning says the output isn't listened to. Move the
-  check's directory and specs with it.
-- B8's compile-time error `NG8121` lives inside `TcbUnclaimedOutputsOp`. It fires for an `Element`
+  output named `class` resolves, and the warning says the output isn't listened to. The same holds
+  for `(attr.class)` next to an output named `attr.class`. Names: `ErrorCode`
+  `OUTPUT_SHADOWED_BY_CLASS_RESOLVER = 8120`, `ExtendedTemplateDiagnosticName`
+  `OUTPUT_SHADOWED_BY_CLASS_RESOLVER = 'outputShadowedByClassResolver'`, and the directories
+  `checks/output_shadowed_by_class_resolver` and `test/checks/output_shadowed_by_class_resolver`.
+  Delete the `8119` entry; the number belongs to the container fix (B8).
+- B8's compile-time error `NG8121` (`ErrorCode` `CLASS_RESOLVER_ON_CONTAINER = 8121`) lives inside
+  `TcbUnclaimedOutputsOp`, reported through an optional method on the out-of-band recorder, called
+  as `oobRecorder.classResolverOnContainer?.(…)`. The method is optional because the Rust
+  preprocessor implements the same interface and is out of scope (R10); under the preprocessor,
+  `NG8121` doesn't fire, and its specs go into `ngp_known_failures.ts`. It fires for an `Element`
   target when `isNgContainer(name)`, and for a `Template` target only when `isNgTemplate(tagName)`:
   structural wrappers copy the inner element's outputs, so without that test a binding would be
   reported twice once the op runs for templates. Don't make the op run for `Template` nodes; the
@@ -493,9 +504,9 @@ to this WP's gates.
   resolver binding there without repeating the name checks or passing a false node kind. Extend it
   so a container binding still reports its form, separately from whether the node resolves.
   Existing callers keep their results.
-- Move the existing type-checking specs to design B: `host_bindings_type_check_spec.ts` (10
-  cases), `template_typecheck_spec.ts` (7), the `NG8119` check's specs (9, moving to `NG8120`),
-  and the `NG8111` check's specs (3).
+- Move the existing type-checking specs to design B: `host_bindings_type_check_spec.ts` (5
+  cases), `template_typecheck_spec.ts` (6), the `NG8119` check's specs (6, moving to `NG8120`),
+  and the `NG8111` check's spec (1). Counts measured by the WP4 agent.
 
 Tests, red first: `host_bindings_type_check_spec.ts` and `template_typecheck_spec.ts` cases for
 each bullet; `NG8111` and the `NG8120` check's specs. Specs that the preprocessor fails go into
@@ -643,6 +654,19 @@ way `ɵINPUT_SIGNAL_BRAND_WRITE_TYPE` brands signal inputs, and the internal cla
 without a runtime value. From the same review: the full form's normalization drops names that
 contain a space, as `[class]` does, while the shorthand keeps its behavior until WP3 (D1). Strict
 template checking of `(attr.class)` stays in WP4; Codex agreed that the gap is planned.
+
+### 2026-10-28: how `NG8121` is reported, and the names of the new codes
+
+The WP4 agent found that a type-check op can report an NG-coded diagnostic only through the
+out-of-band recorder or the DOM schema checker, and that the Rust preprocessor implements both
+interfaces. A required method would break the preprocessor's build, which R10 keeps out of scope.
+The orchestrator ruled: `NG8121` goes through an optional recorder method, so the preprocessor
+build is unchanged and `NG8121` is TypeScript-only, matching the owner's note on the preprocessor
+in the proposal. The new codes get names that describe B7 and B8 (D6):
+`OUTPUT_SHADOWED_BY_CLASS_RESOLVER = 8120` (`outputShadowedByClassResolver`) and
+`CLASS_RESOLVER_ON_CONTAINER = 8121`. `NG8120` also covers `(attr.class)` next to an output named
+`attr.class`, as B7 does. The `host_bindings.ts` path in WP4's scope was stale, and the spec counts
+were wrong; both are corrected.
 
 ## Reviews
 
