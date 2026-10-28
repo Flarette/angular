@@ -537,7 +537,11 @@ emission, and the runtime's registration.
 - B8 at runtime: a template `(class)` or `(attr.class)` on a container also emits
   `ɵɵclassResolver`. Where `ɵɵclassResolver` returns early for a node that isn't an element, report
   `NG0321` through `console.error` in dev mode. Ingest finds these bindings through the
-  classifier's container result from WP4.
+  classifier's container result from WP4. Since WP4, an AOT compile with type checking reports
+  `NG8121` for these bindings, so the emission is reached through JIT, the preprocessor, and
+  `<ng-template>` until the container fix checks it. WP4 deleted the compliance case
+  `class_resolver_ng_container`: the partial golden's generator type-checks every case and stops
+  on any error. Cover the emission with JIT acceptance specs.
 
 Tests, red first: each rule in AOT (`ngtsc` specs) and JIT (acceptance specs), plus a base class
 and a subclass that each declare a resolver. Today the base and subclass both run, base first
