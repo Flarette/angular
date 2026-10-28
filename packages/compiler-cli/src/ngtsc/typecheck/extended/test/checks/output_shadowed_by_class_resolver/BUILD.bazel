@@ -3,7 +3,7 @@ load("//tools:defaults.bzl", "jasmine_test", "ts_project")
 ts_project(
     name = "test_lib",
     testonly = True,
-    srcs = ["class_resolver_shadowed_by_output_spec.ts"],
+    srcs = ["output_shadowed_by_class_resolver_spec.ts"],
     deps = [
         "//:node_modules/typescript",
         "//packages/compiler",
@@ -13,7 +13,7 @@ ts_project(
         "//packages/compiler-cli/src/ngtsc/file_system/testing",
         "//packages/compiler-cli/src/ngtsc/testing",
         "//packages/compiler-cli/src/ngtsc/typecheck/extended",
-        "//packages/compiler-cli/src/ngtsc/typecheck/extended/checks/class_resolver_shadowed_by_output",
+        "//packages/compiler-cli/src/ngtsc/typecheck/extended/checks/output_shadowed_by_class_resolver",
         "//packages/compiler-cli/src/ngtsc/typecheck/testing",
     ],
 )

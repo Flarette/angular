@@ -13,33 +13,61 @@ import {absoluteFrom, getSourceFileOrError} from '../../../../../file_system';
 import {runInEachFileSystem} from '../../../../../file_system/testing';
 import {getSourceCodeForDiagnostic} from '../../../../../testing';
 import {getClass, setup} from '../../../../testing';
-import {factory as classResolverShadowedByOutputFactory} from '../../../checks/class_resolver_shadowed_by_output';
+import {factory as outputShadowedByClassResolverFactory} from '../../../checks/output_shadowed_by_class_resolver';
 import {ExtendedTemplateCheckerImpl} from '../../../src/extended_template_checker';
 import {formatExtendedError} from '@angular/compiler-cli/src/ngtsc/typecheck/extended/api';
 
 runInEachFileSystem(() => {
-  describe('ClassResolverShadowedByOutputCheck', () => {
-    it('should produce a diagnostic when a directive output named class claims a (class) binding', () => {
-      const diags = diagnose(`<div dir (class)="resolve($event)"></div>`, {classEvent: 'class'});
+  describe('OutputShadowedByClassResolverCheck', () => {
+    it('should produce a diagnostic when a (class) binding shadows a directive output named class', () => {
+      const diags = diagnose(`<div dir (class)="resolve"></div>`, {classEvent: 'class'});
 
       expect(diags.length).toBe(1);
       expect(diags[0].category).toBe(ts.DiagnosticCategory.Warning);
-      expect(diags[0].code).toBe(ngErrorCode(ErrorCode.CLASS_RESOLVER_SHADOWED_BY_OUTPUT));
+      expect(diags[0].code).toBe(ngErrorCode(ErrorCode.OUTPUT_SHADOWED_BY_CLASS_RESOLVER));
       expect(getSourceCodeForDiagnostic(diags[0])).toBe('class');
       expect(diags[0].messageText).toBe(
         formatExtendedError(
-          ErrorCode.CLASS_RESOLVER_SHADOWED_BY_OUTPUT,
-          'The `(class)` binding listens to the `class` output of `Dir` instead of resolving the ' +
-            "element's classes. Rename the output to use `(class)` as a class resolver on this " +
-            'element.',
+          ErrorCode.OUTPUT_SHADOWED_BY_CLASS_RESOLVER,
+          "The `(class)` binding resolves the element's classes, so it doesn't listen to the " +
+            '`class` output of `Dir`. Rename the output to listen to it.',
+        ),
+      );
+    });
+
+    it('should produce a diagnostic when an (attr.class) binding shadows a directive output named attr.class', () => {
+      const diags = diagnose(`<div dir (attr.class)="resolve($event)"></div>`, {
+        classEvent: 'attr.class',
+      });
+
+      expect(diags.length).toBe(1);
+      expect(diags[0].code).toBe(ngErrorCode(ErrorCode.OUTPUT_SHADOWED_BY_CLASS_RESOLVER));
+      expect(getSourceCodeForDiagnostic(diags[0])).toBe('attr.class');
+      expect(diags[0].messageText).toBe(
+        formatExtendedError(
+          ErrorCode.OUTPUT_SHADOWED_BY_CLASS_RESOLVER,
+          "The `(attr.class)` binding resolves the element's classes, so it doesn't listen to " +
+            'the `attr.class` output of `Dir`. Rename the output to listen to it.',
         ),
       );
     });
 
     it('should not produce a diagnostic when no directive output is named class', () => {
-      const diags = diagnose(`<div dir (class)="resolve($event)"></div>`, {classEvent: 'change'});
+      const diags = diagnose(`<div dir (class)="resolve"></div>`, {classEvent: 'change'});
 
       expect(diags.length).toBe(0);
+    });
+
+    it('should not produce a diagnostic when the directive output has the name of the other form', () => {
+      const classDiags = diagnose(`<div dir (attr.class)="resolve($event)"></div>`, {
+        classEvent: 'class',
+      });
+      const attrClassDiags = diagnose(`<div dir (class)="resolve"></div>`, {
+        classEvent: 'attr.class',
+      });
+
+      expect(classDiags.length).toBe(0);
+      expect(attrClassDiags.length).toBe(0);
     });
 
     it('should not produce a diagnostic on <ng-container>', () => {
@@ -69,12 +97,12 @@ runInEachFileSystem(() => {
     });
 
     it('should produce a diagnostic on an element inside <svg>', () => {
-      const diags = diagnose(`<svg><g dir (class)="resolve($event)"></g></svg>`, {
+      const diags = diagnose(`<svg><g dir (class)="resolve"></g></svg>`, {
         classEvent: 'class',
       });
 
       expect(diags.length).toBe(1);
-      expect(diags[0].code).toBe(ngErrorCode(ErrorCode.CLASS_RESOLVER_SHADOWED_BY_OUTPUT));
+      expect(diags[0].code).toBe(ngErrorCode(ErrorCode.OUTPUT_SHADOWED_BY_CLASS_RESOLVER));
       expect(getSourceCodeForDiagnostic(diags[0])).toBe('class');
       expect(diags[0].messageText).toContain('the `class` output of `Dir`');
     });
@@ -104,7 +132,7 @@ function diagnose(template: string, outputs: Record<string, string>) {
   const extendedTemplateChecker = new ExtendedTemplateCheckerImpl(
     templateTypeChecker,
     program.getTypeChecker(),
-    [classResolverShadowedByOutputFactory],
+    [outputShadowedByClassResolverFactory],
     {} /* options */,
   );
   return extendedTemplateChecker.getDiagnosticsForComponent(component);

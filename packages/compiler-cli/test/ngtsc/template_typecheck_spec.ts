@@ -1181,112 +1181,257 @@ runInEachFileSystem(() => {
       });
     });
 
-    describe('strictOutputEventTypes and (class) bindings', () => {
+    describe('strictOutputEventTypes and class resolver bindings', () => {
       beforeEach(() => {
         env.write(
           'test.ts',
           `
-          import {ClassSources, Component} from '@angular/core';
+          import {ClassResolveEvent, Component} from '@angular/core';
 
           @Component({
             selector: 'test',
-            template: '<div (class)="resolve($event)"></div><span (class)="count($event)"></span>',
+            template: \`
+              <div (attr.class)="resolve($event)"></div>
+              <span (attr.class)="count($event)"></span>
+              <p (class)="(cn) => 'x'"></p>
+            \`,
           })
           class TestCmp {
-            resolve(sources: ClassSources) { return ''; }
-            count(value: number) { return ''; }
+            resolve(event: ClassResolveEvent) {}
+            count(value: number) {}
           }
         `,
         );
       });
 
-      it('should infer the type of $event as ClassSources when enabled', () => {
+      it('should infer the type of $event as ClassResolveEvent and check the shorthand when enabled', () => {
         env.tsconfig({strictTemplates: true});
 
         const diags = env.driveDiagnostics();
         expect(diags.map((diag) => diag.messageText)).toEqual([
-          `Argument of type 'ClassSources' is not assignable to parameter of type 'number'.`,
+          `Argument of type 'ClassResolveEvent' is not assignable to parameter of type 'number'.`,
+          `Type 'string' is not assignable to type 'ResolvedClasses'.`,
         ]);
+        expect(diags.map((diag) => getSourceCodeForDiagnostic(diag))).toEqual(['$event', `'x'`]);
       });
 
-      it('should not infer the type of $event when not enabled', () => {
+      it('should not infer the type of $event or check the shorthand when not enabled', () => {
         env.tsconfig({strictTemplates: true, strictOutputEventTypes: false});
 
         expect(env.driveDiagnostics()).toEqual([]);
       });
     });
 
-    describe('(class) bindings that listen to events', () => {
-      it('should infer the type of $event from a directive output named class', () => {
-        env.tsconfig({
-          strictTemplates: true,
-          extendedDiagnostics: {checks: {classResolverShadowedByOutput: 'suppress'}},
-        });
+    describe('class resolver bindings', () => {
+      function writeComponent(template: string, members: string, preamble = ''): void {
         env.write(
           'test.ts',
           `
-          import {Component, Directive, EventEmitter, Output} from '@angular/core';
+          import {ClassCallback, Component, Directive, EventEmitter, Output} from '@angular/core';
 
-          @Directive({selector: '[dir]'})
-          class TestDir {
-            @Output('class') changed = new EventEmitter<string>();
-          }
+          ${preamble}
 
           @Component({
             selector: 'test',
-            imports: [TestDir],
-            template: '<div dir (class)="h($event)"></div>',
+            imports: [${preamble === '' ? '' : 'TestDir'}],
+            template: \`${template}\`,
           })
           class TestCmp {
-            h(e: number) {}
+            ${members}
           }
         `,
         );
+      }
 
-        expect(env.driveDiagnostics().map((diag) => diag.messageText)).toEqual([
-          `Argument of type 'string' is not assignable to parameter of type 'number'.`,
+      function flatten(diag: ts.Diagnostic): string {
+        return ts.flattenDiagnosticMessageText(diag.messageText, '\n');
+      }
+
+      it('should check the shorthand as a ClassCallback', () => {
+        writeComponent(
+          `<div (class)="(cn) => 'x'"></div>
+           <div (class)="(cn) => other()"></div>
+           <div (class)="classes()"></div>`,
+          `other() { return ''; }
+           classes() { return ''; }`,
+        );
+
+        const diags = env.driveDiagnostics();
+        expect(diags.map(flatten)).toEqual([
+          `Type 'string' is not assignable to type 'ResolvedClasses'.`,
+          `Type 'string' is not assignable to type 'ResolvedClasses'.`,
+          `Argument of type 'string' is not assignable to parameter of type 'ClassCallback'.`,
+        ]);
+        expect(diags.map((diag) => getSourceCodeForDiagnostic(diag))).toEqual([
+          `'x'`,
+          'other',
+          'classes',
         ]);
       });
 
-      it('should infer the type of $event as Event on an ng-container in the svg namespace', () => {
-        env.write(
-          'test.ts',
-          `
-          import {Component} from '@angular/core';
-
-          @Component({
-            selector: 'test',
-            template: '<svg><ng-container (class)="accept($event)"></ng-container></svg>',
-          })
-          class TestCmp {
-            accept(event: Event) {}
-          }
-        `,
+      it('should accept a ClassCallback in the shorthand', () => {
+        writeComponent(
+          `<div (class)="(cn) => cn('a', ['b'], {c: true})"></div>
+           <div (class)="callback"></div>
+           <div (class)="(cn) => $event.resolver($event.sources[2])"></div>`,
+          `callback: ClassCallback = (cn) => cn();`,
         );
 
         expect(env.driveDiagnostics()).toEqual([]);
       });
 
-      for (const namespace of ['svg', 'math']) {
-        it(`should not infer ClassSources for an ng-container in the ${namespace} namespace`, () => {
-          env.write(
-            'test.ts',
-            `
-            import {Component} from '@angular/core';
+      it('should infer the parameter of an arrow function in the shorthand', () => {
+        writeComponent(`<div (class)="(cn) => cn(42)"></div>`, '');
 
-            @Component({
-              selector: 'test',
-              template: '<${namespace}><ng-container (class)="h($event)"></ng-container></${namespace}>',
-            })
-            class TestCmp {
-              h(e: number) {}
-            }
-          `,
+        const diags = env.driveDiagnostics();
+        expect(diags.map(flatten)).toEqual([
+          `Argument of type '42' is not assignable to parameter of type 'ClassBindingValue'.`,
+        ]);
+        expect(getSourceCodeForDiagnostic(diags[0])).toBe('42');
+      });
+
+      it('should check a safe read in the shorthand as it is called', () => {
+        writeComponent(
+          `<div (class)="choice?.classes"></div>`,
+          `choice: {classes: ClassCallback} | null = null;`,
+        );
+
+        const diags = env.driveDiagnostics();
+        expect(diags.map(flatten)).toEqual([
+          `Argument of type 'ClassCallback | undefined' is not assignable to parameter of type ` +
+            `'ClassCallback'.\n  Type 'undefined' is not assignable to type 'ClassCallback'.`,
+        ]);
+        expect(getSourceCodeForDiagnostic(diags[0])).toBe('classes');
+      });
+
+      it('should check the earlier expressions of a shorthand chain as statements', () => {
+        writeComponent(
+          `<div (class)="count($event); (cn) => 'x'"></div>`,
+          `count(value: number) {}`,
+        );
+
+        const diags = env.driveDiagnostics();
+        expect(diags.map(flatten)).toEqual([
+          `Argument of type 'ClassResolveEvent' is not assignable to parameter of type 'number'.`,
+          `Type 'string' is not assignable to type 'ResolvedClasses'.`,
+        ]);
+        expect(diags.map((diag) => getSourceCodeForDiagnostic(diag))).toEqual(['$event', `'x'`]);
+      });
+
+      it('should not let a directive output named class claim a (class) binding', () => {
+        env.tsconfig({
+          strictTemplates: true,
+          extendedDiagnostics: {checks: {outputShadowedByClassResolver: 'suppress'}},
+        });
+        writeComponent(
+          `<div dir (class)="h"></div>`,
+          `h(e: number) {}`,
+          `@Directive({selector: '[dir]'})
+           class TestDir {
+             @Output('class') changed = new EventEmitter<string>();
+           }`,
+        );
+
+        const diags = env.driveDiagnostics();
+        expect(diags.map(flatten)).toEqual([
+          `Argument of type '(e: number) => void' is not assignable to parameter of type ` +
+            `'ClassCallback'.\n  Types of parameters 'e' and 'cn' are incompatible.\n` +
+            `    Type 'BoundClassResolver' is not assignable to type 'number'.`,
+        ]);
+        expect(getSourceCodeForDiagnostic(diags[0])).toBe('h');
+      });
+
+      it('should not let a directive output named attr.class claim an (attr.class) binding', () => {
+        env.tsconfig({
+          strictTemplates: true,
+          extendedDiagnostics: {checks: {outputShadowedByClassResolver: 'suppress'}},
+        });
+        writeComponent(
+          `<div dir (attr.class)="h($event)"></div>`,
+          `h(e: number) {}`,
+          `@Directive({selector: '[dir]'})
+           class TestDir {
+             @Output('attr.class') changed = new EventEmitter<string>();
+           }`,
+        );
+
+        const diags = env.driveDiagnostics();
+        expect(diags.map(flatten)).toEqual([
+          `Argument of type 'ClassResolveEvent' is not assignable to parameter of type 'number'.`,
+        ]);
+        expect(getSourceCodeForDiagnostic(diags[0])).toBe('$event');
+      });
+
+      it('should report a class resolver on a container', () => {
+        writeComponent(
+          `<ng-container (class)="noop()"></ng-container>
+           <ng-container (attr.class)="noop()"></ng-container>`,
+          `noop() {}`,
+        );
+
+        const diags = env.driveDiagnostics();
+        expect(diags.map((diag) => diag.code)).toEqual([
+          ngErrorCode(ErrorCode.CLASS_RESOLVER_ON_CONTAINER),
+          ngErrorCode(ErrorCode.CLASS_RESOLVER_ON_CONTAINER),
+        ]);
+        expect(diags.map((diag) => diag.category)).toEqual([
+          ts.DiagnosticCategory.Error,
+          ts.DiagnosticCategory.Error,
+        ]);
+        expect(diags.map((diag) => getSourceCodeForDiagnostic(diag))).toEqual([
+          'class',
+          'attr.class',
+        ]);
+        expect(diags[0].messageText).toBe(
+          `The '(class)' binding can't resolve classes on '<ng-container>' or '<ng-template>', ` +
+            `because neither is rendered as an element. Bind it on an element instead.`,
+        );
+      });
+
+      it('should report a class resolver on a container next to a directive output named class', () => {
+        writeComponent(
+          `<ng-container dir (class)="h()"></ng-container>`,
+          `h() {}`,
+          `@Directive({selector: '[dir]'})
+           class TestDir {
+             @Output('class') changed = new EventEmitter<string>();
+           }`,
+        );
+
+        const diags = env.driveDiagnostics();
+        expect(diags.map((diag) => diag.code)).toEqual([
+          ngErrorCode(ErrorCode.CLASS_RESOLVER_ON_CONTAINER),
+        ]);
+        expect(getSourceCodeForDiagnostic(diags[0])).toBe('class');
+      });
+
+      it('should report a class resolver on an ng-container in the svg namespace', () => {
+        writeComponent(
+          `<svg><ng-container (class)="accept($event)"></ng-container></svg>`,
+          `accept(event: Event) {}`,
+        );
+
+        const diags = env.driveDiagnostics();
+        expect(diags.map((diag) => diag.code)).toEqual([
+          ngErrorCode(ErrorCode.CLASS_RESOLVER_ON_CONTAINER),
+        ]);
+      });
+
+      for (const namespace of ['svg', 'math']) {
+        it(`should infer the type of $event as Event after reporting a class resolver on an ng-container in the ${namespace} namespace`, () => {
+          writeComponent(
+            `<${namespace}><ng-container (class)="h($event)"></ng-container></${namespace}>`,
+            `h(e: number) {}`,
           );
 
-          expect(env.driveDiagnostics().map((diag) => diag.messageText)).toEqual([
-            `Argument of type 'Event' is not assignable to parameter of type 'number'.`,
-          ]);
+          expect(env.driveDiagnostics().map((diag) => diag.messageText)).toEqual(
+            jasmine.arrayWithExactContents([
+              `The '(class)' binding can't resolve classes on '<ng-container>' or ` +
+                `'<ng-template>', because neither is rendered as an element. Bind it on an ` +
+                `element instead.`,
+              `Argument of type 'Event' is not assignable to parameter of type 'number'.`,
+            ]),
+          );
         });
       }
     });

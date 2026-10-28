@@ -254,7 +254,7 @@ runInEachFileSystem(() => {
       expect(getDiagnosticSourceCode(diags[0])).toBe('$event');
     });
 
-    it('should infer the type of $event in a host (class) binding as ClassSources', () => {
+    it('should infer the type of $event in a host (attr.class) binding as ClassResolveEvent', () => {
       env.write(
         'test.ts',
         `
@@ -263,10 +263,10 @@ runInEachFileSystem(() => {
         @Component({
           template: '',
           selector: 'ui-button',
-          host: {'(class)': 'resolve($event)'},
+          host: {'(attr.class)': 'resolve($event)'},
         })
         export class Comp {
-          resolve(value: number) { return ''; }
+          resolve(value: number) {}
         }
       `,
       );
@@ -274,12 +274,12 @@ runInEachFileSystem(() => {
       const diags = env.driveDiagnostics();
       expect(diags.length).toBe(1);
       expect(diags[0].messageText).toBe(
-        `Argument of type 'ClassSources' is not assignable to parameter of type 'number'.`,
+        `Argument of type 'ClassResolveEvent' is not assignable to parameter of type 'number'.`,
       );
       expect(getDiagnosticSourceCode(diags[0])).toBe('$event');
     });
 
-    it('should infer the type of $event in a host (class) binding as ClassSources next to an output named class', () => {
+    it('should infer the type of $event in a host (attr.class) binding as ClassResolveEvent next to an output named attr.class', () => {
       env.write(
         'test.ts',
         `
@@ -288,11 +288,11 @@ runInEachFileSystem(() => {
         @Component({
           template: '',
           selector: 'ui-button',
-          host: {'(class)': 'resolve($event)'},
+          host: {'(attr.class)': 'resolve($event)'},
         })
         export class Comp {
-          @Output('class') changed = new EventEmitter<string>();
-          resolve(value: number) { return ''; }
+          @Output('attr.class') changed = new EventEmitter<string>();
+          resolve(value: number) {}
         }
       `,
       );
@@ -300,7 +300,55 @@ runInEachFileSystem(() => {
       const diags = env.driveDiagnostics();
       expect(diags.length).toBe(1);
       expect(diags[0].messageText).toBe(
-        `Argument of type 'ClassSources' is not assignable to parameter of type 'number'.`,
+        `Argument of type 'ClassResolveEvent' is not assignable to parameter of type 'number'.`,
+      );
+      expect(getDiagnosticSourceCode(diags[0])).toBe('$event');
+    });
+
+    it('should check a host (class) binding as a ClassCallback', () => {
+      env.write(
+        'test.ts',
+        `
+        import {Component} from '@angular/core';
+
+        @Component({
+          template: '',
+          selector: 'ui-button',
+          host: {'(class)': "(cn) => 'x'"},
+        })
+        export class Comp {}
+      `,
+      );
+
+      const diags = env.driveDiagnostics();
+      expect(diags.length).toBe(1);
+      expect(diags[0].messageText).toBe(
+        `Type 'string' is not assignable to type 'ResolvedClasses'.`,
+      );
+      expect(getDiagnosticSourceCode(diags[0])).toBe(`'x'`);
+    });
+
+    it('should infer the type of $event in a host (class) binding as ClassResolveEvent', () => {
+      env.write(
+        'test.ts',
+        `
+        import {Component, ResolvedClasses} from '@angular/core';
+
+        @Component({
+          template: '',
+          selector: 'ui-button',
+          host: {'(class)': '(cn) => resolve($event)'},
+        })
+        export class Comp {
+          resolve(value: number): ResolvedClasses { return null!; }
+        }
+      `,
+      );
+
+      const diags = env.driveDiagnostics();
+      expect(diags.length).toBe(1);
+      expect(diags[0].messageText).toBe(
+        `Argument of type 'ClassResolveEvent' is not assignable to parameter of type 'number'.`,
       );
       expect(getDiagnosticSourceCode(diags[0])).toBe('$event');
     });
@@ -309,16 +357,16 @@ runInEachFileSystem(() => {
       env.write(
         'test.ts',
         `
-        import {ClassSources, Component, EventEmitter, Output} from '@angular/core';
+        import {ClassCallback, Component, EventEmitter, Output} from '@angular/core';
 
         @Component({
           template: '',
           selector: 'ui-card',
-          host: {'(class)': 'resolve($event)'},
+          host: {'(class)': 'resolve'},
         })
         export class Comp {
           @Output('class') changed = new EventEmitter<string>();
-          resolve(sources: ClassSources) { return ''; }
+          resolve: ClassCallback = (cn) => cn();
         }
       `,
       );
@@ -330,7 +378,7 @@ runInEachFileSystem(() => {
       env.write(
         'test.ts',
         `
-        import {ClassSources, Component, Directive, EventEmitter, Output} from '@angular/core';
+        import {ClassCallback, Component, Directive, EventEmitter, Output} from '@angular/core';
 
         @Directive()
         export class HostDir {
@@ -340,11 +388,11 @@ runInEachFileSystem(() => {
         @Component({
           template: '',
           selector: 'ui-card',
-          host: {'(class)': 'resolve($event)'},
+          host: {'(class)': 'resolve'},
           hostDirectives: [{directive: HostDir, outputs: ['changed: class']}],
         })
         export class Comp {
-          resolve(sources: ClassSources) { return ''; }
+          resolve: ClassCallback = (cn) => cn();
         }
       `,
       );
@@ -352,7 +400,7 @@ runInEachFileSystem(() => {
       expect(env.driveDiagnostics()).toEqual([]);
     });
 
-    it('should infer the type of $event in a host (class) binding as ClassSources next to a host directive output aliased as class', () => {
+    it('should check a host (class) binding as a ClassCallback next to a host directive output aliased as class', () => {
       env.write(
         'test.ts',
         `
@@ -366,7 +414,7 @@ runInEachFileSystem(() => {
         @Component({
           template: '',
           selector: 'ui-card',
-          host: {'(class)': 'resolve($event)'},
+          host: {'(class)': 'resolve'},
           hostDirectives: [{directive: HostDir, outputs: ['changed: class']}],
         })
         export class Comp {
@@ -377,10 +425,12 @@ runInEachFileSystem(() => {
 
       const diags = env.driveDiagnostics();
       expect(diags.length).toBe(1);
-      expect(diags[0].messageText).toBe(
-        `Argument of type 'ClassSources' is not assignable to parameter of type 'number'.`,
+      expect(ts.flattenDiagnosticMessageText(diags[0].messageText, '\n')).toBe(
+        `Argument of type '(value: number) => string' is not assignable to parameter of type ` +
+          `'ClassCallback'.\n  Types of parameters 'value' and 'cn' are incompatible.\n` +
+          `    Type 'BoundClassResolver' is not assignable to type 'number'.`,
       );
-      expect(getDiagnosticSourceCode(diags[0])).toBe('$event');
+      expect(getDiagnosticSourceCode(diags[0])).toBe('resolve');
     });
 
     it('should check @HostListener with a target', () => {

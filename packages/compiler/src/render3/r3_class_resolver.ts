@@ -22,7 +22,8 @@ export type ClassResolverNodeKind = 'host' | 'element' | 'container';
 
 /**
  * Gets the form of class resolver that an event binding declares, or `null` for an ordinary event
- * binding. A binding with a target, such as `(window:class)`, never resolves.
+ * binding. A binding with a target, such as `(window:class)`, never resolves, and neither does a
+ * binding on a container.
  */
 export function getClassResolverForm(
   name: string,
@@ -30,7 +31,19 @@ export function getClassResolverForm(
   target: string | null,
   nodeKind: ClassResolverNodeKind,
 ): ClassResolverForm | null {
-  if (nodeKind === 'container' || type !== ParsedEventType.Regular || target !== null) {
+  return nodeKind === 'container' ? null : getClassResolverBindingForm(name, type, target);
+}
+
+/**
+ * Gets the form of class resolver that an event binding declares, whichever node declares it. A
+ * binding on a container still has a form, although the container has no classes to resolve.
+ */
+export function getClassResolverBindingForm(
+  name: string,
+  type: ParsedEventType,
+  target: string | null,
+): ClassResolverForm | null {
+  if (type !== ParsedEventType.Regular || target !== null) {
     return null;
   }
 

@@ -170,13 +170,44 @@ runInEachFileSystem(() => {
       expect(diags.length).toBe(0);
     });
 
-    it('should not produce a diagnostic for a function returned to a (class) binding', () => {
+    it('should not produce a diagnostic for a callback in a (class) binding', () => {
       const diags = setupTestComponent(
-        `<div (class)="resolve"></div><div (class)="(sources) => resolve(sources)"></div>`,
-        `resolve(sources: unknown) { return ''; }`,
+        `<div (class)="resolve"></div><div (class)="(cn) => resolve(cn)"></div>`,
+        `resolve(cn: () => string) { return cn(); }`,
       );
 
       expect(diags.length).toBe(0);
+    });
+
+    it('should produce a diagnostic for a function in an (attr.class) binding', () => {
+      const diags = setupTestComponent(
+        `<div (attr.class)="resolve"></div>`,
+        `resolve(cn: () => string) { return cn(); }`,
+      );
+
+      expect(diags.length).toBe(1);
+      expect(getSourceCodeForDiagnostic(diags[0])).toBe(`(attr.class)="resolve"`);
+      expect(diags[0].messageText).toBe(generateDiagnosticText('resolve()'));
+    });
+
+    it('should produce a diagnostic for a function in a (class) binding on a container', () => {
+      const diags = setupTestComponent(
+        `
+          <ng-container (class)="resolve"></ng-container>
+          <svg><ng-container (class)="resolve"></ng-container></svg>
+        `,
+        `resolve(cn: () => string) { return cn(); }`,
+      );
+
+      expect(diags.length).toBe(2);
+      expect(diags.map((diag) => getSourceCodeForDiagnostic(diag))).toEqual([
+        `(class)="resolve"`,
+        `(class)="resolve"`,
+      ]);
+      expect(diags.map((diag) => diag.messageText)).toEqual([
+        generateDiagnosticText('resolve()'),
+        generateDiagnosticText('resolve()'),
+      ]);
     });
 
     it('should not produce a warning when the function is not invoked in two-way-binding', () => {

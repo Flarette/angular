@@ -7,8 +7,6 @@
 // @public
 export enum ExtendedTemplateDiagnosticName {
     // (undocumented)
-    CLASS_RESOLVER_SHADOWED_BY_OUTPUT = "classResolverShadowedByOutput",
-    // (undocumented)
     CONTROL_FLOW_PREVENTING_CONTENT_PROJECTION = "controlFlowPreventingContentProjection",
     // (undocumented)
     DEFER_TRIGGER_MISCONFIGURATION = "deferTriggerMisconfiguration",
@@ -26,6 +24,8 @@ export enum ExtendedTemplateDiagnosticName {
     NULLISH_COALESCING_NOT_NULLABLE = "nullishCoalescingNotNullable",
     // (undocumented)
     OPTIONAL_CHAIN_NOT_NULLABLE = "optionalChainNotNullable",
+    // (undocumented)
+    OUTPUT_SHADOWED_BY_CLASS_RESOLVER = "outputShadowedByClassResolver",
     // (undocumented)
     SKIP_HYDRATION_NOT_STATIC = "skipHydrationNotStatic",
     // (undocumented)

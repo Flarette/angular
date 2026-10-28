@@ -246,4 +246,13 @@ export interface OutOfBandDiagnosticRecorder<T> {
     classPropertyName: string,
     aliases: string[],
   ): void;
+
+  /**
+   * Reports a `(class)` or `(attr.class)` binding on a container, such as `<ng-container>`, which
+   * has no classes to resolve. Optional, so that recorders outside this package still implement
+   * the interface.
+   * @param id Type checking ID of the template that declares the binding.
+   * @param event The binding.
+   */
+  classResolverOnContainer?(id: TypeCheckId, event: BoundEvent): void;
 }

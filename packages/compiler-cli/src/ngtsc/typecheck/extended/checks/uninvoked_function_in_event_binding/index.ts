@@ -13,13 +13,17 @@ import {
   Chain,
   Conditional,
   getClassResolverForm,
+  isNgContainer,
+  isNgTemplate,
   ParsedEventType,
   PropertyRead,
   ArrowFunction,
   SafeCall,
   SafePropertyRead,
   TmplAstBoundEvent,
+  TmplAstElement,
   TmplAstNode,
+  TmplAstTemplate,
 } from '@angular/compiler';
 import ts from 'typescript';
 
@@ -40,11 +44,22 @@ import {
 class UninvokedFunctionInEventBindingSpec extends TemplateCheckWithVisitor<ErrorCode.UNINVOKED_FUNCTION_IN_EVENT_BINDING> {
   override code = ErrorCode.UNINVOKED_FUNCTION_IN_EVENT_BINDING as const;
 
+  /** Event bindings declared on containers, such as `<ng-container>`, which resolve no classes. */
+  private readonly containerBindings = new WeakSet<TmplAstBoundEvent>();
+
   override visitNode(
     ctx: TemplateContext<ErrorCode.UNINVOKED_FUNCTION_IN_EVENT_BINDING>,
     component: ts.ClassDeclaration,
     node: TmplAstNode | AST,
   ): NgTemplateDiagnostic<ErrorCode.UNINVOKED_FUNCTION_IN_EVENT_BINDING>[] {
+    // The visitor reaches a node before its event bindings.
+    if (
+      (node instanceof TmplAstElement && isNgContainer(node.name)) ||
+      (node instanceof TmplAstTemplate && node.tagName !== null && isNgTemplate(node.tagName))
+    ) {
+      node.outputs.forEach((output) => this.containerBindings.add(output));
+    }
+
     // If the node is not a bound event, skip it.
     if (!(node instanceof TmplAstBoundEvent)) return [];
 
@@ -52,10 +67,11 @@ class UninvokedFunctionInEventBindingSpec extends TemplateCheckWithVisitor<Error
     if (node.type !== ParsedEventType.Regular && node.type !== ParsedEventType.LegacyAnimation)
       return [];
 
-    // A `(class)` binding calls a function that its handler returns, so `(class)="resolve"` and
-    // `(class)="(sources) => resolve(sources)"` are intended. The visitor doesn't pass the node that
-    // declares the binding, so the exemption holds on any node, containers included.
-    if (getClassResolverForm(node.name, node.type, node.target, 'element') === 'shorthand')
+    // A `(class)` shorthand that resolves calls the function its expression returns, so
+    // `(class)="resolve"` and `(class)="(cn) => cn()"` are intended. On a container, it resolves
+    // nothing and nothing calls the function.
+    const nodeKind = this.containerBindings.has(node) ? 'container' : 'element';
+    if (getClassResolverForm(node.name, node.type, node.target, nodeKind) === 'shorthand')
       return [];
 
     if (!(node.handler instanceof ASTWithSource)) return [];

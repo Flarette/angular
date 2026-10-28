@@ -47,21 +47,6 @@
       ]
     },
     {
-      "description": "should keep (class) on <ng-container> a listener",
-      "inputFiles": ["class_resolver_ng_container.ts"],
-      "expectations": [
-        {
-          "files": [
-            {
-              "expected": "class_resolver_ng_container_template.js",
-              "generated": "class_resolver_ng_container.js"
-            }
-          ],
-          "failureMessage": "Incorrect template"
-        }
-      ]
-    },
-    {
       "description": "should create a class resolver instruction for (class) in host bindings",
       "inputFiles": ["class_resolver_host.ts"],
       "expectations": [
