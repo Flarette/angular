@@ -434,7 +434,7 @@ export class UiButton {
     through the full form's normalizer (`readClassNames`, D11), which drops array, `Set`, and
     object-map names that contain a space.
 - Move every spec that uses the prototype's `(class)` to design B: the class resolver spec, the
-  hydration spec's three cases, and the eight `r3_view_compiler_class_resolver` compliance cases
+  hydration spec's two cases, and the eight `r3_view_compiler_class_resolver` compliance cases
   with their golden. Keep each spec's intent; where a spec tested the return value itself,
   rewrite it against `resolve()`. The type-checking specs stay on the prototype's design until
   WP4 moves them.
@@ -464,7 +464,13 @@ and their specs.
 - `(attr.class)`: `$event` is `ClassResolveEvent`, in templates and in host bindings.
 - `(class)="F"`: `F` is checked as `ClassCallback` through a typed position (D7), so
   `(cn) => 'x'`, `(cn) => other()`, and `classes()` fail. `cn`'s parameter is inferred, not
-  printed.
+  printed. Since WP2, `ResolvedClasses` carries a type-only brand, so the assignment rejects a
+  plain string.
+- Inside `F`, `$event` is the `ClassResolveEvent`: the compiler emits
+  `$event.resolve((F)($event.resolver))` (WP3), and B2's "means exactly" keeps `$event` in scope.
+  Type the call the way it's emitted, with `F` in parentheses. Until WP5 rejects a chain in
+  `(class)`, the compiler runs the earlier expressions as statements and treats the last one as
+  `F`; type-check it the same way.
 - B7 in type checking: a directive output named `class` or `attr.class` never claims a resolver
   binding, neither in `TcbDirectiveOutputsOp` nor in the claimed-outputs set that
   `TcbUnclaimedOutputsOp` skips.
@@ -506,6 +512,11 @@ emission, and the runtime's registration.
   for the same directive at runtime, which only inheritance can produce, throws `NG0323` in dev
   mode, on the first creation pass.
 - B11: a second `(class)` or `(attr.class)` on one template element is a template parse error.
+- B2's "one expression": a chain in a shorthand, `(class)="a; b"`, is a template parse error
+  (`NG5002`) in templates and a host binding parse error (`NG5001`) in `host`. Since WP3 it
+  compiles like a listener chain, the last expression being `F`.
+- The specs and the compliance case that still declare a resolver with `@HostListener('class')`
+  move to `host` (B9).
 - B8 at runtime: a template `(class)` or `(attr.class)` on a container also emits
   `ɵɵclassResolver`. Where `ɵɵclassResolver` returns early for a node that isn't an element, report
   `NG0321` through `console.error` in dev mode. Ingest finds these bindings through the
@@ -555,6 +566,9 @@ export class LegacyTable {}
 - An element with an explicit resolver isn't resolved automatically as well.
 - Memoize by per-source strings (D10).
 - The feature's runtime stays out of bundles that don't call it (B13).
+- `ClassResolverFeature` is a placeholder since WP3 (`{readonly ɵbrand: 'ClassResolverFeature'}`).
+  Give it the shape that `provideClientHydration` and `provideRouter` features use, a kind and
+  its providers (`ɵkind`, `ɵproviders`), with `withAutoResolution()` as its first kind.
 
 Tests, red first:
 
@@ -668,3 +682,20 @@ template checking of `(attr.class)` stays in WP4; Codex agreed that the gap is p
   - For a refactoring round: `toClassNames` and `readClassNames` coexist until WP3 removes the
     prototype's path; the NG0320 messages name `(attr.class)` even when WP3's shorthand calls
     `resolve()`.
+- WP3 (`fe184c06fb`, fixup `53f9f62fc3`): orchestrator 9.25, Codex 8.00 before the fixup and 9.00
+  after.
+  - The agent ruled nothing itself and asked four questions. Ruled: the `ClassResolverFeature`
+    placeholder stays until WP6 gives it the `{ɵkind, ɵproviders}` shape; a chain in `(class)`
+    becomes a compile error in WP5 (Codex agreed after one round); `$event` stays in scope inside
+    `F`; WP5 moves the `@HostListener('class')` specs to `host`. Both entries say so.
+  - The `includeViewProviders` override is accepted: only the component's own host registration
+    sees the component's `viewProviders`, as directive construction does. Measured: without it,
+    two specs resolve a template registration with the component's view resolver.
+  - Fixed: under `legacyOptionalChaining`, `(class)="choice?.classes"` moved the call into the
+    safe read. The compiler now parenthesizes `F`; two compliance cases compare the shorthand with
+    its literal expansion in a template and a host.
+  - Deferred upstream (`docs/DEFERRED.md`): with native optional chaining in JIT, `(a?.b)(c)` runs
+    as `a?.b(c)` in any template.
+  - For a refactoring round: `ɵɵclassResolver`'s `flags` is typed `number` because the compiler's
+    literal doesn't type-check against the const enum; NG8119's message is stale until WP4 moves it
+    to `NG8120`.
