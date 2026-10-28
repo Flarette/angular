@@ -35,6 +35,7 @@ import {NO_CHANGE} from '../tokens';
 import {getNativeByTNode} from '../util/view_utils';
 import {allocExpando} from '../view/construction';
 
+import {enableClassResolverHooks} from './class_resolver_hook';
 import {listenerInternal} from './listener';
 import {classKeyValueArraySet, classStringParser, toStylingKeyValueArray} from './styling';
 
@@ -136,7 +137,32 @@ function classResolverFirstCreatePass(
   });
 
   tNode.classResolver = {index: allocExpando(tView, lView, 2, null), owners: [owner], segments};
+  // Change detection and the styling instructions reach the runtime only through these hooks, and
+  // only for nodes and views that have resolver data.
+  enableClassResolverHooks(refreshClassResolvers, registerClassResolverBinding);
   (tView.classResolvers ??= []).push(tNode.index);
+}
+
+/**
+ * Records a class binding with the source that owns it, so that the element's `(class)` binding
+ * can group the binding's classes by source.
+ *
+ * @param tClassResolver Resolver data of the element.
+ * @param directiveIndex Index of the directive whose host binding this is, or `-1` for the
+ *     template.
+ * @param bindingIndex Index of the binding.
+ */
+function registerClassResolverBinding(
+  tClassResolver: TClassResolver,
+  directiveIndex: number,
+  bindingIndex: number,
+): void {
+  for (const segment of tClassResolver.segments) {
+    if (segment.directiveIndex === directiveIndex) {
+      segment.bindings.push(bindingIndex);
+      return;
+    }
+  }
 }
 
 function classSourceOf(tNode: TNode, directiveIndex: number): ClassSource {

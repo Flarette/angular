@@ -80,7 +80,7 @@ import {
   viewAttachedToChangeDetector,
 } from '../util/view_utils';
 
-import {refreshClassResolvers} from './class_resolver';
+import {_refreshClassResolvers} from './class_resolver_hook';
 import {executeTemplate} from './shared';
 
 /**
@@ -302,9 +302,10 @@ export function refreshView<T>(
 
     processHostBindingOpCodes(tView, lView);
 
-    // Classes computed by `(class)` bindings depend on both template and host bindings.
+    // Classes computed by `(class)` bindings depend on both template and host bindings. The hook is
+    // set by the same registration that fills `classResolvers`.
     if (tView.classResolvers !== null && !isInCheckNoChangesPass) {
-      refreshClassResolvers(tView, lView);
+      _refreshClassResolvers!(tView, lView);
     }
 
     // Refresh child component views.

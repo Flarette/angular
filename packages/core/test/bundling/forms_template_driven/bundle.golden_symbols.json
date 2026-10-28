@@ -356,6 +356,8 @@
       "_platformInjector",
       "_populateDehydratedViewsInLContainer",
       "_processI18nInsertBefore",
+      "_refreshClassResolvers",
+      "_registerClassResolverBinding",
       "_retrieveHydrationInfoImpl",
       "_stashEventListenerImpl",
       "_testabilityGetter",
