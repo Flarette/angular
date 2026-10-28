@@ -374,6 +374,34 @@ runInEachFileSystem(() => {
       expect(env.driveDiagnostics()).toEqual([]);
     });
 
+    it('should check a host (class) binding as a ClassCallback next to an own output named class', () => {
+      env.write(
+        'test.ts',
+        `
+        import {Component, EventEmitter, Output} from '@angular/core';
+
+        @Component({
+          template: '',
+          selector: 'ui-card',
+          host: {'(class)': 'resolve'},
+        })
+        export class Comp {
+          @Output('class') changed = new EventEmitter<string>();
+          resolve(value: number) { return ''; }
+        }
+      `,
+      );
+
+      const diags = env.driveDiagnostics();
+      expect(diags.length).toBe(1);
+      expect(ts.flattenDiagnosticMessageText(diags[0].messageText, '\n')).toBe(
+        `Argument of type '(value: number) => string' is not assignable to parameter of type ` +
+          `'ClassCallback'.\n  Types of parameters 'value' and 'cn' are incompatible.\n` +
+          `    Type 'BoundClassResolver' is not assignable to type 'number'.`,
+      );
+      expect(getDiagnosticSourceCode(diags[0])).toBe('resolve');
+    });
+
     it('should not check a host (class) binding against a host directive output aliased as class', () => {
       env.write(
         'test.ts',

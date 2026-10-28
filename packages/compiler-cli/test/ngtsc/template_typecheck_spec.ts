@@ -1418,9 +1418,9 @@ runInEachFileSystem(() => {
       });
 
       for (const namespace of ['svg', 'math']) {
-        it(`should infer the type of $event as Event after reporting a class resolver on an ng-container in the ${namespace} namespace`, () => {
+        it(`should check the handler with $event as any after reporting a class resolver on an ng-container in the ${namespace} namespace`, () => {
           writeComponent(
-            `<${namespace}><ng-container (class)="h($event)"></ng-container></${namespace}>`,
+            `<${namespace}><ng-container (class)="h($event); missing()"></ng-container></${namespace}>`,
             `h(e: number) {}`,
           );
 
@@ -1429,7 +1429,7 @@ runInEachFileSystem(() => {
               `The '(class)' binding can't resolve classes on '<ng-container>' or ` +
                 `'<ng-template>', because neither is rendered as an element. Bind it on an ` +
                 `element instead.`,
-              `Argument of type 'Event' is not assignable to parameter of type 'number'.`,
+              `Property 'missing' does not exist on type 'TestCmp'.`,
             ]),
           );
         });

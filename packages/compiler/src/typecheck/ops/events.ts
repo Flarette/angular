@@ -202,14 +202,16 @@ export class TcbUnclaimedOutputsOp extends TcbOp {
         }
       }
 
-      const isClassResolverOnContainer =
-        classResolverForm !== null && isClassResolverContainer(this.target);
-
-      if (isClassResolverOnContainer) {
-        // A container has no classes to resolve. The binding is still checked below as an event
-        // binding on the container, without the unknown-event check that would report it again.
+      if (classResolverForm !== null && isClassResolverContainer(this.target)) {
+        // A container has no classes to resolve, and it may not resolve to an element either. The
+        // handler is still checked, with an `$event` of type `any`.
         this.tcb.oobRecorder.classResolverOnContainer?.(this.tcb.id, output);
-      } else if (
+        const handler = tcbCreateEventHandler(output, this.tcb, this.scope, EventParamType.Any);
+        this.scope.addStatement(handler);
+        continue;
+      }
+
+      if (
         classResolverForm !== null &&
         // A structural directive's template copies the binding from the element it wraps, where
         // it's checked as a resolver.
@@ -222,7 +224,6 @@ export class TcbUnclaimedOutputsOp extends TcbOp {
       }
 
       if (
-        !isClassResolverOnContainer &&
         this.tcb.env.config.checkUnclaimedEventNames &&
         this.hasDirectives &&
         output.type === ParsedEventType.Regular &&
