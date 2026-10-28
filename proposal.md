@@ -27,28 +27,32 @@ order of rules in the stylesheet.
 
 ## Decisions
 
-| Date       | Decision                                                                                                                                                                                                                                                                                                                                           |
-| ---------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| 2026-10-17 | `$event` is `ClassSources`: three arrays of class names, `[component, directives, template]`. Directives share one slot. There's no `static` field and no split between static and bound classes. Reconfirmed after [Should bound classes always win over static ones?](#should-bound-classes-always-win-over-static-ones).                        |
-| 2026-10-17 | A component can resolve its own host element's classes with `host: {'(class)': …}` or `@HostListener('class')`. A template `(class)` receives its result.                                                                                                                                                                                          |
-| 2026-10-17 | The handler runs on every refresh of the view that declares the element.                                                                                                                                                                                                                                                                           |
-| 2026-10-17 | Hydration starts the first resolution from the element's current classes when the element has no static classes.                                                                                                                                                                                                                                   |
-| 2026-10-17 | Every resolver on an element runs, from the lowest to the highest priority. Each one receives the previous result folded back into `ClassSources` by origin, so `cn($event)` keeps what lower resolvers added or removed. See [Folding several resolvers](#folding-several-resolvers).                                                             |
-| 2026-10-17 | `$event.inherited()`, `$event.inherited(Directive)`, and the `NG0320` warning are withdrawn in favor of the fold. A directive argument would depend on match order, which consumers can't see. A consumer who wants to drop a class that a lower resolver added filters `$event`. See [Combining several resolvers](#combining-several-resolvers). |
-| 2026-10-17 | Host-level `(class)` always resolves. Only a template `(class)` next to a directive output named `class` falls back to a listener, with the dev-mode warning `NG0319` and the extended diagnostic `NG8119`. See [Directive outputs named `class`](#directive-outputs-named-class).                                                                 |
-| 2026-10-17 | No app-wide controls in core for now. App-wide default resolvers are open for comments; see [Request for comments](#request-for-comments).                                                                                                                                                                                                         |
-| 2026-10-17 | A partial declaration whose template or host uses `(class)` declares `minVersion: "22.3.0"`. See [Libraries compiled in partial mode](#libraries-compiled-in-partial-mode).                                                                                                                                                                        |
-| 2026-10-17 | The Rust compiler preprocessor (`packages/compiler-cli/preprocessor`) doesn't change, because it doesn't accept external contributions.                                                                                                                                                                                                            |
-| 2026-10-17 | Compliance (golden) tests target the TypeScript compiler.                                                                                                                                                                                                                                                                                          |
-| 2026-10-26 | A directive's host `(class)` on `<ng-container>` or `<ng-template>` does nothing, like its other host bindings there. A template `(class)` on them stays a listener. See [`<ng-container>` and `<ng-template>`](#ng-container-and-ng-template).                                                                                                    |
-| 2026-10-26 | The compiler classifies `(class)` as the runtime runs it. A host `(class)` is type-checked as a resolver even next to an output named `class`, and `<ng-container>` counts as a container in every namespace, in type checking and in `NG8119`.                                                                                                    |
-| 2026-10-26 | A template `(class)` next to an output named `class` keeps listening to it, consistent with how a directive input takes a property binding's name. No new warning for `(class)` on containers, because upstream diagnoses no class binding there either. See [Directive outputs named `class`](#directive-outputs-named-class).                    |
-| 2026-10-26 | The next design replaces the return value with `$event.resolve()`, adds the callback shorthand `(class)="(cn) => cn('x')"` and `provideClassResolver()`, and reverses the 2026-10-17 decision against app-wide controls. It gets its own implementation round. See [Next: the `resolve()` class event](#next-the-resolve-class-event).             |
-| 2026-10-28 | In the next design, `(class)` always resolves, also next to a directive output named `class`. The resolver shadows the output, the way an output shadows a native event, and a template can't listen to that output. See [Collisions and other names](#collisions-and-other-names).                                                                |
-| 2026-10-28 | In the next design, a generic check for bindings that do nothing on `<ng-container>` and `<ng-template>` reports `(class)` and `(attr.class)` there. The next design adds no check of its own.                                                                                                                                                     |
-| 2026-10-28 | `@HostListener('class')` is a compile error that points to `@HostListener('attr.class', ['$event'])`. A shorthand for the decorator is left to the maintainers.                                                                                                                                                                                    |
-| 2026-10-28 | The extras accept `false`. Whether a `false` extra is dropped or becomes a class named `false` is still open.                                                                                                                                                                                                                                      |
-| 2026-10-28 | Other `(attr.*)` names stay ordinary event bindings. Reserving the namespace is left to the maintainers, and the code marks where the reservation would go.                                                                                                                                                                                        |
+| Date       | Decision                                                                                                                                                                                                                                                                                                                                                          |
+| ---------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| 2026-10-17 | `$event` is `ClassSources`: three arrays of class names, `[component, directives, template]`. Directives share one slot. There's no `static` field and no split between static and bound classes. Reconfirmed after [Should bound classes always win over static ones?](#should-bound-classes-always-win-over-static-ones).                                       |
+| 2026-10-17 | A component can resolve its own host element's classes with `host: {'(class)': …}` or `@HostListener('class')`. A template `(class)` receives its result.                                                                                                                                                                                                         |
+| 2026-10-17 | The handler runs on every refresh of the view that declares the element.                                                                                                                                                                                                                                                                                          |
+| 2026-10-17 | Hydration starts the first resolution from the element's current classes when the element has no static classes.                                                                                                                                                                                                                                                  |
+| 2026-10-17 | Every resolver on an element runs, from the lowest to the highest priority. Each one receives the previous result folded back into `ClassSources` by origin, so `cn($event)` keeps what lower resolvers added or removed. See [Folding several resolvers](#folding-several-resolvers).                                                                            |
+| 2026-10-17 | `$event.inherited()`, `$event.inherited(Directive)`, and the `NG0320` warning are withdrawn in favor of the fold. A directive argument would depend on match order, which consumers can't see. A consumer who wants to drop a class that a lower resolver added filters `$event`. See [Combining several resolvers](#combining-several-resolvers).                |
+| 2026-10-17 | Host-level `(class)` always resolves. Only a template `(class)` next to a directive output named `class` falls back to a listener, with the dev-mode warning `NG0319` and the extended diagnostic `NG8119`. See [Directive outputs named `class`](#directive-outputs-named-class).                                                                                |
+| 2026-10-17 | No app-wide controls in core for now. App-wide default resolvers are open for comments; see [Request for comments](#request-for-comments).                                                                                                                                                                                                                        |
+| 2026-10-17 | A partial declaration whose template or host uses `(class)` declares `minVersion: "22.3.0"`. See [Libraries compiled in partial mode](#libraries-compiled-in-partial-mode).                                                                                                                                                                                       |
+| 2026-10-17 | The Rust compiler preprocessor (`packages/compiler-cli/preprocessor`) doesn't change, because it doesn't accept external contributions.                                                                                                                                                                                                                           |
+| 2026-10-17 | Compliance (golden) tests target the TypeScript compiler.                                                                                                                                                                                                                                                                                                         |
+| 2026-10-26 | A directive's host `(class)` on `<ng-container>` or `<ng-template>` does nothing, like its other host bindings there. A template `(class)` on them stays a listener. See [`<ng-container>` and `<ng-template>`](#ng-container-and-ng-template).                                                                                                                   |
+| 2026-10-26 | The compiler classifies `(class)` as the runtime runs it. A host `(class)` is type-checked as a resolver even next to an output named `class`, and `<ng-container>` counts as a container in every namespace, in type checking and in `NG8119`.                                                                                                                   |
+| 2026-10-26 | A template `(class)` next to an output named `class` keeps listening to it, consistent with how a directive input takes a property binding's name. No new warning for `(class)` on containers, because upstream diagnoses no class binding there either. See [Directive outputs named `class`](#directive-outputs-named-class).                                   |
+| 2026-10-26 | The next design replaces the return value with `$event.resolve()`, adds the callback shorthand `(class)="(cn) => cn('x')"` and `provideClassResolver()`, and reverses the 2026-10-17 decision against app-wide controls. It gets its own implementation round. See [Next: the `resolve()` class event](#next-the-resolve-class-event).                            |
+| 2026-10-28 | In the next design, `(class)` always resolves, also next to a directive output named `class`. The resolver shadows the output, the way an output shadows a native event, and a template can't listen to that output. An extended diagnostic warns about it, and the runtime warning `NG0319` goes. See [Collisions and other names](#collisions-and-other-names). |
+| 2026-10-28 | In the next design, a generic check for bindings that do nothing on `<ng-container>` and `<ng-template>` reports `(class)` and `(attr.class)` there. The next design adds no check of its own, and its error codes give way where they collide with the generic check's.                                                                                          |
+| 2026-10-28 | `@HostListener('class')` is a compile error that points to `@HostListener('attr.class', ['$event'])`. A shorthand for the decorator is left to the maintainers.                                                                                                                                                                                                   |
+| 2026-10-28 | The extras and `resolve()` read a value the way `[class]` does in production, so a top-level `false` adds nothing. See [The full form](#the-full-form-attrclass).                                                                                                                                                                                                 |
+| 2026-10-28 | Other `(attr.*)` names stay ordinary event bindings. Reserving the namespace is left to the maintainers, and the code marks where the reservation would go.                                                                                                                                                                                                       |
+| 2026-10-28 | The resolver contract is fixed: `provideClassResolver` takes `(...classes: string[]) => string`, and Angular normalizes the sources and the extras to strings first. Templates are type-checked against one extras type, whichever resolver the app provides. No declaration merging. See [The resolver](#the-resolver-provideclassresolver).                     |
+| 2026-10-28 | `cn(...extras)` and `[class]` both stay allowed on an element with a resolver. They differ as [`[class]` next to extras](#class-next-to-extras) shows.                                                                                                                                                                                                            |
+| 2026-10-28 | A second `(class)` or `(attr.class)` on one template element is a compile error.                                                                                                                                                                                                                                                                                  |
+| 2026-10-28 | The next design's runtime is tree-shakable: an app without a `(class)` binding doesn't carry it.                                                                                                                                                                                                                                                                  |
 
 No open questions remain for the prototype. The [Request for comments](#request-for-comments) asks
 about the directions after it.
@@ -722,10 +726,19 @@ compiler doesn't catch:
 ### The full form: `(attr.class)`
 
 ```ts
+type ClassBindingValue =
+  | string
+  | readonly string[]
+  | ReadonlySet<string>
+  | {readonly [className: string]: unknown}
+  | null
+  | undefined
+  | false;
+
 interface ClassResolveEvent {
   readonly sources: ClassSources;
-  resolver(...extras: ClassValue[]): ResolvedClasses;
-  resolve(classes: ClassValue | ResolvedClasses): void;
+  resolver(...extras: ClassBindingValue[]): ResolvedClasses;
+  resolve(classes: ClassBindingValue | ResolvedClasses): void;
 }
 ```
 
@@ -734,6 +747,11 @@ interface ClassResolveEvent {
   the caller's own source, which is where the fold puts a class that a resolver adds, and resolves.
 - `resolve(classes)` applies exactly these classes. It's the escape hatch for replacing classes,
   filtering them, or overriding a higher source on purpose.
+- The extras and `resolve()` read a value the way `[class]` does in production. A string splits on
+  whitespace, an array or a `Set` lists names, an object map keeps the keys whose values are truthy,
+  and a top-level `null`, `undefined`, `false`, or `''` adds nothing. Unlike `[class]` in dev mode,
+  a top-level `false` doesn't assert, so `cn(active() && 'ring')` works. By type, arrays and Sets
+  hold strings only, so a class named `false` can't get in.
 
 ```html
 <ui-button (attr.class)="$event.resolve($event.resolver('shadow-lg'))" />
@@ -784,18 +802,32 @@ export class UiButton {
 ### The resolver: `provideClassResolver()`
 
 ```ts
-bootstrapApplication(App, {providers: [provideClassResolver(cn)]});
+export type ClassResolver = (...classes: string[]) => string;
+
+export function provideClassResolver(resolver: ClassResolver): Provider;
 ```
 
+```ts
+bootstrapApplication(App, {providers: [provideClassResolver(twMerge)]});
+```
+
+- The contract is fixed. Angular normalizes the sources and the extras to strings first, then calls
+  the resolver with one string per source in priority order, with the extras at the end of the
+  caller's string. `cn`, `twMerge`, and `clsx` all fit it (measured with `tsc`), and `twMerge`
+  alone is enough, because Angular already does what `clsx` does. Templates are type-checked
+  against `ClassBindingValue`, whichever resolver the app provides.
 - Angular looks the resolver up through the element's injector, so a library scopes its own with
   `viewProviders`. Plain `providers` would also reach content that consumers project into the
   component.
 - It applies only where a `(class)` binding asks for it. Elements without one don't change.
 - Without a registration, the resolver is Angular's plain merge. It flattens the sources in order,
-  adds each extra at the end of the caller's source the way `[class]` reads a value, drops empty and
-  repeated names (keeping the first position), and joins the rest with spaces. It doesn't resolve
-  conflicts, so `(class)="(cn) => cn()"` changes nothing, and adopting `(class)` changes no app until
-  it provides a resolver.
+  adds each extra at the end of the caller's source, drops empty and repeated names (keeping the
+  first position), and joins the rest with spaces. It doesn't resolve conflicts, so
+  `(class)="(cn) => cn()"` changes nothing, and adopting `(class)` changes no app until it provides
+  a resolver.
+- An app without a `(class)` binding doesn't carry the resolver runtime. The first `ɵɵclassResolver`
+  call switches on change detection's refresh hook, the way `provideClientHydration()` switches on
+  hydration's code paths.
 
 ### Collisions and other names
 
@@ -806,10 +838,13 @@ Decided on 2026-10-28.
   output shadows a native event's `$event` type. Unlike that case, the output's emissions don't
   reach the binding, because the binding passes a callback rather than listening. A template can't
   listen to an output named `class`, which is rare. The prototype's fallback to a listener goes. The
-  same rule applies to `(attr.class)` and an output named `attr.class`.
+  same rule applies to `(attr.class)` and an output named `attr.class`. An extended diagnostic
+  warns that the output isn't listened to, and the runtime warning `NG0319` goes.
 - **Containers.** `(class)` and `(attr.class)` on `<ng-container>` or `<ng-template>` do nothing,
   like the other bindings there. A generic check for all such bindings, developed separately,
   reports them. The next design adds no check of its own for `class`.
+- **One per template element.** A second `(class)` or `(attr.class)` on the same template element
+  is a compile error. Today both run, one after the other (measured).
 - **`@HostListener`.** `@HostListener('class')` is a compile error that points to
   `@HostListener('attr.class', ['$event'])`. A decorator always calls its method, so it can't pass
   the callback that the shorthand needs. A shorthand for the decorator is a quality-of-life choice
@@ -844,6 +879,21 @@ Without the consumer's `bg-red-600`, all three keep `bg-muted`. Ranking by calle
 component's extra into a default that consumers override, whatever order the author writes. A
 component that must win over the consumer uses the full form.
 
+### `[class]` next to extras
+
+`[class]="v"` with `(class)="(cn) => cn()"` looks like `(class)="(cn) => cn(v)"`, but the two
+differ. Measured on the prototype, except where noted:
+
+| Case                                          | `[class]="v"` and `cn()`                                       | `cn(v)`                                  |
+| --------------------------------------------- | -------------------------------------------------------------- | ---------------------------------------- |
+| A top-level `false`                           | Asserts in dev mode, and the resolver doesn't run              | Adds nothing                             |
+| Rank within the source                        | Before the source's `[class.x]` bindings                       | After them, at the end of the source     |
+| A component with a `class` input              | The input takes the value                                      | Reaches the element                      |
+| Type checking                                 | Only the expression; the type-check block skips class bindings | Checked against `ClassBindingValue`      |
+| Visible to a lower resolver, such as a host's | Yes                                                            | No; it exists from the caller's level up |
+
+The `cn(v)` column follows the design, since the next design isn't built. Both forms stay allowed.
+
 ### Alternatives considered
 
 | Design                                                                                              | Why it lost                                                                                                                                                                                                                           |
@@ -855,15 +905,20 @@ component that must win over the consumer uses the full form.
 | A branded string instead of `ResolvedClasses`                                                       | Checked at compile time only. A cast or `$any` passes without a warning.                                                                                                                                                              |
 | A build-time resolver file ([direction 2](#direction-2-default-resolvers-configured-at-build-time)) | Every tool that compiles templates needs the configuration, and a library can't scope its own resolver to its subtree.                                                                                                                |
 | Throw when no resolver is registered                                                                | `(class)` would need a provider before an app could adopt it. The plain merge matches what Angular renders today.                                                                                                                     |
+| Declaration merging for the extras' type                                                            | Measured: it works for one app, but a library that augments it differently fails with `TS2717`, and a library built alone checks its templates against the default. A resolver scoped with `viewProviders` can't have its own type.   |
+| The resolver receives `[class]` values and normalizes them itself                                   | `twMerge` fails the type, and `clsx(new Set(['a', 'b']))` returns `''` (measured), so every resolver would reimplement Angular's reading.                                                                                             |
+| Extras stringified the way arrays and interpolation are                                             | `cn(active() && 'ring')` would render a class named `false`. A top-level `[class]` value never renders one.                                                                                                                           |
+| Ban `[class]` next to `(class)`                                                                     | Static `class`, `[class.x]`, and host bindings stay sources anyway, and adopting `(class)` would mean rewriting existing `[class]` bindings.                                                                                          |
+| A shorthand without extras that only asks for resolution                                            | It gives up every advantage in [`[class]` next to extras](#class-next-to-extras).                                                                                                                                                     |
 
 ### To check first
 
 - The type-check block prints template arrow parameters without a type, so TypeScript should infer
   `cn` from the argument in the rewritten call. Measure it before building on it.
-- The extras accept `false`. Whether the runtime drops a `false` extra or renders a class named
-  `false` is open: `[class]` asserts on a top-level `false` in dev mode, and renders `false` from an
-  array or an interpolation.
-- Whether a diagnostic tells the author that `(class)` shadows an output named `class`.
+- More than one host resolver from one directive. Today a second `@HostListener('class')`, or one
+  next to `host: {'(class)': …}`, silently replaces the first, and a subclass's resolver runs after
+  its base class's (measured).
+- Whether resolution should happen without a `(class)` binding, for example on every component host.
 
 ## Request for comments
 
