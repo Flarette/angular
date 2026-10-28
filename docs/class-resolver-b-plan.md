@@ -388,7 +388,7 @@ Commit: `feat(core): resolve classes through the class event`.
 ### WP3: the shorthand and the provider
 
 Scope: the shorthand's compilation, `provideClassResolver`, B2's provenance check, B7 at
-runtime, B8's runtime error, and moving every existing spec and golden to design B.
+runtime, and moving every existing spec and golden to design B. B8's runtime error is WP5's.
 
 Consumer API, before (the prototype):
 
@@ -430,6 +430,9 @@ export class UiButton {
     dev mode (B2).
   - Remove the `flags` of `0` path (D1), the listener fallback for an output named `class`, and
     `CLASS_RESOLVER_OUTPUT_CONFLICT` (B7, D4).
+  - With the `0` path gone, the prototype's `toClassNames` goes too: every level reads names
+    through the full form's normalizer (`readClassNames`, D11), which drops array, `Set`, and
+    object-map names that contain a space.
 - Move every spec that uses the prototype's `(class)` to design B: the class resolver spec, the
   hydration spec's three cases, and the eight `r3_view_compiler_class_resolver` compliance cases
   with their golden. Keep each spec's intent; where a spec tested the return value itself,
@@ -445,6 +448,9 @@ Tests, red first:
 - A shorthand callback that returns `ResolvedClasses` from another element's event: `NG0320`.
 - An output named `class` next to `(class)`: the binding resolves, and the output's emissions
   don't reach it.
+- A lower host `(class)` whose callback resolves `['a b', 'c']`, below a template `(attr.class)`
+  that calls `resolver()`: only `c` reaches the sources and the element. Today the spaced name
+  passes up and the merge splits it into `a` and `b`.
 
 Commit: `feat(core): add the class shorthand and class resolver provider`.
 
@@ -644,3 +650,21 @@ template checking of `(attr.class)` stays in WP4; Codex agreed that the gap is p
     need it to keep the form there. Both entries now say so.
   - For a refactoring round: the commented-out reservation returns `'reserved'`, which isn't in
     `ClassResolverForm`; `NG8111` passes `'element'` for every binding until WP4 gives it the node.
+- WP2 (`03e122e536`, fixup `2f835cea22`): orchestrator 9.00 after the fixup, Codex 6.00 before
+  and 9.00 after.
+  - The agent asked whether `ResolvedClasses` should stay an empty interface; measured, it accepts
+    any value, so B2's type check couldn't hold. Ruled: a type-only brand (see Errata). The brand
+    adds one member to `core_api` and nothing to any bundle.
+  - Codex's blocker, strict template checking of `(attr.class)`, is WP4's by the plan; Codex
+    agreed after one round.
+  - Fixed: the full form now drops spaced names from arrays, `Set`s, and object maps, as `[class]`
+    does; a reentrant `resolve()` from a getter is counted, so dev mode throws `NG0320` and
+    production keeps the call that starts last.
+  - Added specs: production mode (toggling `ngDevMode`, which the agent first thought untestable),
+    a throwing handler, directive-host extras, refresh with a new event each time, and a host
+    shorthand below a template `(attr.class)`.
+  - Deferred to WP3: a lower shorthand can still pass a spaced name up through the sources. WP3's
+    entry now has the spec.
+  - For a refactoring round: `toClassNames` and `readClassNames` coexist until WP3 removes the
+    prototype's path; the NG0320 messages name `(attr.class)` even when WP3's shorthand calls
+    `resolve()`.
