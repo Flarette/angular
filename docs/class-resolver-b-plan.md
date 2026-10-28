@@ -459,7 +459,13 @@ Commit: `feat(core): add the class shorthand and class resolver provider`.
 Scope: `packages/compiler/src/typecheck/ops/events.ts`,
 `packages/compiler-cli/src/ngtsc/typecheck/host_bindings.ts` (around lines 376 to 392), the
 `NG8111` and `NG8119` checks, the classifier (`packages/compiler/src/render3/r3_class_resolver.ts`),
-and their specs.
+and their specs. For the new codes: `packages/compiler-cli/src/ngtsc/diagnostics/src/error_code.ts`,
+`extended_template_diagnostic_name.ts`, the extended checks' registry
+(`packages/compiler-cli/src/ngtsc/typecheck/extended/index.ts`), and the reference pages
+`adev/src/content/reference/extended-diagnostics/NG8119.md` (renamed to `NG8120.md`) and
+`overview.md`. Accept the goldens with `//packages/compiler-cli:error_code_api.accept` and
+`//packages/compiler-cli:extended_template_diagnostic_name_api.accept`, and add both test targets
+to this WP's gates.
 
 - `(attr.class)`: `$event` is `ClassResolveEvent`, in templates and in host bindings.
 - `(class)="F"`: `F` is checked as `ClassCallback` through a typed position (D7), so
