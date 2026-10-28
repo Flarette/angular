@@ -94,7 +94,7 @@ Listed for the owner at review.
 | D9  | Automatic resolution looks its setting up once per template instance, from the injector of the component that declares the template, and stores it in the instance. Instances where it's off skip their elements on refresh.                                                                                                                                                                                                                                                                                                                                                                                                                                                        |
 | D10 | Automatic resolution remembers each element's last per-source strings and skips the resolver and the DOM diff when they haven't changed. Explicit resolvers still run on every refresh (R3).                                                                                                                                                                                                                                                                                                                                                                                                                                                                                        |
 | D11 | One normalization function serves extras, `resolve()`, and the plain merge (B5).                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                    |
-| D12 | The refresh hook is a module-level function reference in a small module that `change_detection.ts` imports. `ɵɵclassResolver` and the automatic feature set it, the way `enableLocateOrCreateElementNodeImpl()` switches hydration on (`packages/core/src/hydration/api.ts`).                                                                                                                                                                                                                                                                                                                                                                                                       |
+| D12 | The hooks are module-level function references in a small module: the refresh hook, which `change_detection.ts` imports, and the binding registration hook, which `styling.ts` imports. `ɵɵclassResolver` and the automatic feature set both in one call, the way `enableLocateOrCreateElementNodeImpl()` switches hydration on (`packages/core/src/hydration/api.ts`).                                                                                                                                                                                                                                                                                                             |
 | D13 | The shared classifier lives in `packages/compiler` and is exported for `compiler-cli`. It answers, for an event binding, whether it's a resolver and which form it is.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                              |
 
 ## Environment
@@ -268,8 +268,9 @@ golden entry in the WP that adds it.
 ### WP0: tree-shake the resolver runtime
 
 Scope: `packages/core/src/render3/instructions/change_detection.ts`,
-`packages/core/src/render3/instructions/class_resolver.ts`, and one new small module for the hook
-(D12).
+`packages/core/src/render3/instructions/class_resolver.ts`, one new small module for the hooks
+(D12), and `packages/core/src/render3/instructions/styling.ts`, only to move
+`registerClassResolverBinding` into `class_resolver.ts` and call it through a hook.
 
 Before:
 
@@ -282,21 +283,22 @@ if (tView.classResolvers !== null && !isInCheckNoChangesPass) {
 }
 ```
 
-After: `change_detection.ts` has no import from `class_resolver.ts`. It calls the hook, which only
-`ɵɵclassResolver` sets, on its first call. `tView.classResolvers` is non-null only after
-`ɵɵclassResolver` ran, so the hook is always set when change detection needs it.
+After: neither `change_detection.ts` nor `styling.ts` imports `class_resolver.ts`. Each calls a
+module-level hook in the hook module. The function that first sets `tNode.classResolver` and
+`tView.classResolvers` sets both hooks in one call, so the hooks are always set when change
+detection or the styling first update pass needs them.
 
 Acceptance:
 
 - No class-resolver function is in any of the eight bundles. Red first: all eight symbol tests
   fail today.
-- Measured with a prototype on 2026-10-28: a hook initialized to `null` in `change_detection.ts`,
-  set by `ɵɵclassResolver`, removes all 26 resolver symbols, and each golden gains one symbol,
-  `_refreshClassResolvers` (`standalone_bootstrap`, `hydration`, and `create_component`). Aim for
-  no new symbol: hydration's `_locateOrCreateElementNode` starts as a working default function and
-  appears only in the hydration golden, and a function reference carried on the `TView` adds no
-  module-level symbol. If a hook symbol remains, accept only that symbol in the goldens and name it
-  in the report.
+- Measured by the WP0 agent on 2026-10-28: the refresh hook alone removes all 26 resolver symbols
+  from six bundles and adds `_refreshClassResolvers` to all eight. `forms_reactive` and
+  `forms_template_driven` also carry `registerClassResolverBinding`, which only `styling.ts` calls,
+  so it moves behind the second hook. Accept only hook symbols, in the goldens where they're
+  measured, and name each one per golden in the report. Don't aim for zero hook symbols: existing
+  hooks such as `_retrieveHydrationInfoImpl` are in all eight goldens, and a reference carried on
+  the `TView` would add a field to every `TView`.
 - The class resolver, acceptance, and `platform-server` targets pass unchanged.
 - `pnpm ts-circular-deps:check` passes.
 
@@ -568,3 +570,15 @@ Commit: `feat(core): resolve classes automatically when the root opts in`.
 ### 2026-10-28: execution starts
 
 The owner agreed to start with the defaults as written. WP0 is dispatched first.
+
+### 2026-10-28: WP0 also moves the binding registration out of `styling.ts`
+
+The WP0 agent measured that the refresh hook alone leaves `registerClassResolverBinding` in
+`forms_reactive` and `forms_template_driven`. It's private to `styling.ts`, so no in-scope edit can
+remove it. The plan's "removes all 26" was measured on three bundles only. The orchestrator ruled:
+WP0's scope gains `styling.ts`, the function moves to `class_resolver.ts` behind a second
+module-level hook (D12), and one setter call sets both hooks where `tNode.classResolver` is first
+set. Waiving B13 for the two forms bundles was rejected, because B13 is an owner ruling. A single
+holder object was rejected, because it departs from the codebase's hook idiom to save one symbol in
+two goldens. The plan's claim that `_locateOrCreateElementNode` is only in the hydration golden was
+wrong; it's in six.
