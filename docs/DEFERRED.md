@@ -21,3 +21,8 @@ bindings` (`5099d6e3`), worktree `/Users/geruch/repos/angular-cn-wt/container-no
   all. `appendOutputsOfElementLikeNode` in `packages/compiler/src/typecheck/ops/scope.ts` queues
   `TcbUnclaimedOutputsOp` only for `Element` and `HostElement`. From Codex's WP5 review; relevant
   to the background session `container no-op bindings`.
+- Upstream: in JIT with native optional chaining, a template's `(a?.b)(c)` runs as `a?.b(c)`.
+  Measured in WP3's fixup: `(attr.class)="$event.resolve((choice?.classes)($event.resolver))"`
+  with `choice = null` resolves instead of throwing, and `(class)="choice?.classes"` matches it.
+  From the code: `checkTargetParens` in `strip_nonrequired_parentheses.ts` drops the callee's
+  parentheses, and the JIT emitter doesn't restore them. AOT output isn't measured.

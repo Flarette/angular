@@ -1,0 +1,9 @@
+…
+$r3$.ɵɵclassResolver(function MyComponent_Template_div_class_0_listener($event) {
+  return $event.resolve((ctx.choice == null ? null : ctx.choice.classes)($event.resolver));
+}, 3);
+…
+$r3$.ɵɵclassResolver(function MyComponent_Template_span_attr_class_1_listener($event) {
+  return $event.resolve((ctx.choice == null ? null : ctx.choice.classes)($event.resolver));
+}, 1);
+…

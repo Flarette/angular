@@ -330,3 +330,90 @@ export declare class MyDirective {
     static ɵdir: i0.ɵɵDirectiveDeclaration<MyDirective, "[myDir]", never, {}, {}, never, never, true, never>;
 }
 
+/****************************************************************************************************
+ * PARTIAL FILE: class_resolver_shorthand_safe_read.js
+ ****************************************************************************************************/
+import { Component } from '@angular/core';
+import * as i0 from "@angular/core";
+export class MyComponent {
+    choice = null;
+    static ɵfac = i0.ɵɵngDeclareFactory({ minVersion: "12.0.0", version: "0.0.0-PLACEHOLDER", ngImport: i0, type: MyComponent, deps: [], target: i0.ɵɵFactoryTarget.Component });
+    static ɵcmp = i0.ɵɵngDeclareComponent({ minVersion: "22.3.0", version: "0.0.0-PLACEHOLDER", type: MyComponent, isStandalone: true, selector: "my-component", ngImport: i0, template: `
+    <div (class)="choice?.classes"></div>
+    <span (attr.class)="$event.resolve((choice?.classes)($event.resolver))"></span>
+  `, isInline: true });
+}
+i0.ɵɵngDeclareClassMetadata({ minVersion: "12.0.0", version: "0.0.0-PLACEHOLDER", ngImport: i0, type: MyComponent, decorators: [{
+            type: Component,
+            args: [{
+                    selector: 'my-component',
+                    template: `
+    <div (class)="choice?.classes"></div>
+    <span (attr.class)="$event.resolve((choice?.classes)($event.resolver))"></span>
+  `,
+                }]
+        }] });
+
+/****************************************************************************************************
+ * PARTIAL FILE: class_resolver_shorthand_safe_read.d.ts
+ ****************************************************************************************************/
+import { ClassCallback } from '@angular/core';
+import * as i0 from "@angular/core";
+export declare class MyComponent {
+    choice: {
+        classes: ClassCallback;
+    } | null;
+    static ɵfac: i0.ɵɵFactoryDeclaration<MyComponent, never>;
+    static ɵcmp: i0.ɵɵComponentDeclaration<MyComponent, "my-component", never, {}, {}, never, never, true, never>;
+}
+
+/****************************************************************************************************
+ * PARTIAL FILE: class_resolver_shorthand_safe_read_host.js
+ ****************************************************************************************************/
+import { Directive } from '@angular/core';
+import * as i0 from "@angular/core";
+export class ShorthandDirective {
+    choice = null;
+    static ɵfac = i0.ɵɵngDeclareFactory({ minVersion: "12.0.0", version: "0.0.0-PLACEHOLDER", ngImport: i0, type: ShorthandDirective, deps: [], target: i0.ɵɵFactoryTarget.Directive });
+    static ɵdir = i0.ɵɵngDeclareDirective({ minVersion: "22.3.0", version: "0.0.0-PLACEHOLDER", type: ShorthandDirective, isStandalone: true, selector: "[shorthand]", host: { listeners: { "class": "choice?.classes" } }, ngImport: i0 });
+}
+i0.ɵɵngDeclareClassMetadata({ minVersion: "12.0.0", version: "0.0.0-PLACEHOLDER", ngImport: i0, type: ShorthandDirective, decorators: [{
+            type: Directive,
+            args: [{
+                    selector: '[shorthand]',
+                    host: { '(class)': 'choice?.classes' },
+                }]
+        }] });
+export class ExpansionDirective {
+    choice = null;
+    static ɵfac = i0.ɵɵngDeclareFactory({ minVersion: "12.0.0", version: "0.0.0-PLACEHOLDER", ngImport: i0, type: ExpansionDirective, deps: [], target: i0.ɵɵFactoryTarget.Directive });
+    static ɵdir = i0.ɵɵngDeclareDirective({ minVersion: "22.3.0", version: "0.0.0-PLACEHOLDER", type: ExpansionDirective, isStandalone: true, selector: "[expansion]", host: { listeners: { "attr.class": "$event.resolve((choice?.classes)($event.resolver))" } }, ngImport: i0 });
+}
+i0.ɵɵngDeclareClassMetadata({ minVersion: "12.0.0", version: "0.0.0-PLACEHOLDER", ngImport: i0, type: ExpansionDirective, decorators: [{
+            type: Directive,
+            args: [{
+                    selector: '[expansion]',
+                    host: { '(attr.class)': '$event.resolve((choice?.classes)($event.resolver))' },
+                }]
+        }] });
+
+/****************************************************************************************************
+ * PARTIAL FILE: class_resolver_shorthand_safe_read_host.d.ts
+ ****************************************************************************************************/
+import { ClassCallback } from '@angular/core';
+import * as i0 from "@angular/core";
+export declare class ShorthandDirective {
+    choice: {
+        classes: ClassCallback;
+    } | null;
+    static ɵfac: i0.ɵɵFactoryDeclaration<ShorthandDirective, never>;
+    static ɵdir: i0.ɵɵDirectiveDeclaration<ShorthandDirective, "[shorthand]", never, {}, {}, never, never, true, never>;
+}
+export declare class ExpansionDirective {
+    choice: {
+        classes: ClassCallback;
+    } | null;
+    static ɵfac: i0.ɵɵFactoryDeclaration<ExpansionDirective, never>;
+    static ɵdir: i0.ɵɵDirectiveDeclaration<ExpansionDirective, "[expansion]", never, {}, {}, never, never, true, never>;
+}
+

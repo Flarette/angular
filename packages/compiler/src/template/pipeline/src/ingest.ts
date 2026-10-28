@@ -2019,10 +2019,12 @@ function makeClassShorthandHandlerOps(
       ir.createStatementOp<ir.UpdateOp>(new o.ExpressionStatement(e, e.sourceSpan)),
     ),
   );
+  // The parentheses keep the call out of a safe read in `F`, as in `(choice?.classes)(resolver)`.
+  const parenthesized = new o.ParenthesizedExpr(callback, undefined, callback.sourceSpan);
   const resolver = new ir.LexicalReadExpr('$event').prop('resolver');
   const resolveExpr = new ir.LexicalReadExpr('$event')
     .prop('resolve')
-    .callFn([callback.callFn([resolver], callback.sourceSpan)], callback.sourceSpan);
+    .callFn([parenthesized.callFn([resolver], callback.sourceSpan)], callback.sourceSpan);
   handlerOps.push(ir.createStatementOp(new o.ReturnStatement(resolveExpr, callback.sourceSpan)));
   return handlerOps;
 }
