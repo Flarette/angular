@@ -322,4 +322,16 @@ export const enum AttributeMarker {
   I18n = 6,
 }
 
+// Pasted from render3/interfaces/class_resolver.ts
+/**
+ * Flags of a `ɵɵclassResolver` registration.
+ */
+export const enum ClassResolverFlags {
+  /** The handler receives the `ClassSources` and returns the classes. */
+  None = 0,
+
+  /** The handler receives a `ClassResolveEvent`. */
+  FullForm = 1 << 0,
+}
+
 export {SecurityContext} from './schema/dom_security_schema';

@@ -281,9 +281,8 @@ function ingestHostEvent(job: HostBindingCompilationJob, event: e.ParsedEvent) {
       true,
       event.sourceSpan,
     );
-    // `(class)` in host bindings computes the host element's classes.
-    listenerOp.isClassResolver =
-      getClassResolverForm(event.name, event.type, target, 'host') === 'shorthand';
+    // `(class)` and `(attr.class)` in host bindings compute the host element's classes.
+    listenerOp.classResolverForm = getClassResolverForm(event.name, event.type, target, 'host');
     eventBinding = listenerOp;
   }
   job.root.create.push(eventBinding);
@@ -1659,15 +1658,14 @@ function ingestElementBindings(
         false,
         output.sourceSpan,
       );
-      // `(class)` on an element computes the element's classes. Containers have no classes, so
-      // they keep listening to directive outputs.
-      listenerOp.isClassResolver =
-        getClassResolverForm(
-          output.name,
-          output.type,
-          output.target,
-          isNgContainer(element.name) ? 'container' : 'element',
-        ) === 'shorthand';
+      // `(class)` and `(attr.class)` on an element compute the element's classes. Containers have
+      // no classes, so they keep listening to directive outputs.
+      listenerOp.classResolverForm = getClassResolverForm(
+        output.name,
+        output.type,
+        output.target,
+        isNgContainer(element.name) ? 'container' : 'element',
+      );
       unit.create.push(listenerOp);
     }
   }

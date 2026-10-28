@@ -26,7 +26,15 @@ export {
   MAX_ANIMATION_TIMEOUT,
 } from './animation/interfaces';
 export {ApplicationConfig, mergeApplicationConfig} from './application/application_config';
-export {ClassSources} from './render3/interfaces/class_resolver';
+export {
+  BoundClassResolver,
+  ClassBindingValue,
+  ClassCallback,
+  ClassResolveEvent,
+  ClassResolver,
+  ClassSources,
+  ResolvedClasses,
+} from './render3/interfaces/class_resolver';
 export {
   APP_INITIALIZER,
   ApplicationInitStatus,

@@ -6,6 +6,7 @@
  * found in the LICENSE file at https://angular.dev/license
  */
 
+import {ClassResolverFlags} from '../../../../core';
 import * as o from '../../../../output/output_ast';
 import {Identifiers} from '../../../../render3/r3_identifiers';
 import {isUnsafeObjectKey} from '../../../../render3/util';
@@ -328,8 +329,12 @@ function reifyCreateOperations(unit: CompilationUnit, ops: ir.OpList<ir.CreateOp
             `Unexpected global target '${op.eventTarget}' defined for '${op.name}' event. Supported list of global targets: window,document,body.`,
           );
         }
-        if (op.isClassResolver) {
-          ir.OpList.replace(op, ng.classResolver(listenerFn, op.sourceSpan));
+        if (op.classResolverForm !== null) {
+          const flags =
+            op.classResolverForm === 'fullForm'
+              ? ClassResolverFlags.FullForm
+              : ClassResolverFlags.None;
+          ir.OpList.replace(op, ng.classResolver(listenerFn, flags, op.sourceSpan));
           break;
         }
         ir.OpList.replace(

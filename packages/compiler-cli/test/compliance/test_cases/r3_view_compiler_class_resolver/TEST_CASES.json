@@ -122,7 +122,7 @@
       ]
     },
     {
-      "description": "should require 22.3.0 for (attr.class) in a template",
+      "description": "should create a full-form class resolver instruction for (attr.class) on an element",
       "inputFiles": ["class_resolver_attr_class_element.ts"],
       "expectations": [
         {
@@ -137,7 +137,7 @@
       ]
     },
     {
-      "description": "should require 22.3.0 for (attr.class) in host bindings",
+      "description": "should create a full-form class resolver instruction for (attr.class) in host bindings",
       "inputFiles": ["class_resolver_attr_class_host.ts"],
       "expectations": [
         {

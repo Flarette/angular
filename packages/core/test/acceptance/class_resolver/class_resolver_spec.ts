@@ -8,6 +8,8 @@
 
 import {
   ChangeDetectionStrategy,
+  ClassBindingValue,
+  ClassResolveEvent,
   ClassSources,
   Component,
   Directive,
@@ -23,6 +25,7 @@ import {
   provideCheckNoChangesConfig,
   Provider,
   Renderer2,
+  ResolvedClasses,
   signal,
   Type,
   ViewChild,
@@ -937,5 +940,180 @@ describe('(class) binding', () => {
         expect(errors.map(String).join('\n')).toContain('NG0100');
       });
     });
+  });
+});
+
+describe('(attr.class) binding', () => {
+  @Component({selector: 'ui-button', template: '', host: {class: 'btn px-2'}})
+  class UiButton {}
+
+  it('applies the classes that the handler resolves', async () => {
+    @Component({
+      imports: [UiButton],
+      template: `<ui-button
+        class="px-4"
+        (attr.class)="$event.resolve($event.resolver('shadow-lg'))"
+      />`,
+    })
+    class App {}
+
+    const fixture = await render(App);
+
+    expect(classesOf(fixture.nativeElement.querySelector('ui-button'))).toEqual([
+      'btn',
+      'px-2',
+      'px-4',
+      'shadow-lg',
+    ]);
+  });
+
+  it("passes the sources through when the handler doesn't call resolve()", async () => {
+    @Component({
+      imports: [UiButton],
+      template: `<ui-button class="px-4" (attr.class)="track($event.sources)" />`,
+    })
+    class App {
+      sources: ClassSources | null = null;
+
+      protected track(sources: ClassSources) {
+        this.sources = sources;
+        return ['ignored'];
+      }
+    }
+
+    const fixture = await render(App);
+
+    expect(fixture.componentInstance.sources).toEqual([['btn', 'px-2'], [], ['px-4']]);
+    expect(classesOf(fixture.nativeElement.querySelector('ui-button'))).toEqual([
+      'btn',
+      'px-2',
+      'px-4',
+    ]);
+  });
+
+  it('replaces every class with the classes passed to resolve()', async () => {
+    @Component({
+      imports: [UiButton],
+      template: `<ui-button class="px-4" (attr.class)="$event.resolve(['only'])" />`,
+    })
+    class App {}
+
+    const fixture = await render(App);
+
+    expect(classesOf(fixture.nativeElement.querySelector('ui-button'))).toEqual(['only']);
+  });
+
+  describe("ranks the resolver's extras at the end of the caller's source", () => {
+    @Directive({selector: '[tooltip]', host: {class: 'dir'}})
+    class Tooltip {}
+
+    it('from the template', async () => {
+      @Component({selector: 'ui-card', template: '', host: {class: 'cmp'}})
+      class UiCard {}
+
+      @Component({
+        imports: [UiCard, Tooltip],
+        template: `<ui-card
+          tooltip
+          class="tpl"
+          (attr.class)="$event.resolve(record($event.resolver('extra')))"
+        />`,
+      })
+      class App {
+        merged = '';
+
+        protected record(classes: ResolvedClasses) {
+          this.merged = String(classes);
+          return classes;
+        }
+      }
+
+      const fixture = await render(App);
+
+      expect(fixture.componentInstance.merged).toBe('cmp dir tpl extra');
+      expect(classesOf(fixture.nativeElement.querySelector('ui-card'))).toEqual([
+        'cmp',
+        'dir',
+        'extra',
+        'tpl',
+      ]);
+    });
+
+    it("from a component's host", async () => {
+      let merged = '';
+
+      @Component({
+        selector: 'ui-card',
+        template: '',
+        host: {class: 'cmp', '(attr.class)': `$event.resolve(record($event.resolver('extra')))`},
+      })
+      class UiCard {
+        protected record(classes: ResolvedClasses) {
+          merged = String(classes);
+          return classes;
+        }
+      }
+
+      @Component({
+        imports: [UiCard, Tooltip],
+        template: `<ui-card tooltip class="tpl" (attr.class)="capture($event.sources)" />`,
+      })
+      class App {
+        sources: ClassSources | null = null;
+
+        protected capture(sources: ClassSources) {
+          this.sources = sources;
+        }
+      }
+
+      const fixture = await render(App);
+
+      expect(merged).toBe('cmp extra dir tpl');
+      expect(fixture.componentInstance.sources).toEqual([['cmp', 'extra'], ['dir'], ['tpl']]);
+    });
+  });
+
+  for (const [form, value, expected] of [
+    ['a string', 'a  b', ['a', 'b']],
+    ['an array', ['a', 'b'], ['a', 'b']],
+    ['a Set', new Set(['a', 'b']), ['a', 'b']],
+    ['an object map', {a: true, x: false, b: 1}, ['a', 'b']],
+    ['null', null, []],
+    ['undefined', undefined, []],
+    ['false', false, []],
+    ['an empty string', '', []],
+  ] as Array<[string, ClassBindingValue, string[]]>) {
+    it(`resolves the classes of ${form}`, async () => {
+      @Component({template: `<div class="c" (attr.class)="$event.resolve(value)"></div>`})
+      class App {
+        protected readonly value = value;
+      }
+
+      const fixture = await render(App);
+
+      expect(classesOf(fixture.nativeElement.querySelector('div'))).toEqual(expected);
+    });
+  }
+
+  it('reports a second call to resolve() in dev mode', async () => {
+    @Component({template: `<div (attr.class)="$event.resolve('a'); $event.resolve('b')"></div>`})
+    class App {}
+
+    await expectAsync(render(App)).toBeRejectedWithError(/NG0320/);
+  });
+
+  it('reports a call to resolve() after the handler returns in dev mode', async () => {
+    @Component({template: `<div (attr.class)="keep($event)"></div>`})
+    class App {
+      event: ClassResolveEvent | null = null;
+
+      protected keep(event: ClassResolveEvent) {
+        this.event = event;
+      }
+    }
+
+    const fixture = await render(App);
+
+    expect(() => fixture.componentInstance.event!.resolve('late')).toThrowError(/NG0320/);
   });
 });

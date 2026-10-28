@@ -8,7 +8,8 @@
 
 /**
  * Classes that each source applies to an element, ordered from the lowest to the highest priority.
- * A `(class)` binding receives them as `$event` and returns the classes the element should have.
+ * A `(class)` binding receives them as `$event` and returns the classes the element should have; an
+ * `(attr.class)` binding receives them as `$event.sources`.
  *
  * - `component`: the component on the element, including the component's host directives.
  * - `directives`: all other directives on the element, in matching order.
@@ -31,11 +32,99 @@ export type ClassSources = readonly [
 ];
 
 /**
- * Handler compiled from a `(class)` binding. It receives the element's `ClassSources` as `$event`
- * and returns the classes the element should have, in any form a `[class]` binding accepts. If it
- * returns a function, that function is called with the same `ClassSources`.
+ * A value that names classes, read the way a `[class]` binding reads it: a string splits on
+ * whitespace, an array or a `Set` lists the names, and an object map keeps the keys whose values
+ * are truthy. `null`, `undefined`, `false`, and `''` add nothing.
+ *
+ * @experimental 22.3
  */
-export type ClassResolverFn = (sources: ClassSources) => unknown;
+export type ClassBindingValue =
+  | string
+  | readonly string[]
+  | ReadonlySet<string>
+  | {readonly [className: string]: unknown}
+  | null
+  | undefined
+  | false;
+
+/**
+ * Classes that a `ClassResolveEvent`'s resolver merged for an element. Only that resolver creates
+ * one; pass it to `ClassResolveEvent.resolve` to apply it.
+ *
+ * @experimental 22.3
+ */
+export interface ResolvedClasses {}
+
+/**
+ * The resolver of a `ClassResolveEvent`. It merges the event's sources with the extras, which rank
+ * at the end of the source of the binding that calls it.
+ *
+ * @experimental 22.3
+ */
+export type BoundClassResolver = (...extras: ClassBindingValue[]) => ResolvedClasses;
+
+/**
+ * A function that computes an element's classes with the resolver of a `ClassResolveEvent`.
+ *
+ * @experimental 22.3
+ */
+export type ClassCallback = (cn: BoundClassResolver) => ResolvedClasses;
+
+/**
+ * `$event` of an `(attr.class)` binding, which resolves the classes of its element.
+ *
+ * If the handler doesn't call `resolve()`, the element keeps the classes of its sources. The
+ * handler's return value is ignored.
+ *
+ * @experimental 22.3
+ */
+export interface ClassResolveEvent {
+  /** Classes that each source applies to the element. */
+  readonly sources: ClassSources;
+
+  /**
+   * Merges the sources with `extras`, which rank at the end of the source of the binding that
+   * calls it.
+   */
+  resolver(...extras: ClassBindingValue[]): ResolvedClasses;
+
+  /**
+   * Sets the element's classes. Call it at most once, while the handler runs; in dev mode, another
+   * call throws.
+   */
+  resolve(classes: ClassBindingValue | ResolvedClasses): void;
+}
+
+/**
+ * Merges the classes of an element. It receives one space-separated string per source, from the
+ * lowest to the highest priority, and returns the element's classes.
+ *
+ * @experimental 22.3
+ */
+export type ClassResolver = (...classes: string[]) => string;
+
+/**
+ * Handler compiled from a `(class)` or `(attr.class)` binding.
+ *
+ * With `ClassResolverFlags.FullForm`, it receives a `ClassResolveEvent` as `$event` and its return
+ * value is ignored. Otherwise, it receives the element's `ClassSources` as `$event` and returns the
+ * classes the element should have, in any form a `[class]` binding accepts. If it returns a
+ * function, that function is called with the same `ClassSources`.
+ */
+export type ClassResolverFn = (event: ClassSources | ClassResolveEvent) => unknown;
+
+/**
+ * Flags of a `ɵɵclassResolver` registration.
+ *
+ * NOTE: Ensure changes here are in sync with `packages/compiler/src/core.ts`.
+ */
+export const enum ClassResolverFlags {
+  /** The handler receives the `ClassSources` and returns the classes. */
+  None = 0,
+
+  /** The handler receives a `ClassResolveEvent`. */
+  FullForm = 1 << 0,
+}
 
 /** Position of a source in `ClassSources`. */
 export const enum ClassSource {
@@ -75,6 +164,9 @@ export interface TClassResolver {
    * `DirectiveDef` in `TView.data`, or `-1` for the template.
    */
   owners: number[];
+
+  /** `ClassResolverFlags` of each registered resolver, in the order of `owners`. */
+  flags: ClassResolverFlags[];
 
   /** One segment per directive followed by the template's, from the lowest to the highest priority. */
   segments: TClassSourceSegment[];
