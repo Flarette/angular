@@ -271,3 +271,59 @@ export declare class MyComponent {
     static ɵcmp: i0.ɵɵComponentDeclaration<MyComponent, "my-component", never, {}, {}, never, never, true, never>;
 }
 
+/****************************************************************************************************
+ * PARTIAL FILE: class_resolver_attr_class_element.js
+ ****************************************************************************************************/
+import { Component } from '@angular/core';
+import * as i0 from "@angular/core";
+export class MyComponent {
+    resolve(event) { }
+    static ɵfac = i0.ɵɵngDeclareFactory({ minVersion: "12.0.0", version: "0.0.0-PLACEHOLDER", ngImport: i0, type: MyComponent, deps: [], target: i0.ɵɵFactoryTarget.Component });
+    static ɵcmp = i0.ɵɵngDeclareComponent({ minVersion: "22.3.0", version: "0.0.0-PLACEHOLDER", type: MyComponent, isStandalone: true, selector: "my-component", ngImport: i0, template: `<div (attr.class)="resolve($event)"></div>`, isInline: true });
+}
+i0.ɵɵngDeclareClassMetadata({ minVersion: "12.0.0", version: "0.0.0-PLACEHOLDER", ngImport: i0, type: MyComponent, decorators: [{
+            type: Component,
+            args: [{
+                    selector: 'my-component',
+                    template: `<div (attr.class)="resolve($event)"></div>`,
+                }]
+        }] });
+
+/****************************************************************************************************
+ * PARTIAL FILE: class_resolver_attr_class_element.d.ts
+ ****************************************************************************************************/
+import * as i0 from "@angular/core";
+export declare class MyComponent {
+    resolve(event: unknown): void;
+    static ɵfac: i0.ɵɵFactoryDeclaration<MyComponent, never>;
+    static ɵcmp: i0.ɵɵComponentDeclaration<MyComponent, "my-component", never, {}, {}, never, never, true, never>;
+}
+
+/****************************************************************************************************
+ * PARTIAL FILE: class_resolver_attr_class_host.js
+ ****************************************************************************************************/
+import { Directive } from '@angular/core';
+import * as i0 from "@angular/core";
+export class MyDirective {
+    resolve(event) { }
+    static ɵfac = i0.ɵɵngDeclareFactory({ minVersion: "12.0.0", version: "0.0.0-PLACEHOLDER", ngImport: i0, type: MyDirective, deps: [], target: i0.ɵɵFactoryTarget.Directive });
+    static ɵdir = i0.ɵɵngDeclareDirective({ minVersion: "22.3.0", version: "0.0.0-PLACEHOLDER", type: MyDirective, isStandalone: true, selector: "[myDir]", host: { listeners: { "attr.class": "resolve($event)" } }, ngImport: i0 });
+}
+i0.ɵɵngDeclareClassMetadata({ minVersion: "12.0.0", version: "0.0.0-PLACEHOLDER", ngImport: i0, type: MyDirective, decorators: [{
+            type: Directive,
+            args: [{
+                    selector: '[myDir]',
+                    host: { '(attr.class)': 'resolve($event)' },
+                }]
+        }] });
+
+/****************************************************************************************************
+ * PARTIAL FILE: class_resolver_attr_class_host.d.ts
+ ****************************************************************************************************/
+import * as i0 from "@angular/core";
+export declare class MyDirective {
+    resolve(event: unknown): void;
+    static ɵfac: i0.ɵɵFactoryDeclaration<MyDirective, never>;
+    static ɵdir: i0.ɵɵDirectiveDeclaration<MyDirective, "[myDir]", never, {}, {}, never, never, true, never>;
+}
+

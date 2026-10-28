@@ -6,7 +6,13 @@
  * found in the LICENSE file at https://angular.dev/license
  */
 
-import {AST, isNgContainer, ParsedEventType, TmplAstElement, TmplAstNode} from '@angular/compiler';
+import {
+  AST,
+  getClassResolverForm,
+  isNgContainer,
+  TmplAstElement,
+  TmplAstNode,
+} from '@angular/compiler';
 import ts from 'typescript';
 
 import {ErrorCode, ExtendedTemplateDiagnosticName} from '../../../../diagnostics';
@@ -31,15 +37,14 @@ class ClassResolverShadowedByOutputCheck extends TemplateCheckWithVisitor<ErrorC
     component: ts.ClassDeclaration,
     node: TmplAstNode | AST,
   ): NgTemplateDiagnostic<ErrorCode.CLASS_RESOLVER_SHADOWED_BY_OUTPUT>[] {
+    if (!(node instanceof TmplAstElement)) return [];
+
     // `(class)` on `<ng-container>` is always a listener, in any namespace, because there's no
     // element to style.
-    if (!(node instanceof TmplAstElement) || isNgContainer(node.name)) return [];
-
+    const nodeKind = isNgContainer(node.name) ? 'container' : 'element';
     const binding = node.outputs.find(
       (output) =>
-        output.name === 'class' &&
-        output.type === ParsedEventType.Regular &&
-        output.target === null,
+        getClassResolverForm(output.name, output.type, output.target, nodeKind) === 'shorthand',
     );
     if (binding === undefined) return [];
 

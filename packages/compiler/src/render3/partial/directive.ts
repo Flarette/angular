@@ -5,7 +5,9 @@
  * Use of this source code is governed by an MIT-style license that can be
  * found in the LICENSE file at https://angular.dev/license
  */
+import {ParsedEventType} from '../../expression_parser/ast';
 import * as o from '../../output/output_ast';
+import {getClassResolverForm} from '../r3_class_resolver';
 import {Identifiers as R3} from '../r3_identifiers';
 import {
   convertFromMaybeForwardRefExpression,
@@ -156,7 +158,8 @@ function getMinimumVersionForPartialOutput(meta: R3DirectiveMetadata): string {
     minVersion = '17.2.0';
   }
 
-  // A `class` host listener is a class resolver, which older linkers compile to a plain listener.
+  // A `class` or `attr.class` host listener is a class resolver, which older linkers compile to a
+  // plain listener.
   if (hasHostClassResolver(meta)) {
     minVersion = '22.3.0';
   }
@@ -166,10 +169,13 @@ function getMinimumVersionForPartialOutput(meta: R3DirectiveMetadata): string {
 
 /**
  * Gets whether the given directive declares a class resolver in its host, through
- * `host: {'(class)': ...}` or `@HostListener('class')`.
+ * `host: {'(class)': ...}`, `host: {'(attr.class)': ...}`, or `@HostListener`.
  */
 export function hasHostClassResolver(meta: R3DirectiveMetadata): boolean {
-  return meta.host.listeners['class'] !== undefined;
+  // Listener keys aren't parsed, so a key with a target, such as `window:class`, never matches.
+  return Object.keys(meta.host.listeners).some(
+    (key) => getClassResolverForm(key, ParsedEventType.Regular, null, 'host') !== null,
+  );
 }
 
 /**

@@ -12,6 +12,7 @@ import {
   Call,
   Chain,
   Conditional,
+  getClassResolverForm,
   ParsedEventType,
   PropertyRead,
   ArrowFunction,
@@ -52,8 +53,9 @@ class UninvokedFunctionInEventBindingSpec extends TemplateCheckWithVisitor<Error
       return [];
 
     // A `(class)` binding calls a function that its handler returns, so `(class)="resolve"` and
-    // `(class)="(sources) => resolve(sources)"` are intended.
-    if (node.name === 'class' && node.type === ParsedEventType.Regular && node.target === null)
+    // `(class)="(sources) => resolve(sources)"` are intended. The visitor doesn't pass the node that
+    // declares the binding, so the exemption holds on any node, containers included.
+    if (getClassResolverForm(node.name, node.type, node.target, 'element') === 'shorthand')
       return [];
 
     if (!(node.handler instanceof ASTWithSource)) return [];

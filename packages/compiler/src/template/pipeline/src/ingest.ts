@@ -10,10 +10,11 @@ import {ConstantPool} from '../../../constant_pool';
 import {SecurityContext} from '../../../core';
 import * as e from '../../../expression_parser/ast';
 import * as i18n from '../../../i18n/i18n_ast';
-import {splitNsName} from '../../../ml_parser/tags';
+import {isNgContainer, splitNsName} from '../../../ml_parser/tags';
 import * as o from '../../../output/output_ast';
 import {ParseSourceSpan} from '../../../parse_util';
 import * as t from '../../../render3/r3_ast';
+import {getClassResolverForm} from '../../../render3/r3_class_resolver';
 import {
   DeferBlockDepsEmitMode,
   R3ComponentDeferMetadata,
@@ -282,7 +283,7 @@ function ingestHostEvent(job: HostBindingCompilationJob, event: e.ParsedEvent) {
     );
     // `(class)` in host bindings computes the host element's classes.
     listenerOp.isClassResolver =
-      event.name === 'class' && event.type === e.ParsedEventType.Regular && target === null;
+      getClassResolverForm(event.name, event.type, target, 'host') === 'shorthand';
     eventBinding = listenerOp;
   }
   job.root.create.push(eventBinding);
@@ -1661,11 +1662,12 @@ function ingestElementBindings(
       // `(class)` on an element computes the element's classes. Containers have no classes, so
       // they keep listening to directive outputs.
       listenerOp.isClassResolver =
-        op.kind === ir.OpKind.ElementStart &&
-        op.tag !== 'ng-container' &&
-        output.name === 'class' &&
-        output.type === e.ParsedEventType.Regular &&
-        output.target === null;
+        getClassResolverForm(
+          output.name,
+          output.type,
+          output.target,
+          isNgContainer(element.name) ? 'container' : 'element',
+        ) === 'shorthand';
       unit.create.push(listenerOp);
     }
   }

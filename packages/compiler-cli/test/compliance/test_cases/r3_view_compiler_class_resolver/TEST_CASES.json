@@ -120,6 +120,36 @@
           "failureMessage": "Incorrect host bindings"
         }
       ]
+    },
+    {
+      "description": "should require 22.3.0 for (attr.class) in a template",
+      "inputFiles": ["class_resolver_attr_class_element.ts"],
+      "expectations": [
+        {
+          "files": [
+            {
+              "expected": "class_resolver_attr_class_element_template.js",
+              "generated": "class_resolver_attr_class_element.js"
+            }
+          ],
+          "failureMessage": "Incorrect template"
+        }
+      ]
+    },
+    {
+      "description": "should require 22.3.0 for (attr.class) in host bindings",
+      "inputFiles": ["class_resolver_attr_class_host.ts"],
+      "expectations": [
+        {
+          "files": [
+            {
+              "expected": "class_resolver_attr_class_host_host_bindings.js",
+              "generated": "class_resolver_attr_class_host.js"
+            }
+          ],
+          "failureMessage": "Incorrect host bindings"
+        }
+      ]
     }
   ]
 }

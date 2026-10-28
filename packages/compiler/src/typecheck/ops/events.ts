@@ -9,6 +9,7 @@
 import {AST, ImplicitReceiver, ParsedEventType, PropertyRead} from '../../expression_parser/ast';
 import {isNgContainer} from '../../ml_parser/tags';
 import {BoundAttribute, BoundEvent, Element, HostElement} from '../../render3/r3_ast';
+import {ClassResolverNodeKind, getClassResolverForm} from '../../render3/r3_class_resolver';
 import {DirectiveOwner} from '../../render3/view/t2_api';
 import {TcbOp} from './base';
 import {getStatementsBlock, TcbExpr} from './codegen';
@@ -40,11 +41,9 @@ function tcbEventHandlerExpression(ast: AST, tcb: Context, scope: Scope): TcbExp
   return translator.translate(ast);
 }
 
-/** Whether an event binding is `(class)`, without a target such as `window:`. */
-function isClassEvent(output: BoundEvent): boolean {
-  return (
-    output.name === 'class' && output.type === ParsedEventType.Regular && output.target === null
-  );
+/** Whether an event binding is a `(class)` shorthand that resolves the classes of its node. */
+function isClassShorthand(output: BoundEvent, nodeKind: ClassResolverNodeKind): boolean {
+  return getClassResolverForm(output.name, output.type, output.target, nodeKind) === 'shorthand';
 }
 
 /**
@@ -79,7 +78,7 @@ export class TcbDirectiveOutputsOp extends TcbOp {
         !outputs.hasBindingPropertyName(output.name) ||
         // A host `(class)` resolves the host element's classes, even next to an output named
         // `class`, so it's checked once as unclaimed.
-        (this.node instanceof HostElement && isClassEvent(output))
+        (this.node instanceof HostElement && isClassShorthand(output, 'host'))
       ) {
         continue;
       }
@@ -157,7 +156,8 @@ export class TcbUnclaimedOutputsOp extends TcbOp {
     // TODO(alxhub): this could be more efficient.
     for (const output of this.outputs) {
       // A directive output named `class` doesn't claim a host `(class)`.
-      const isHostClassResolver = this.target instanceof HostElement && isClassEvent(output);
+      const isHostClassResolver =
+        this.target instanceof HostElement && isClassShorthand(output, 'host');
 
       if (!isHostClassResolver && this.claimedOutputs?.has(output.name)) {
         // Skip this event handler as it was claimed by a directive.
@@ -178,7 +178,8 @@ export class TcbUnclaimedOutputsOp extends TcbOp {
 
       if (
         isHostClassResolver ||
-        (this.target instanceof Element && !isNgContainer(this.target.name) && isClassEvent(output))
+        (this.target instanceof Element &&
+          isClassShorthand(output, isNgContainer(this.target.name) ? 'container' : 'element'))
       ) {
         // `(class)` computes the element's classes from the `ClassSources` passed as `$event`.
         const eventType = this.tcb.env.config.checkTypeOfOutputEvents

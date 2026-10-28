@@ -6,11 +6,11 @@
  * found in the LICENSE file at https://angular.dev/license
  */
 import * as core from '../../core';
-import {ParsedEventType} from '../../expression_parser/ast';
 import {isNgContainer} from '../../ml_parser/tags';
 import * as o from '../../output/output_ast';
 import {ParseLocation, ParseSourceFile, ParseSourceSpan} from '../../parse_util';
 import {Element, RecursiveVisitor, visitAll} from '../r3_ast';
+import {getClassResolverForm} from '../r3_class_resolver';
 import {Identifiers as R3} from '../r3_identifiers';
 import {generateForwardRef, R3CompiledExpression} from '../util';
 import {
@@ -298,20 +298,18 @@ class BlockPresenceVisitor extends RecursiveVisitor {
 }
 
 /**
- * Must flag the same `(class)` outputs as `isClassResolver` in the template pipeline's
- * `ingest.ts`.
+ * Finds a class resolver on a template element, in either form, so that a template with
+ * `(attr.class)` needs a linker that knows it too.
  */
 class ClassResolverPresenceVisitor extends RecursiveVisitor {
   hasClassResolver = false;
 
   override visitElement(element: Element): void {
+    const nodeKind = isNgContainer(element.name) ? 'container' : 'element';
     if (
-      !isNgContainer(element.name) &&
       element.outputs.some(
         (output) =>
-          output.name === 'class' &&
-          output.type === ParsedEventType.Regular &&
-          output.target === null,
+          getClassResolverForm(output.name, output.type, output.target, nodeKind) !== null,
       )
     ) {
       this.hasClassResolver = true;
