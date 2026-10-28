@@ -849,7 +849,8 @@ Decided on 2026-10-28.
   - In dev mode at runtime, where a `(class)` on a node that isn't an element registers nothing.
     This also covers a directive's host `(class)`, which type checking can't see.
 
-  If the generic check lands, it reports these bindings instead, so each one is reported once.
+  If the generic check lands too, one of the two checks skips these bindings, so each is reported
+  once. Which one skips them is decided when the two changes meet.
 
 - **One per template element.** A second `(class)` or `(attr.class)` on the same template element
   is a compile error. Today both run, one after the other (measured).
