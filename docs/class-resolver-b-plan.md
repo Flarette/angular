@@ -176,6 +176,16 @@ pnpm bazel test --local_test_jobs=1 //packages/compiler-cli/test/ngtsc:ngtsc //p
 pnpm bazel test --test_arg=--filter=r3_view_compiler_class_resolver //packages/compiler-cli/test/compliance/full:full //packages/compiler-cli/test/compliance/linked:linked //packages/compiler-cli/test/compliance/declaration-only:declaration-only //packages/compiler-cli/test/compliance/codegen:codegen
 ```
 
+The partial-declaration golden (`GOLDEN_PARTIAL.js`, which holds each declaration's `minVersion`)
+and the Rust preprocessor's suite, which reads every compliance case:
+
+```bash
+pnpm bazel test //packages/compiler-cli/test/compliance/test_cases:r3_view_compiler_class_resolver.golden_test //packages/compiler-cli/preprocessor/test:test
+```
+
+Regenerate the partial golden with
+`pnpm bazel run //packages/compiler-cli/test/compliance/test_cases:r3_view_compiler_class_resolver.golden`.
+
 A golden that changes on purpose is accepted with its `.accept` target (`core_api`, `core_errors`,
 a bundling `symbol_test`, or the compliance golden), and the WP report names it. A bundling golden
 gains at most the hook symbols named in WP0, and never a class-resolver function (B13).
@@ -192,8 +202,8 @@ and in which form. Today seven places decide this separately:
 | `packages/compiler/src/template/pipeline/src/ingest.ts`, host listeners (around line 284)      | a host `(class)` is a resolver                |
 | `packages/compiler/src/template/pipeline/src/ingest.ts`, template listeners (around line 1663) | a template `(class)` on an element resolves   |
 | `packages/compiler/src/typecheck/ops/events.ts` (`isClassEvent`, line 44; containers at 181)   | how type checking types the binding           |
-| `packages/compiler-cli/src/ngtsc/annotations/component/src/partial/component.ts` (around 304)  | the template uses `(class)`, for `minVersion` |
-| `packages/compiler-cli/src/ngtsc/annotations/directive/src/partial/directive.ts` (around 171)  | the host uses `(class)`, for `minVersion`     |
+| `packages/compiler/src/render3/partial/component.ts` (around 304)                              | the template uses `(class)`, for `minVersion` |
+| `packages/compiler/src/render3/partial/directive.ts` (around 171)                              | the host uses `(class)`, for `minVersion`     |
 | `NG8111`'s check (`uninvoked_function_in_event_binding/index.ts`, around line 56)              | the exemption                                 |
 | `NG8119`'s check (`class_resolver_shadowed_by_output/index.ts`, around line 38)                | which bindings it reports                     |
 
@@ -437,7 +447,8 @@ Commit: `feat(core): add the class shorthand and class resolver provider`.
 
 Scope: `packages/compiler/src/typecheck/ops/events.ts`,
 `packages/compiler-cli/src/ngtsc/typecheck/host_bindings.ts` (around lines 376 to 392), the
-`NG8111` and `NG8119` checks, and their specs.
+`NG8111` and `NG8119` checks, the classifier (`packages/compiler/src/render3/r3_class_resolver.ts`),
+and their specs.
 
 - `(attr.class)`: `$event` is `ClassResolveEvent`, in templates and in host bindings.
 - `(class)="F"`: `F` is checked as `ClassCallback` through a typed position (D7), so
@@ -455,6 +466,10 @@ Scope: `packages/compiler/src/typecheck/ops/events.ts`,
   structural wrappers copy the inner element's outputs, so without that test a binding would be
   reported twice once the op runs for templates. Don't make the op run for `Template` nodes; the
   separate fix does that. The check must not assume that the target resolves to an element.
+- The classifier returns `null` for every binding on a container, so `NG8121` can't find a
+  resolver binding there without repeating the name checks or passing a false node kind. Extend it
+  so a container binding still reports its form, separately from whether the node resolves.
+  Existing callers keep their results.
 - Move the existing type-checking specs to design B: `host_bindings_type_check_spec.ts` (10
   cases), `template_typecheck_spec.ts` (7), the `NG8119` check's specs (9, moving to `NG8120`),
   and the `NG8111` check's specs (3).
@@ -469,8 +484,9 @@ Commit: `feat(compiler-cli): type-check the class event and its shorthand`.
 
 Scope: host metadata and decorator parsing in the AOT compiler
 (`packages/compiler-cli/src/ngtsc/annotations/directive/src/shared.ts`, around line 787) and JIT
-(`packages/compiler/src/jit_compiler_facade.ts`, around line 942), the template transform, and the
-runtime's registration.
+(`packages/compiler/src/jit_compiler_facade.ts`, around line 942), the template transform, the
+template pipeline's ingest (`packages/compiler/src/template/pipeline/src/ingest.ts`) for container
+emission, and the runtime's registration.
 
 - B9: `@HostListener('class')` and `@HostListener('attr.class')` are compile errors that point to
   `host: {'(class)': …}`, in AOT and in JIT. Today both compilers key listeners by event name, so
@@ -481,7 +497,8 @@ runtime's registration.
 - B11: a second `(class)` or `(attr.class)` on one template element is a template parse error.
 - B8 at runtime: a template `(class)` or `(attr.class)` on a container also emits
   `ɵɵclassResolver`. Where `ɵɵclassResolver` returns early for a node that isn't an element, report
-  `NG0321` through `console.error` in dev mode.
+  `NG0321` through `console.error` in dev mode. Ingest finds these bindings through the
+  classifier's container result from WP4.
 
 Tests, red first: each rule in AOT (`ngtsc` specs) and JIT (acceptance specs), plus a base class
 and a subclass that each declare a resolver. Today the base and subclass both run, base first
@@ -579,6 +596,13 @@ holder object was rejected, because it departs from the codebase's hook idiom to
 two goldens. The plan's claim that `_locateOrCreateElementNode` is only in the hydration golden was
 wrong; it's in six.
 
+### 2026-10-28: the classifier reports its form on containers from WP4 on
+
+Codex's WP1 review found that the classifier returns `null` for any binding on a container, so
+`NG8121` (WP4) and the container emission for `NG0321` (WP5) couldn't tell a resolver binding from
+an ordinary event there. WP4 extends the classifier to keep the form on containers, separately from
+whether the node resolves, and WP5's scope gains the pipeline's ingest for the emission.
+
 ## Reviews
 
 - WP0 (`adcbf79418`, fixup `d7f4b0254c`): orchestrator 9.00, Codex 9.00 before the fixup.
@@ -594,3 +618,14 @@ wrong; it's in six.
     environment. B13 is measured on AOT bundles.
   - For a refactoring round: the binding hook's signature is written out twice in the hook module,
     and three comments restate the same invariant, more than the existing hooks carry.
+- WP1 (`39fbbbd924`): orchestrator 9.50, Codex 9.00. No fixup.
+  - Every caller keeps its result; the only change is that a partial declaration with
+    `(attr.class)` in its template or host needs 22.3.0. Codex reproduced `14.0.0` before and
+    `22.3.0` after, in memory, for both new cases.
+  - The partial golden test and the preprocessor suite weren't in the ladder; the agent ran the
+    first on its own, and both pass. Both are in the ladder now, with the golden's regenerate
+    command. BB1's paths for the two partial-declaration files are corrected.
+  - For WP4 and WP5: the classifier returns `null` on containers, so the container diagnostics
+    need it to keep the form there. Both entries now say so.
+  - For a refactoring round: the commented-out reservation returns `'reserved'`, which isn't in
+    `ClassResolverForm`; `NG8111` passes `'element'` for every binding until WP4 gives it the node.
