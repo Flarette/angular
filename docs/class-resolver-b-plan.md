@@ -376,7 +376,9 @@ Tests, red first (JIT acceptance specs in the class resolver spec file):
 - `resolve()` with each `ClassBindingValue` shape, including a top-level `false`, which adds
   nothing and doesn't throw.
 - A repeated `resolve()` and one after the handler returns: `NG0320` in dev mode.
-- A compliance case for the emitted instruction and flags.
+- A compliance case for the emitted instruction and flags. WP1's two `(attr.class)` cases
+  (`class_resolver_attr_class_element` and `class_resolver_attr_class_host`) expect a plain
+  listener today; their expected output changes to the new instruction on purpose.
 
 Commit: `feat(core): resolve classes through the class event`.
 
