@@ -427,7 +427,7 @@ export class UiButton {
   - The bound resolver calls the provided `ClassResolver` with one string per source (B4);
     without a provider, the plain merge.
   - With `Shorthand`, a result that isn't a `ResolvedClasses` from this event throws `NG0320` in
-    dev mode (B2).
+    dev mode (B2). `NG0320`'s messages, which today name `(attr.class)`, name the binding's form.
   - Remove the `flags` of `0` path (D1), the listener fallback for an output named `class`, and
     `CLASS_RESOLVER_OUTPUT_CONFLICT` (B7, D4).
   - With the `0` path gone, the prototype's `toClassNames` goes too: every level reads names
