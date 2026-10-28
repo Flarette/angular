@@ -46,7 +46,7 @@ order of rules in the stylesheet.
 | 2026-10-26 | The next design replaces the return value with `$event.resolve()`, adds the callback shorthand `(class)="(cn) => cn('x')"` and `provideClassResolver()`, and reverses the 2026-10-17 decision against app-wide controls. It gets its own implementation round. See [Next: the `resolve()` class event](#next-the-resolve-class-event).                                                                                                                                                        |
 | 2026-10-28 | In the next design, `(class)` always resolves, also next to a directive output named `class`. The resolver shadows the output, the way an output shadows a native event, and a template can't listen to that output. An extended diagnostic warns about it, and the runtime warning `NG0319` goes. See [Collisions and other names](#collisions-and-other-names).                                                                                                                             |
 | 2026-10-28 | In the next design, `(class)` and `(attr.class)` on `<ng-container>` and `<ng-template>` get their own diagnostics, in case a generic check for bindings that do nothing there never lands. The compile-time check sits with the existing per-element checks, so it reports on `<ng-template>` once a separate fix makes type checking visit its bindings. The generic check's error codes take precedence where they collide. See [Collisions and other names](#collisions-and-other-names). |
-| 2026-10-28 | `@HostListener('class')` is a compile error that points to `@HostListener('attr.class', ['$event'])`. A shorthand for the decorator is left to the maintainers.                                                                                                                                                                                                                                                                                                                               |
+| 2026-10-28 | In the next design, `@HostListener` can't declare a resolver: `@HostListener('class')` and `@HostListener('attr.class')` are compile errors that point to `host`. A directive has at most one resolver, including one inherited from a base class. See [Notes for maintainers](#notes-for-maintainers).                                                                                                                                                                                       |
 | 2026-10-28 | The extras and `resolve()` read a value the way `[class]` does in production, so a top-level `false` adds nothing. See [The full form](#the-full-form-attrclass).                                                                                                                                                                                                                                                                                                                             |
 | 2026-10-28 | Other `(attr.*)` names stay ordinary event bindings. Reserving the namespace is left to the maintainers, and the code marks where the reservation would go.                                                                                                                                                                                                                                                                                                                                   |
 | 2026-10-28 | The resolver contract is fixed: `provideClassResolver` takes `(...classes: string[]) => string`, and Angular normalizes the sources and the extras to strings first. Templates are type-checked against one extras type, whichever resolver the app provides. No declaration merging. See [The resolver](#the-resolver-provideclassresolver).                                                                                                                                                 |
@@ -854,10 +854,12 @@ Decided on 2026-10-28.
 
 - **One per template element.** A second `(class)` or `(attr.class)` on the same template element
   is a compile error. Today both run, one after the other (measured).
-- **`@HostListener`.** `@HostListener('class')` is a compile error that points to
-  `@HostListener('attr.class', ['$event'])`. A decorator always calls its method, so it can't pass
-  the callback that the shorthand needs. A shorthand for the decorator is a quality-of-life choice
-  for the maintainers.
+- **One per directive.** A directive has at most one resolver, including one inherited from a base
+  class. `(class)` and `(attr.class)` in one `host` object are a compile error. A second resolver
+  from a base class is a dev-mode error at runtime, because the compiler can't always see it.
+- **`@HostListener`.** `@HostListener('class')` and `@HostListener('attr.class')` are compile
+  errors that point to `host: {'(class)': …}`. Classes can still be bound with `@HostBinding`; only
+  the resolver has to be declared in `host`.
 - **Other `(attr.*)` names.** Only `(attr.class)` resolves. Other `(attr.*)` names stay ordinary
   event bindings, so the namespace isn't reserved. Reserving it is a choice for the maintainers, to
   make together with [resolving any attribute](#direction-1-resolve-any-attribute). The code that
@@ -924,10 +926,64 @@ The `cn(v)` column follows the design, since the next design isn't built. Both f
 
 - The type-check block prints template arrow parameters without a type, so TypeScript should infer
   `cn` from the argument in the rewritten call. Measure it before building on it.
-- More than one host resolver from one directive. Today a second `@HostListener('class')`, or one
-  next to `host: {'(class)': …}`, silently replaces the first, and a subclass's resolver runs after
-  its base class's (measured).
 - Whether resolution should happen without a `(class)` binding, for example on every component host.
+
+## Notes for maintainers
+
+Design points that a review is likely to question, with the reasoning behind each.
+
+### `@HostListener` doesn't declare resolvers
+
+What the decorator would still offer: a resolver on a base class that every component extends, so
+that no component repeats it in `host`. The next design leaves it out anyway:
+
+- The guide asks for `host` over `@HostBinding` and `@HostListener`, which "exist exclusively for
+  backwards compatibility" (`adev/src/content/guide/components/host-elements.md`). One way to
+  declare a resolver is enough.
+- A decorator always calls its method, so it can't pass the shorthand's callback. Only the full form
+  would fit.
+- In the full form, type checking checks the method's argument but not what it returns, and the
+  event ignores the return value. A method that returns classes, as handlers do in the prototype,
+  compiles and silently does nothing.
+- `(class)` borrows event syntax, but it's a resolver, not an event.
+- A resolver declared on a base class is hard to find from the component, for people and for tools
+  that read the code.
+
+In the prototype, `@HostListener('class')` works, and a second one silently replaces the first. A
+directive can still bind classes with `@HostBinding`.
+
+### One resolver per directive
+
+`cn` and `tailwind-merge` resolve conflicts by position. With two resolvers in one directive, the
+result would depend on an order that nobody writes down: key order in `host`, or a base class before
+its subclass. In the prototype, a base class's resolver and its subclass's both run, base first
+(measured).
+
+The compiler reports two resolvers in one `host` object. A resolver inherited from a library's base
+class is invisible at compile time, because a library's `.d.ts` records no host bindings
+(`ɵɵDirectiveDeclaration`), so a dev-mode check at runtime reports it.
+
+### The Rust preprocessor
+
+The next design adds compile-time checks: one resolver per template element, one per directive, no
+resolver in `@HostListener`, and `(class)` on containers. The Rust preprocessor
+(`packages/compiler-cli/preprocessor`) parses host listeners itself and is mid-migration, and it
+doesn't take outside contributions. Two ways forward:
+
+- Land the checks in the TypeScript compiler only, and add them to the preprocessor later. The
+  preprocessor's known failures list them meanwhile.
+- Hold the feature until the preprocessor lands, possibly until the next major release.
+
+The checks are small, so either is acceptable.
+
+### Other open points
+
+- [The `(attr.*)` namespace](#collisions-and-other-names) isn't reserved. The code that recognizes
+  `(attr.class)` holds the reservation as a commented-out check.
+- [`(class)` on containers](#collisions-and-other-names) gets its own diagnostics, in case the
+  generic check for bindings that do nothing there never lands.
+- `[class]` asserts on a top-level `false` in dev mode, while extras accept it. Whether `[class]`
+  should stop asserting is an upstream question.
 
 ## Request for comments
 
