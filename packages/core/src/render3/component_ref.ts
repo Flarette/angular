@@ -79,7 +79,7 @@ import {
 } from './node_selector_matcher';
 import {profiler} from './profiler';
 import {executeContentQueries} from './queries/query_execution';
-import {enterView, lastNodeWasCreated, leaveView} from './state';
+import {enterView, lastNodeWasCreated, leaveView, wasLastNodeCreated} from './state';
 import {debugStringifyTypeForError, stringifyForError} from './util/stringify_utils';
 import {getComponentLViewByIndex, getTNode, storeLViewOnDestroy} from './util/view_utils';
 import {createLView, createTView, getInitialLViewFlagsFromDef} from './view/construction';
@@ -281,6 +281,10 @@ export class ComponentFactory<T> {
     profiler(ProfilerEvent.DynamicComponentStart);
 
     const prevConsumer = setActiveConsumer(null);
+    // Creating the host sets whether the last node was created or claimed by hydration. Restore it
+    // afterwards, so that a component created in a constructor doesn't change what the code that
+    // creates the outer node reads.
+    const prevWasLastNodeCreated = wasLastNodeCreated();
     try {
       const cmpDef = this.componentDef;
       ngDevMode && verifyNotAnOrphanComponent(cmpDef);
@@ -319,6 +323,7 @@ export class ComponentFactory<T> {
       }
     } finally {
       setActiveConsumer(prevConsumer);
+      lastNodeWasCreated(prevWasLastNodeCreated);
     }
   }
 

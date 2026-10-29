@@ -11,7 +11,11 @@ import {
   ApplicationRef,
   BoundClassResolver,
   Component,
+  createComponent,
+  DestroyRef,
   destroyPlatform,
+  Directive,
+  EnvironmentInjector,
   inject,
   PLATFORM_ID,
 } from '@angular/core';
@@ -92,6 +96,44 @@ describe('(class) binding with hydration', () => {
 
   it('removes a class that only the server resolved on an element without static classes', async () => {
     expect(await hydratedClasses(`<div (class)="resolve"></div>`)).toEqual(['client-only']);
+  });
+
+  it("removes a class that only the server resolved when a directive's constructor creates a component", async () => {
+    @Component({selector: 'app-detached', template: ''})
+    class Detached {}
+
+    @Directive({selector: '[createsComponent]'})
+    class CreatesComponent {
+      constructor() {
+        const detached = createComponent(Detached, {
+          environmentInjector: inject(EnvironmentInjector),
+        });
+        inject(DestroyRef).onDestroy(() => detached.destroy());
+      }
+    }
+
+    @Component({
+      selector: 'app',
+      imports: [CreatesComponent],
+      template: `<div createsComponent (class)="(resolve)"></div>`,
+    })
+    class App {
+      private readonly isServer = isPlatformServer(inject(PLATFORM_ID));
+
+      protected readonly resolve = (cn: BoundClassResolver) =>
+        cn(this.isServer ? 'server-only' : 'client-only');
+    }
+
+    const html = await ssr(App);
+    expect(getAppContents(html)).toContain('server-only');
+
+    resetTViewsFor(App);
+    const appRef = await prepareEnvironmentAndHydrate(doc, html, App);
+    const host = getComponentRef<App>(appRef).location.nativeElement as HTMLElement;
+    appRef.tick();
+
+    verifyAllNodesClaimedForHydration(host);
+    expect(Array.from(host.querySelector('div')!.classList)).toEqual(['client-only']);
   });
 
   describeOffSubtreeHydration(

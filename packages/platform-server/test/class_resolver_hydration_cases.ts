@@ -11,7 +11,9 @@ import {
   BoundClassResolver,
   Component,
   createComponent,
+  DestroyRef,
   Directive,
+  EnvironmentInjector,
   inject,
   Input,
   PLATFORM_ID,
@@ -144,6 +146,39 @@ export function describeRootHostHydration(
           ? 'server-only'
           : 'client-only';
         protected readonly resolve = (cn: BoundClassResolver) => cn(this.classes);
+      }
+
+      const html = await ssr(App, {envProviders: envProviders()});
+      expect(getAppContents(html)).toContain('class="server-only"');
+
+      resetTViewsFor(App);
+      const appRef = await prepareEnvironmentAndHydrate(doc(), html, App, {
+        envProviders: envProviders(),
+      });
+      const hostElement = getComponentRef<App>(appRef).location.nativeElement as HTMLElement;
+      appRef.tick();
+
+      verifyAllNodesClaimedForHydration(hostElement);
+      expect(Array.from(hostElement.classList)).toEqual(['client-only']);
+    });
+
+    it("starts a hydrated root component's host from the server's classes when its constructor creates a component", async () => {
+      @Component({selector: 'app-detached', template: ''})
+      class Detached {}
+
+      @Component({selector: 'app', template: '<p>content</p>', host})
+      class App {
+        protected readonly classes = isPlatformServer(inject(PLATFORM_ID))
+          ? 'server-only'
+          : 'client-only';
+        protected readonly resolve = (cn: BoundClassResolver) => cn(this.classes);
+
+        constructor() {
+          const detached = createComponent(Detached, {
+            environmentInjector: inject(EnvironmentInjector),
+          });
+          inject(DestroyRef).onDestroy(() => detached.destroy());
+        }
       }
 
       const html = await ssr(App, {envProviders: envProviders()});
