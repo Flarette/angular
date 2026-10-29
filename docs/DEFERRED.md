@@ -34,3 +34,8 @@ bindings` (`5099d6e3`), worktree `/Users/geruch/repos/angular-cn-wt/container-no
   and TS6199 are already filtered in `diagnostics.ts`, so removing or narrowing the marker is the
   likely fix. From Codex's WP4 review; to be fixed as a separate upstream PR.
 - WP5: `ClassResolverPresenceVisitor` in `packages/compiler/src/render3/partial/component.ts` doesn't count `(class)` or `(attr.class)` on `<ng-container>` or `<ng-template>`, which now compile to `ɵɵclassResolver`, so such a template keeps its older `minVersion` and an older linker compiles the binding as a listener.
+- Pre-existing: a constructor that calls `ViewContainerRef.createEmbeddedView` overwrites the
+  `wasLastNodeCreated()` flag before its element's host bindings run (`view_manipulation.ts`
+  around line 65 renders without restoring it), so a hydrated element's class resolver can skip
+  seeding. WP6 made `ComponentFactory.create` restore the flag; embedded views don't. From Codex's
+  WP6 review.

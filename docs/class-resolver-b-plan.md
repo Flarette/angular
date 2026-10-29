@@ -815,3 +815,20 @@ resolution on for a view.
   - For a refactoring round: no caller passes `'container'` to `getClassResolverForm` any more;
     the AOT and JIT messages for the host rules are duplicated in two files; `NG0321` logs once
     per view creation.
+- WP6 (`37ea2bc5f1`, fixups `904336333e` and `7fa0a9ae62`): orchestrator 9.00, Codex 6.00 before
+  the fixups, 8.00 after the first, and 9.00 after the second.
+  - Design note ruled before code (see Errata): a third hook, production ignoring a declaration
+    below the root, a resolver per view, and two added requirements (off instances equal plain
+    Angular, separate test targets).
+  - Codex's blocker on templates compiled before `withAutoResolution()` went to the owner, who
+    ruled to keep the limitation and document it; the proposal lists the options.
+  - Fixed: a hydrated root host wasn't seeded, because `wasLastNodeCreated()` was stale when
+    `ComponentFactory` created it; the read of the host's hydration info moved before the host's
+    directives, for every app. That fix let a component created in a constructor overwrite the
+    flag; `ComponentFactory.create` now restores it.
+  - Added specs: production ignoring a below-root declaration, root plus lazy route, an explicit
+    host registration with automatic resolution on, exact call counts, and constructor reentrancy.
+  - Deferred (`docs/DEFERRED.md`): `createEmbeddedView` in a constructor still overwrites the flag,
+    as before this round.
+  - For a refactoring round: the production rule for a below-root declaration has one spec, for a
+    lazy route; component-level declarations in production aren't tested.
