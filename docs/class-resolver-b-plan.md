@@ -752,3 +752,21 @@ were wrong; both are corrected.
     `NG8111`'s `<ng-template>` branches.
   - For a refactoring round: errors inside `F` point at the property name, as existing mappings
     do; `<ng-container>` handlers lose `Event` inference next to `NG8121`.
+- WP5 (`4640a37898`, fixup `bb8e57efff`): orchestrator 9.00, Codex 8.00 before the fixup and 9.00
+  after.
+  - Rules in AOT and JIT: `@HostListener('class')` and `('attr.class')` are `NG5001`; both forms
+    in one `host` object are `NG5001`; a second resolver on one element and a chain in `(class)`
+    are `NG5002`; an inherited second resolver throws `NG0323` in dev mode; containers emit
+    `ɵɵclassResolver` and log `NG0321`. The `@HostListener`-and-`host` compliance case is deleted;
+    an ngtsc spec rejects that combination once.
+  - The agent asked whether the partial `minVersion` rule must count container bindings. Ruled
+    yes, and Codex found the same gap: `<ng-template>` and `<ng-container>` resolvers declared
+    14.0.0. Fixed, with a compliance case for `<ng-template>` and ngtsc specs for
+    `<ng-container>`.
+  - Fixed: `NG8111` told users to call a method for a shorthand on a container, where nothing runs;
+    it now leaves containers to `NG8121` and `NG0321`.
+  - Codex showed that type checking still runs after a template parse error, so WP4's chain
+    handling isn't dead; its spec is restored.
+  - For a refactoring round: no caller passes `'container'` to `getClassResolverForm` any more;
+    the AOT and JIT messages for the host rules are duplicated in two files; `NG0321` logs once
+    per view creation.
