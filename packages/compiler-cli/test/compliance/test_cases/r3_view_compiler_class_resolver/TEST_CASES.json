@@ -62,21 +62,6 @@
       ]
     },
     {
-      "description": "should keep only the @HostListener('class') resolver when host metadata declares (class) too",
-      "inputFiles": ["class_resolver_host_listener_and_host.ts"],
-      "expectations": [
-        {
-          "files": [
-            {
-              "expected": "class_resolver_host_listener_and_host_host_bindings.js",
-              "generated": "class_resolver_host_listener_and_host.js"
-            }
-          ],
-          "failureMessage": "Incorrect host bindings"
-        }
-      ]
-    },
-    {
       "description": "should create a class resolver instruction for (class) inside a block",
       "inputFiles": ["class_resolver_with_blocks.ts"],
       "expectations": [

@@ -33,3 +33,4 @@ bindings` (`5099d6e3`), worktree `/Users/geruch/repos/angular-cn-wt/container-no
   `(class)="(cn) => () => cn()"` and `(attr.class)="$event.resolve(cn => cn())"`. TS7006, TS6133,
   and TS6199 are already filtered in `diagnostics.ts`, so removing or narrowing the marker is the
   likely fix. From Codex's WP4 review; to be fixed as a separate upstream PR.
+- WP5: `ClassResolverPresenceVisitor` in `packages/compiler/src/render3/partial/component.ts` doesn't count `(class)` or `(attr.class)` on `<ng-container>` or `<ng-template>`, which now compile to `ɵɵclassResolver`, so such a template keeps its older `minVersion` and an older linker compiles the binding as a listener.

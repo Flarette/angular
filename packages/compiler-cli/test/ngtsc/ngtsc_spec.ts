@@ -3644,6 +3644,219 @@ runInEachFileSystem((os: string) => {
       });
     });
 
+    describe('class resolver declarations', () => {
+      const chainMessage =
+        `A '(class)' shorthand must be a single expression, a function that receives the ` +
+        `resolver. Bind '(attr.class)' to run more than one statement.`;
+
+      function getSingleDiagnostic(): ts.Diagnostic {
+        const diags = env.driveDiagnostics();
+        expect(diags.length).toBe(1);
+        return diags[0];
+      }
+
+      for (const name of ['class', 'attr.class']) {
+        it(`should report @HostListener('${name}')`, () => {
+          env.write(
+            'test.ts',
+            `
+            import {Directive, HostListener} from '@angular/core';
+
+            @Directive({selector: '[dir]'})
+            export class Dir {
+              @HostListener('${name}', ['$event'])
+              onClass(event: unknown) {}
+            }
+          `,
+          );
+
+          const diag = getSingleDiagnostic();
+          expect(diag.code).toBe(ngErrorCode(ErrorCode.HOST_BINDING_PARSE_ERROR));
+          expect(diag.messageText).toBe(
+            `@HostListener('${name}') can't declare a class resolver. Bind it in the host ` +
+              `metadata instead: host: {'(${name})': 'onClass($event)'}.`,
+          );
+          expect(getDiagnosticSourceCode(diag)).toBe(`'${name}'`);
+        });
+      }
+
+      it('should report (class) and (attr.class) in one host', () => {
+        env.write(
+          'test.ts',
+          `
+          import {ClassCallback, ClassResolveEvent, Directive} from '@angular/core';
+
+          @Directive({
+            selector: '[dir]',
+            host: {'(class)': 'resolve', '(attr.class)': 'capture($event)'},
+          })
+          export class Dir {
+            resolve: ClassCallback = (cn) => cn();
+            capture(event: ClassResolveEvent) {}
+          }
+        `,
+        );
+
+        const diag = getSingleDiagnostic();
+        expect(diag.code).toBe(ngErrorCode(ErrorCode.HOST_BINDING_PARSE_ERROR));
+        expect(diag.messageText).toBe(
+          `Can't have multiple class resolvers in one host. Use only one '(class)' or ` +
+            `'(attr.class)' binding.`,
+        );
+        expect(getDiagnosticSourceCode(diag)).toBe(`'(attr.class)'`);
+      });
+
+      it('should report a chain in a host (class) shorthand', () => {
+        env.write(
+          'test.ts',
+          `
+          import {ClassCallback, Directive} from '@angular/core';
+
+          @Directive({
+            selector: '[dir]',
+            host: {'(class)': 'count(); resolve'},
+          })
+          export class Dir {
+            resolve: ClassCallback = (cn) => cn();
+            count() {}
+          }
+        `,
+        );
+
+        const diag = getSingleDiagnostic();
+        expect(diag.code).toBe(ngErrorCode(ErrorCode.HOST_BINDING_PARSE_ERROR));
+        expect(diag.messageText).toBe(chainMessage);
+        expect(getDiagnosticSourceCode(diag)).toBe(`'count(); resolve'`);
+      });
+
+      it('should report a second class resolver on one element', () => {
+        env.write(
+          'test.ts',
+          `
+          import {ClassCallback, ClassResolveEvent, Component} from '@angular/core';
+
+          @Component({
+            selector: 'test',
+            template: '<div (class)="resolve" (attr.class)="capture($event)"></div>',
+          })
+          export class TestCmp {
+            resolve: ClassCallback = (cn) => cn();
+            capture(event: ClassResolveEvent) {}
+          }
+        `,
+        );
+
+        const diag = getSingleDiagnostic();
+        expect(diag.code).toBe(ngErrorCode(ErrorCode.TEMPLATE_PARSE_ERROR));
+        expect(diag.messageText).toBe(
+          `Can't have multiple class resolvers on one element. Use only one '(class)' or ` +
+            `'(attr.class)' binding.`,
+        );
+        expect(getDiagnosticSourceCode(diag)).toBe(`(attr.class)="capture($event)"`);
+      });
+
+      it('should report a second (class) on one element', () => {
+        env.write(
+          'test.ts',
+          `
+          import {ClassCallback, Component} from '@angular/core';
+
+          @Component({
+            selector: 'test',
+            template: '<div (class)="resolve" (class)="other"></div>',
+          })
+          export class TestCmp {
+            resolve: ClassCallback = (cn) => cn();
+            other: ClassCallback = (cn) => cn();
+          }
+        `,
+        );
+
+        const diag = getSingleDiagnostic();
+        expect(diag.code).toBe(ngErrorCode(ErrorCode.TEMPLATE_PARSE_ERROR));
+        expect(diag.messageText).toBe(
+          `Can't have multiple class resolvers on one element. Use only one '(class)' or ` +
+            `'(attr.class)' binding.`,
+        );
+        expect(getDiagnosticSourceCode(diag)).toBe(`(class)="other"`);
+      });
+
+      it('should report a chain in a (class) shorthand', () => {
+        env.write(
+          'test.ts',
+          `
+          import {ClassCallback, Component} from '@angular/core';
+
+          @Component({
+            selector: 'test',
+            template: '<div (class)="count(); resolve"></div>',
+          })
+          export class TestCmp {
+            resolve: ClassCallback = (cn) => cn();
+            count() {}
+          }
+        `,
+        );
+
+        const diag = getSingleDiagnostic();
+        expect(diag.code).toBe(ngErrorCode(ErrorCode.TEMPLATE_PARSE_ERROR));
+        expect(diag.messageText).toBe(chainMessage);
+        expect(getDiagnosticSourceCode(diag)).toBe('count(); resolve');
+      });
+
+      it('should accept a chain in an (attr.class) binding', () => {
+        env.write(
+          'test.ts',
+          `
+          import {ClassResolveEvent, Component} from '@angular/core';
+
+          @Component({
+            selector: 'test',
+            template: '<div (attr.class)="count(); capture($event)"></div>',
+            host: {'(attr.class)': 'count(); capture($event)'},
+          })
+          export class TestCmp {
+            capture(event: ClassResolveEvent) {}
+            count() {}
+          }
+        `,
+        );
+
+        expect(env.driveDiagnostics()).toEqual([]);
+      });
+
+      it('should compile a class resolver on an ng-template', () => {
+        env.write(
+          'test.ts',
+          `
+          import {ClassCallback, ClassResolveEvent, Component} from '@angular/core';
+
+          @Component({
+            selector: 'test',
+            template: \`
+              <ng-template (class)="resolve"></ng-template>
+              <ng-template (attr.class)="capture($event)"></ng-template>
+            \`,
+          })
+          export class TestCmp {
+            resolve: ClassCallback = (cn) => cn();
+            capture(event: ClassResolveEvent) {}
+          }
+        `,
+        );
+
+        env.driveMain();
+        const jsContents = env.getContents('test.js');
+        expect(jsContents).toMatch(
+          /ɵɵclassResolver\(function \w+\(\$event\) \{\s*return \$event\.resolve\(ctx\.resolve\(\$event\.resolver\)\);\s*\}, 3\)/,
+        );
+        expect(jsContents).toMatch(
+          /ɵɵclassResolver\(function \w+\(\$event\) \{\s*return ctx\.capture\(\$event\);\s*\}, 1\)/,
+        );
+        expect(jsContents).not.toMatch(/ɵɵ(dom)?[lL]istener\(/);
+      });
+    });
+
     describe('multiple decorators on classes', () => {
       it('should compile @Injectable on Components, Directives, Pipes, and Modules', () => {
         env.write(

@@ -10,11 +10,14 @@ import {ConstantPool} from '../../../constant_pool';
 import {SecurityContext} from '../../../core';
 import * as e from '../../../expression_parser/ast';
 import * as i18n from '../../../i18n/i18n_ast';
-import {isNgContainer, splitNsName} from '../../../ml_parser/tags';
+import {splitNsName} from '../../../ml_parser/tags';
 import * as o from '../../../output/output_ast';
 import {ParseSourceSpan} from '../../../parse_util';
 import * as t from '../../../render3/r3_ast';
-import {getClassResolverForm} from '../../../render3/r3_class_resolver';
+import {
+  getClassResolverBindingForm,
+  getClassResolverForm,
+} from '../../../render3/r3_class_resolver';
 import {
   DeferBlockDepsEmitMode,
   R3ComponentDeferMetadata,
@@ -1650,13 +1653,13 @@ function ingestElementBindings(
         ),
       );
     } else {
-      // `(class)` and `(attr.class)` on an element compute the element's classes. Containers have
-      // no classes, so they keep listening to directive outputs.
-      const classResolverForm = getClassResolverForm(
+      // `(class)` and `(attr.class)` on an element compute the element's classes. On
+      // `<ng-container>`, which has none, they still compile to a class resolver, and the runtime
+      // reports it.
+      const classResolverForm = getClassResolverBindingForm(
         output.name,
         output.type,
         output.target,
-        isNgContainer(element.name) ? 'container' : 'element',
       );
       const listenerOp = ir.createListenerOp(
         op.xref,
@@ -1795,19 +1798,28 @@ function ingestTemplateBindings(
           ),
         );
       } else {
-        unit.create.push(
-          ir.createListenerOp(
-            op.xref,
-            op.handle,
-            output.name,
-            op.tag,
-            makeListenerHandlerOps(unit, output.handler, output.handlerSpan),
-            output.phase,
-            output.target,
-            false,
-            output.sourceSpan,
-          ),
+        // `(class)` and `(attr.class)` compile to a class resolver, as on an element.
+        // `<ng-template>` has no classes, so the runtime reports it.
+        const classResolverForm = getClassResolverBindingForm(
+          output.name,
+          output.type,
+          output.target,
         );
+        const listenerOp = ir.createListenerOp(
+          op.xref,
+          op.handle,
+          output.name,
+          op.tag,
+          classResolverForm === 'shorthand'
+            ? makeClassShorthandHandlerOps(unit, output.handler, output.handlerSpan)
+            : makeListenerHandlerOps(unit, output.handler, output.handlerSpan),
+          output.phase,
+          output.target,
+          false,
+          output.sourceSpan,
+        );
+        listenerOp.classResolverForm = classResolverForm;
+        unit.create.push(listenerOp);
       }
     }
     if (

@@ -7,7 +7,9 @@
  */
 
 import {
+  ASTWithSource,
   BindingType,
+  Chain,
   EmptyExpr,
   ParsedEvent,
   ParsedProperty,
@@ -26,6 +28,7 @@ import {PreparsedElementType, preparseElement} from '../template_parser/template
 
 import * as t from './r3_ast';
 import {createBoundaryBlock, isConnectedBoundaryErrorBlock} from './r3_boundaries';
+import {getClassResolverBindingForm} from './r3_class_resolver';
 import {createContentBlock} from './r3_content_blocks';
 import {
   createForLoop,
@@ -718,6 +721,8 @@ class HtmlAstToIvyAst implements html.Visitor {
       }
     }
 
+    this.validateClassResolvers(boundEvents);
+
     return {
       attributes,
       boundEvents,
@@ -1175,6 +1180,36 @@ class HtmlAstToIvyAst implements html.Visitor {
         this.reportError('Duplicate reference names are not allowed', ref.sourceSpan);
       } else {
         seenNames.add(ref.name);
+      }
+    }
+  }
+
+  /**
+   * Reports a second `(class)` or `(attr.class)` binding on one element, and a `(class)` shorthand
+   * that isn't a single expression. Containers are included: their bindings compile the same way.
+   */
+  private validateClassResolvers(boundEvents: t.BoundEvent[]): void {
+    let hasClassResolver = false;
+    for (const event of boundEvents) {
+      const form = getClassResolverBindingForm(event.name, event.type, event.target);
+      if (form === null) {
+        continue;
+      }
+      if (hasClassResolver) {
+        this.reportError(
+          `Can't have multiple class resolvers on one element. Use only one '(class)' or ` +
+            `'(attr.class)' binding.`,
+          event.sourceSpan,
+        );
+      }
+      hasClassResolver = true;
+      const ast = event.handler instanceof ASTWithSource ? event.handler.ast : event.handler;
+      if (form === 'shorthand' && ast instanceof Chain) {
+        this.reportError(
+          `A '(class)' shorthand must be a single expression, a function that receives the ` +
+            `resolver. Bind '(attr.class)' to run more than one statement.`,
+          event.handlerSpan,
+        );
       }
     }
   }

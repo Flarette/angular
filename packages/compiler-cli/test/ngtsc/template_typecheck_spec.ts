@@ -1304,20 +1304,6 @@ runInEachFileSystem(() => {
         expect(getSourceCodeForDiagnostic(diags[0])).toBe('classes');
       });
 
-      it('should check the earlier expressions of a shorthand chain as statements', () => {
-        writeComponent(
-          `<div (class)="count($event); (cn) => 'x'"></div>`,
-          `count(value: number) {}`,
-        );
-
-        const diags = env.driveDiagnostics();
-        expect(diags.map(flatten)).toEqual([
-          `Argument of type 'ClassResolveEvent' is not assignable to parameter of type 'number'.`,
-          `Type 'string' is not assignable to type 'ResolvedClasses'.`,
-        ]);
-        expect(diags.map((diag) => getSourceCodeForDiagnostic(diag))).toEqual(['$event', `'x'`]);
-      });
-
       it('should not let a directive output named class claim a (class) binding', () => {
         env.tsconfig({
           strictTemplates: true,
@@ -1420,13 +1406,13 @@ runInEachFileSystem(() => {
       for (const namespace of ['svg', 'math']) {
         it(`should check the handler with $event as any after reporting a class resolver on an ng-container in the ${namespace} namespace`, () => {
           writeComponent(
-            `<${namespace}><ng-container (class)="h($event); missing()"></ng-container></${namespace}>`,
+            `<${namespace}><ng-container (attr.class)="h($event); missing()"></ng-container></${namespace}>`,
             `h(e: number) {}`,
           );
 
           expect(env.driveDiagnostics().map((diag) => diag.messageText)).toEqual(
             jasmine.arrayWithExactContents([
-              `The '(class)' binding can't resolve classes on '<ng-container>' or ` +
+              `The '(attr.class)' binding can't resolve classes on '<ng-container>' or ` +
                 `'<ng-template>', because neither is rendered as an element. Bind it on an ` +
                 `element instead.`,
               `Property 'missing' does not exist on type 'TestCmp'.`,

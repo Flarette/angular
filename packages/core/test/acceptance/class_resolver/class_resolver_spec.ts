@@ -105,6 +105,31 @@ describe('(class) binding', () => {
         'shadow-lg',
       ]);
     });
+
+    for (const tag of ['ng-container', 'ng-template']) {
+      it(`reports a resolver on <${tag}> in dev mode and runs nothing`, async () => {
+        const error = spyOn(console, 'error');
+
+        @Component({
+          template: `<${tag} (class)="(record)" /><${tag} (attr.class)="received.push($event)" />`,
+        })
+        class App {
+          readonly received: unknown[] = [];
+          protected readonly record = (cn: BoundClassResolver) => {
+            this.received.push(cn);
+            return cn();
+          };
+        }
+
+        const fixture = await render(App);
+
+        expect(fixture.componentInstance.received).toEqual([]);
+        expect(error.calls.allArgs()).toEqual([
+          [jasmine.stringMatching(/^NG0321: The `\(class\)` binding /)],
+          [jasmine.stringMatching(/^NG0321: The `\(attr\.class\)` binding /)],
+        ]);
+      });
+    }
   });
 
   describe("in a component's host bindings", () => {
@@ -540,7 +565,8 @@ describe('(class) binding', () => {
     });
 
     for (const tag of ['ng-container', 'ng-template']) {
-      it(`runs no resolver on <${tag}>`, async () => {
+      it(`reports a resolver on <${tag}> in dev mode and runs nothing`, async () => {
+        const error = spyOn(console, 'error');
         const received: unknown[] = [];
 
         @Directive({selector: '[recorder]', host: {'(class)': 'record'}})
@@ -557,6 +583,9 @@ describe('(class) binding', () => {
         await expectAsync(render(App)).toBeResolved();
 
         expect(received).toEqual([]);
+        expect(error.calls.allArgs()).toEqual([
+          [jasmine.stringMatching(/^NG0321: The `\(class\)` host binding of `Recorder` /)],
+        ]);
       });
     }
   });
@@ -636,28 +665,9 @@ describe('(class) binding', () => {
       expect(warn).not.toHaveBeenCalled();
     });
 
-    it('keeps subscribing to the output on <ng-container>', async () => {
-      const warn = spyOn(console, 'warn');
-
-      @Component({
-        imports: [Emitter],
-        template: `<ng-container emitter (class)="received = $event" />`,
-      })
-      class App {
-        received = '';
-        @ViewChild(Emitter) emitter!: Emitter;
-      }
-
-      const fixture = await render(App);
-      fixture.componentInstance.emitter.classEvent.emit('sent');
-      await fixture.whenStable();
-
-      expect(fixture.componentInstance.received).toBe('sent');
-      expect(warn).not.toHaveBeenCalled();
-    });
-
     for (const tag of ['ng-container', 'ng-template']) {
-      it(`subscribes only the template binding to the output on <${tag}>`, async () => {
+      it(`ignores the output and runs no resolver on <${tag}>`, async () => {
+        const error = spyOn(console, 'error');
         const recorded: unknown[] = [];
 
         @Directive({selector: '[recorder]', host: {'(class)': 'record'}})
@@ -682,7 +692,11 @@ describe('(class) binding', () => {
         await fixture.whenStable();
 
         expect(recorded).toEqual([]);
-        expect(fixture.componentInstance.received).toEqual(['sent']);
+        expect(fixture.componentInstance.received).toEqual([]);
+        expect(error.calls.allArgs()).toEqual([
+          [jasmine.stringMatching(/^NG0321: The `\(class\)` host binding of `Recorder` /)],
+          [jasmine.stringMatching(/^NG0321: The `\(class\)` binding /)],
+        ]);
       });
     }
   });
@@ -728,12 +742,6 @@ describe('(class) binding', () => {
     })
     class UiButton {
       protected readonly resolve = resolver('cmp-host');
-      private readonly listen = resolver('cmp-listener');
-
-      @HostListener('class')
-      onClass(): ClassCallback {
-        return this.listen;
-      }
     }
 
     @Directive({selector: '[tooltip]', host: {'(class)': 'resolve'}})
@@ -741,15 +749,10 @@ describe('(class) binding', () => {
       protected readonly resolve = resolver('tooltip');
     }
 
-    @Directive({selector: '[ring]'})
+    @Directive({selector: '[ring]', host: {'(class)': 'resolve'}})
     class Ring {
       @HostBinding('class') readonly ringClass = 'ring';
-      private readonly resolve = resolver('ring');
-
-      @HostListener('class')
-      onClass(): ClassCallback {
-        return this.resolve;
-      }
+      protected readonly resolve = resolver('ring');
     }
 
     it('runs every resolver from the lowest to the highest priority', async () => {
@@ -769,14 +772,14 @@ describe('(class) binding', () => {
 
       const fixture = await render(App);
 
-      expect(ranResolvers()).toEqual(['supplied', 'cmp-listener', 'tooltip', 'ring', 'template']);
+      expect(ranResolvers()).toEqual(['supplied', 'cmp-host', 'tooltip', 'ring', 'template']);
       expect(fixture.componentInstance.sources).toEqual([
-        ['cmp', 'by-supplied', 'by-cmp-listener'],
+        ['cmp', 'by-supplied', 'by-cmp-host'],
         ['ring', 'by-tooltip', 'by-ring'],
         ['tpl'],
       ]);
       expect(classesOf(fixture.nativeElement.querySelector('ui-button'))).toEqual([
-        'by-cmp-listener',
+        'by-cmp-host',
         'by-ring',
         'by-supplied',
         'by-template',
@@ -793,7 +796,7 @@ describe('(class) binding', () => {
 
       await render(App);
 
-      expect(ranResolvers()).toEqual(['supplied', 'cmp-listener', 'tooltip', 'ring']);
+      expect(ranResolvers()).toEqual(['supplied', 'cmp-host', 'tooltip', 'ring']);
     });
 
     it('matches directives in the order of the imports', async () => {
@@ -802,16 +805,49 @@ describe('(class) binding', () => {
 
       await render(App);
 
-      expect(ranResolvers()).toEqual(['supplied', 'cmp-listener', 'ring', 'tooltip']);
+      expect(ranResolvers()).toEqual(['supplied', 'cmp-host', 'ring', 'tooltip']);
     });
 
-    it("runs the component's host directive resolver, then its @HostListener resolver", async () => {
+    it("runs the component's host directive resolver, then its own resolver", async () => {
       @Component({imports: [UiButton], template: `<ui-button />`})
       class App {}
 
       await render(App);
 
-      expect(ranResolvers()).toEqual(['supplied', 'cmp-listener']);
+      expect(ranResolvers()).toEqual(['supplied', 'cmp-host']);
+    });
+
+    describe('declared through inheritance', () => {
+      @Directive({host: {'(class)': 'resolveBase'}})
+      class Base {
+        protected readonly resolveBase = resolver('base');
+      }
+
+      it('runs the resolver that a directive inherits', async () => {
+        @Directive({selector: '[sub]'})
+        class Sub extends Base {}
+
+        @Component({imports: [Sub], template: `<div sub></div>`})
+        class App {}
+
+        const fixture = await render(App);
+
+        expect(ranResolvers()).toEqual(['base']);
+        expect(classesOf(fixture.nativeElement.querySelector('div'))).toEqual(['by-base']);
+      });
+
+      it('reports a directive that inherits a resolver and declares another one in dev mode', async () => {
+        @Directive({selector: '[sub]', host: {'(class)': 'resolveSub'}})
+        class Sub extends Base {
+          protected readonly resolveSub = resolver('sub');
+        }
+
+        @Component({imports: [Sub], template: `<div sub></div>`})
+        class App {}
+
+        await expectAsync(render(App)).toBeRejectedWithError(/^NG0323: `Sub` has more than one /);
+        expect(runs).toEqual([]);
+      });
     });
 
     it('passes the next resolver only the classes that a lower resolver resolved', async () => {
@@ -1165,6 +1201,108 @@ describe('provideClassResolver', () => {
     const fixture = await render(App);
 
     expect(classesOf(fixture.nativeElement.querySelector('ui-badge'))).toEqual(['by-outer']);
+  });
+});
+
+describe('class resolver declarations', () => {
+  const chainMessage =
+    `A '(class)' shorthand must be a single expression, a function that receives the ` +
+    `resolver. Bind '(attr.class)' to run more than one statement.`;
+
+  /** Matches an error message that contains the given text. */
+  function containing(text: string): RegExp {
+    return new RegExp(text.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'));
+  }
+
+  for (const name of ['class', 'attr.class']) {
+    it(`rejects @HostListener('${name}')`, () => {
+      @Directive({selector: '[dir]'})
+      class Dir {
+        @HostListener(name, ['$event'])
+        onClass(event: unknown) {}
+      }
+
+      @Component({imports: [Dir], template: `<div dir></div>`})
+      class App {}
+
+      expect(() => TestBed.createComponent(App)).toThrowError(
+        containing(
+          `@HostListener('${name}') can't declare a class resolver. Bind it in the host ` +
+            `metadata instead: host: {'(${name})': 'onClass($event)'}.`,
+        ),
+      );
+    });
+  }
+
+  it('rejects (class) and (attr.class) in one host', () => {
+    @Directive({
+      selector: '[dir]',
+      host: {'(class)': 'resolve', '(attr.class)': 'capture($event)'},
+    })
+    class Dir {
+      protected readonly resolve = (cn: BoundClassResolver) => cn();
+      protected capture(event: ClassResolveEvent) {}
+    }
+
+    @Component({imports: [Dir], template: `<div dir></div>`})
+    class App {}
+
+    expect(() => TestBed.createComponent(App)).toThrowError(
+      containing(
+        `Can't have multiple class resolvers in one host. Use only one '(class)' or ` +
+          `'(attr.class)' binding.`,
+      ),
+    );
+  });
+
+  it('rejects a chain in a host (class) shorthand', () => {
+    @Directive({selector: '[dir]', host: {'(class)': 'count(); resolve'}})
+    class Dir {
+      protected readonly resolve = (cn: BoundClassResolver) => cn();
+      protected count() {}
+    }
+
+    @Component({imports: [Dir], template: `<div dir></div>`})
+    class App {}
+
+    expect(() => TestBed.createComponent(App)).toThrowError(containing(chainMessage));
+  });
+
+  it('rejects a second class resolver on one element', () => {
+    @Component({
+      template: `<div (class)="(cn) => cn()" (attr.class)="received.push($event)"></div>`,
+    })
+    class App {
+      readonly received: unknown[] = [];
+    }
+
+    expect(() => TestBed.createComponent(App)).toThrowError(
+      containing(
+        `Can't have multiple class resolvers on one element. Use only one '(class)' or ` +
+          `'(attr.class)' binding.`,
+      ),
+    );
+  });
+
+  it('rejects a second (class) on one element', () => {
+    @Component({template: `<div (class)="(cn) => cn('a')" (class)="(cn) => cn('b')"></div>`})
+    class App {}
+
+    expect(() => TestBed.createComponent(App)).toThrowError(
+      containing(
+        `Can't have multiple class resolvers on one element. Use only one '(class)' or ` +
+          `'(attr.class)' binding.`,
+      ),
+    );
+  });
+
+  it('rejects a chain in a (class) shorthand', () => {
+    @Component({template: `<div (class)="count(); (cn) => cn()"></div>`})
+    class App {
+      protected count() {}
+    }
+
+    expect(() => TestBed.createComponent(App)).toThrowError(containing(chainMessage));
   });
 });
 

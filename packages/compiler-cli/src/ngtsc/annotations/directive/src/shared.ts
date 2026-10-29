@@ -8,6 +8,7 @@
 
 import {
   ArrowFunctionExpr,
+  Chain,
   ClassPropertyMapping,
   createMayBeForwardRefExpression,
   DYNAMIC_TYPE,
@@ -17,6 +18,7 @@ import {
   ExternalExpr,
   ExternalReference,
   ForwardRefHandling,
+  getClassResolverForm,
   getSafePropertyAccessString,
   HostBindingDecorator,
   HostListenerDecorator,
@@ -25,7 +27,9 @@ import {
   literal,
   LiteralArrayExpr,
   literalMap,
+  makeBindingParser,
   MaybeForwardRefExpression,
+  ParsedEventType,
   ParsedHostBindings,
   ParseError,
   parseHostBindings,
@@ -752,6 +756,19 @@ function extractHostBindings(
             }
             args = resolvedArgs;
           }
+        }
+
+        // Listeners are keyed by event name, so a second class resolver would silently replace the
+        // first one. Only the `host` object declares one.
+        if (getClassResolverForm(eventName, ParsedEventType.Regular, null, 'host') !== null) {
+          throw new FatalDiagnosticError(
+            ErrorCode.HOST_BINDING_PARSE_ERROR,
+            decorator.args !== null && decorator.args.length > 0
+              ? decorator.args[0]
+              : decorator.node,
+            `@HostListener('${eventName}') can't declare a class resolver. Bind it in the host ` +
+              `metadata instead: host: {'(${eventName})': '${member.name}(${args.join(',')})'}.`,
+          );
         }
 
         if (ts.isDecorator(decorator.node)) {
@@ -2076,7 +2093,68 @@ function evaluateHostExpressionBindings(
     );
   }
 
+  verifyHostClassResolvers(bindings, hostExpr);
+
   return bindings;
+}
+
+/**
+ * Verifies that the `host` object declares at most one class resolver, and that a `(class)`
+ * shorthand is a single expression.
+ * @param bindings Host bindings parsed from the `host` object.
+ * @param hostExpr Expression declaring the host bindings.
+ */
+function verifyHostClassResolvers(bindings: ParsedHostBindings, hostExpr: ts.Expression): void {
+  const events = makeBindingParser().createDirectiveHostEventAsts(
+    bindings.listeners,
+    createSourceSpan(hostExpr),
+  );
+  let hasClassResolver = false;
+  for (const event of events ?? []) {
+    const form = getClassResolverForm(event.name, event.type, event.targetOrPhase, 'host');
+    if (form === null) {
+      continue;
+    }
+    // A class resolver has no target, so its key is the event name in parentheses.
+    const property = getHostProperty(hostExpr, `(${event.name})`);
+    if (hasClassResolver) {
+      throw new FatalDiagnosticError(
+        ErrorCode.HOST_BINDING_PARSE_ERROR,
+        property?.name ?? hostExpr,
+        `Can't have multiple class resolvers in one host. Use only one '(class)' or ` +
+          `'(attr.class)' binding.`,
+      );
+    }
+    hasClassResolver = true;
+    if (form === 'shorthand' && event.handler.ast instanceof Chain) {
+      throw new FatalDiagnosticError(
+        ErrorCode.HOST_BINDING_PARSE_ERROR,
+        property?.initializer ?? hostExpr,
+        `A '(class)' shorthand must be a single expression, a function that receives the ` +
+          `resolver. Bind '(attr.class)' to run more than one statement.`,
+      );
+    }
+  }
+}
+
+/**
+ * Finds the property with the given key in a `host` object literal.
+ * @param hostExpr Expression declaring the host bindings.
+ * @param key Key of the property, such as `(class)`.
+ */
+function getHostProperty(hostExpr: ts.Expression, key: string): ts.PropertyAssignment | null {
+  if (ts.isObjectLiteralExpression(hostExpr)) {
+    for (const prop of hostExpr.properties) {
+      if (
+        ts.isPropertyAssignment(prop) &&
+        ts.isStringLiteral(prop.name) &&
+        prop.name.text === key
+      ) {
+        return prop;
+      }
+    }
+  }
+  return null;
 }
 
 /**

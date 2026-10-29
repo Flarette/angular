@@ -141,42 +141,6 @@ export declare class MyComponent {
 }
 
 /****************************************************************************************************
- * PARTIAL FILE: class_resolver_host_listener_and_host.js
- ****************************************************************************************************/
-import { Directive, HostListener } from '@angular/core';
-import * as i0 from "@angular/core";
-export class MyDirective {
-    fromHost = (cn) => cn();
-    fromDecorator() {
-        return (cn) => cn();
-    }
-    static ɵfac = i0.ɵɵngDeclareFactory({ minVersion: "12.0.0", version: "0.0.0-PLACEHOLDER", ngImport: i0, type: MyDirective, deps: [], target: i0.ɵɵFactoryTarget.Directive });
-    static ɵdir = i0.ɵɵngDeclareDirective({ minVersion: "22.3.0", version: "0.0.0-PLACEHOLDER", type: MyDirective, isStandalone: true, selector: "[myDir]", host: { listeners: { "class": "fromDecorator()" } }, ngImport: i0 });
-}
-i0.ɵɵngDeclareClassMetadata({ minVersion: "12.0.0", version: "0.0.0-PLACEHOLDER", ngImport: i0, type: MyDirective, decorators: [{
-            type: Directive,
-            args: [{
-                    selector: '[myDir]',
-                    host: { '(class)': 'fromHost' },
-                }]
-        }], propDecorators: { fromDecorator: [{
-                type: HostListener,
-                args: ['class']
-            }] } });
-
-/****************************************************************************************************
- * PARTIAL FILE: class_resolver_host_listener_and_host.d.ts
- ****************************************************************************************************/
-import { ClassCallback } from '@angular/core';
-import * as i0 from "@angular/core";
-export declare class MyDirective {
-    fromHost: ClassCallback;
-    fromDecorator(): ClassCallback;
-    static ɵfac: i0.ɵɵFactoryDeclaration<MyDirective, never>;
-    static ɵdir: i0.ɵɵDirectiveDeclaration<MyDirective, "[myDir]", never, {}, {}, never, never, true, never>;
-}
-
-/****************************************************************************************************
  * PARTIAL FILE: class_resolver_with_blocks.js
  ****************************************************************************************************/
 import { Component } from '@angular/core';

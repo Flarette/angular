@@ -7,7 +7,7 @@
  */
 
 import {InternalInjectFlags} from '../../di/interface/injector';
-import {RuntimeError, RuntimeErrorCode} from '../../errors';
+import {formatRuntimeError, RuntimeError, RuntimeErrorCode} from '../../errors';
 import {KeyValueArray} from '../../util/array_utils';
 import {EMPTY_ARRAY} from '../../util/empty';
 import {CLASS_RESOLVER} from '../class_resolver_provider';
@@ -58,8 +58,7 @@ import {classKeyValueArraySet, classStringParser, toStylingKeyValueArray} from '
  *
  * The binding resolves the element's classes even if a directive on the element declares an output
  * with the same name; the output's emissions don't reach it. On `<ng-container>` and
- * `<ng-template>`, which have no classes, a binding in host bindings does nothing, like the other
- * host bindings there.
+ * `<ng-template>`, which have no classes, the binding does nothing, and dev mode reports it.
  *
  * @param resolverFn Handler compiled from the binding, which receives a `ClassResolveEvent` as
  * `$event`.
@@ -74,11 +73,13 @@ export function ɵɵclassResolver(
   const lView = getLView<{} | null>();
   const tView = getTView();
   const tNode = getCurrentTNode()!;
+  const owner = getCurrentDirectiveIndex();
   if (!(tNode.type & TNodeType.Element)) {
-    // Only host bindings get here: the template's `(class)` on a container compiles to a listener.
+    if (ngDevMode) {
+      reportClassResolverOnContainer(tView, owner, flags);
+    }
     return ɵɵclassResolver;
   }
-  const owner = getCurrentDirectiveIndex();
   // Appending keeps the priority order: element creation runs the directives' host bindings in
   // match order, before the template's `(class)` registers.
   if (tView.firstCreatePass) {
@@ -103,6 +104,30 @@ export function ɵɵclassResolver(
     );
   }
   return ɵɵclassResolver;
+}
+
+/**
+ * Reports a `(class)` or `(attr.class)` binding on `<ng-container>` or `<ng-template>`, which has no
+ * classes to resolve.
+ *
+ * @param owner Index of the directive whose host binding this is, or `-1` for the template.
+ */
+function reportClassResolverOnContainer(tView: TView, owner: number, flags: number): void {
+  const form = flags & ClassResolverFlags.Shorthand ? '`(class)`' : '`(attr.class)`';
+  const directiveName =
+    owner === -1 ? null : (tView.data[owner] as DirectiveDef<unknown>).type.name;
+  const binding =
+    directiveName === null ? `${form} binding` : `${form} host binding of \`${directiveName}\``;
+  console.error(
+    formatRuntimeError(
+      RuntimeErrorCode.CLASS_RESOLVER_ON_CONTAINER,
+      `The ${binding} can't resolve classes on \`<ng-container>\` or \`<ng-template>\`, because ` +
+        'neither is rendered as an element. ' +
+        (directiveName === null
+          ? 'Bind it on an element instead.'
+          : `Apply \`${directiveName}\` to an element instead.`),
+    ),
+  );
 }
 
 /**
@@ -133,6 +158,17 @@ function classResolverFirstCreatePass(
   flags: ClassResolverFlags,
 ): void {
   if (tNode.classResolver !== null) {
+    // Only inheritance registers a second resolver for one directive: its host bindings run its
+    // base class's first.
+    if (ngDevMode && owner !== -1 && tNode.classResolver.owners.includes(owner)) {
+      throw new RuntimeError(
+        RuntimeErrorCode.MULTIPLE_CLASS_RESOLVERS,
+        `\`${(tView.data[owner] as DirectiveDef<unknown>).type.name}\` has more than one class ` +
+          'resolver, through inheritance. A directive can have at most one `(class)` or ' +
+          '`(attr.class)` binding in its host, including the ones it inherits from its base ' +
+          'classes.',
+      );
+    }
     tNode.classResolver.owners.push(owner);
     tNode.classResolver.flags.push(flags);
     return;
