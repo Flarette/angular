@@ -705,9 +705,7 @@ root-only rule prevents. Element creation calls a third hook, `_setUpClassResolu
 golden gains that symbol: it's a hook reference, not a resolver function, as with WP0's second
 hook. The per-view setting lives in a `WeakMap` keyed by component and root views plus per-element
 slots, with no `LViewFlags` change. An automatically resolved element uses its view's resolver,
-which departs from D5. Codex's and the advisor's concern that off instances must match an app
-without the feature became a differential spec and a list of every read site; test-order
-sensitivity became separate Bazel targets.
+which departs from D5. Two requirements were added: off instances must behave exactly like an app without the feature (a differential spec and a list of every read site), and the automatic-resolution specs run in their own Bazel targets, because the runtime turns on for the whole process.
 
 ## Reviews
 
