@@ -94,7 +94,7 @@ Listed for the owner at review.
 | D9  | Automatic resolution looks its setting up once per template instance, from the injector of the component that declares the template, and stores it in the instance. Instances where it's off skip their elements on refresh.                                                                                                                                                                                                                                                                                                                                                                                                                                                        |
 | D10 | Automatic resolution remembers each element's last per-source strings and skips the resolver and the DOM diff when they haven't changed. Explicit resolvers still run on every refresh (R3).                                                                                                                                                                                                                                                                                                                                                                                                                                                                                        |
 | D11 | One normalization function serves extras, `resolve()`, and the plain merge (B5).                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                    |
-| D12 | The hooks are module-level function references in a small module: the refresh hook, which `change_detection.ts` imports, and the binding registration hook, which `styling.ts` imports. `ɵɵclassResolver` and the automatic feature set both in one call, the way `enableLocateOrCreateElementNodeImpl()` switches hydration on (`packages/core/src/hydration/api.ts`).                                                                                                                                                                                                                                                                                                             |
+| D12 | The hooks are module-level function references in a small module: the refresh hook, which `change_detection.ts` imports, the binding registration hook, which `styling.ts` imports, and from WP6 the setup hook `_setUpClassResolution`, which element creation calls. `ɵɵclassResolver` and the automatic feature set them in one call, the way `enableLocateOrCreateElementNodeImpl()` switches hydration on (`packages/core/src/hydration/api.ts`).                                                                                                                                                                                                                              |
 | D13 | The shared classifier lives in `packages/compiler` and is exported for `compiler-cli`. It answers, for an event binding, whether it's a resolver and which form it is.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                              |
 
 ## Environment
@@ -189,7 +189,8 @@ Regenerate the partial golden with
 
 A golden that changes on purpose is accepted with its `.accept` target (`core_api`, `core_errors`,
 a bundling `symbol_test`, or the compliance golden), and the WP report names it. A bundling golden
-gains at most the hook symbols named in WP0, and never a class-resolver function (B13).
+gains at most the hook symbols named in WP0 and WP6 (D12), and never a class-resolver function
+(B13).
 
 ## Building blocks
 
@@ -586,6 +587,15 @@ export class LegacyTable {}
 - The setting is looked up once per template instance (D9). Below the root, providing the
   resolver without the feature turns it off, and with the feature turns it back on.
 - A provider below the root that uses the feature while the root doesn't: `NG0322` in dev mode.
+  In production the declaration is ignored and the subtree stays off; the root check that decides
+  it is one memoized lookup per app, inside the feature's module.
+- The resolver of an automatically resolved element is the one from the provider that decides its
+  view's setting (the declaring component's `providers` and `viewProviders`, or the root), not
+  the element's own injector. This departs from D5, which covers explicit registrations.
+- Off instances behave exactly like an app without the feature. List every read of
+  `tNode.classResolver` and `tView.classResolvers` and say what each does when the data exists but
+  the instance is off.
+- Bundling: all eight goldens gain exactly `_setUpClassResolution`, and nothing else.
 - An element with an explicit resolver isn't resolved automatically as well.
 - Memoize by per-source strings (D10).
 - The feature's runtime stays out of bundles that don't call it (B13).
@@ -602,6 +612,14 @@ Tests, red first:
 - An element with an explicit `(class)` resolves once.
 - A refresh with unchanged sources doesn't call the resolver; a changed source does.
 - Hydration: an automatically resolved element hydrates without a class mismatch.
+- Differential: the same template with the feature declared but turned off for its subtree, and
+  with no feature at all, gives identical classes for static classes, `[class]`, `[class.x]`,
+  host class bindings, a class input, and hydration.
+
+The runtime turns on for the whole process at the first `withAutoResolution()` call, and component
+definitions cache their `TView`. So the automatic-resolution specs, and their hydration spec, go in
+their own Bazel targets (BUILD edits are in scope), and every target that calls
+`withAutoResolution()` passes with `--runs_per_test=10`.
 
 Commit: `feat(core): resolve classes automatically when the root opts in`.
 
@@ -609,7 +627,9 @@ Commit: `feat(core): resolve classes automatically when the root opts in`.
 
 - M1, by the orchestrator: measure Angular's own cost per element and refresh (collecting,
   normalizing, and diffing classes), for an explicit `(class)` and for automatic resolution, with
-  the resolver stubbed out. The numbers go into the proposal's notes for maintainers.
+  the resolver stubbed out, and for an app that declares the feature with a subtree turned off
+  (expando slots, refresh-loop entries, and binding registration on off views). The numbers go
+  into the proposal's notes for maintainers.
 - Then the comment cleanup, the external audit, and the triage, as in round 1.
 
 ## Out of scope: ask before touching
@@ -673,6 +693,21 @@ in the proposal. The new codes get names that describe B7 and B8 (D6):
 `CLASS_RESOLVER_ON_CONTAINER = 8121`. `NG8120` also covers `(attr.class)` next to an output named
 `attr.class`, as B7 does. The `host_bindings.ts` path in WP4's scope was stale, and the spec counts
 were wrong; both are corrected.
+
+### 2026-10-29: WP6's design
+
+The WP6 agent's design note was ruled by the orchestrator. `withAutoResolution()` turns the runtime
+on for the process when it's called, because a component's providers never run an environment
+initializer. The root is the injector with scope `'root'`; lazy-route injectors don't count. A
+declaration below a root without the feature throws `NG0322` in dev mode and is ignored in
+production, because acting on it would bring back the load-order-dependent setup that B14's
+root-only rule prevents. Element creation calls a third hook, `_setUpClassResolution`, so every
+golden gains that symbol: it's a hook reference, not a resolver function, as with WP0's second
+hook. The per-view setting lives in a `WeakMap` keyed by component and root views plus per-element
+slots, with no `LViewFlags` change. An automatically resolved element uses its view's resolver,
+which departs from D5. Codex's and the advisor's concern that off instances must match an app
+without the feature became a differential spec and a list of every read site; test-order
+sensitivity became separate Bazel targets.
 
 ## Reviews
 
