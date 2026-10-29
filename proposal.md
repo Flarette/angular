@@ -1048,6 +1048,34 @@ the data up lazily, the first time it's needed, from what Angular's styling code
 per element. Then any provider could turn the feature on, at a cost only where it's on. It's
 unproven and touches more of the runtime, so it's left for investigation.
 
+#### Templates compiled before the feature turns on
+
+The runtime turns on when `withAutoResolution()` is called, and Angular caches each component's
+template data on its definition. A template compiled before that call never gets automatic
+resolution, in that process, for any later app. An app whose root providers call
+`withAutoResolution()` before its first render isn't affected. Two cases are:
+
+- Several apps in one process, where an app without the feature renders a shared component first.
+- Tests. `TestBed` saves and restores the cached template data of the components it tracks, so
+  most tests are unaffected, but a shared component that an earlier test rendered before the
+  feature turned on, and that `TestBed` doesn't track, isn't resolved in later tests. Declaring the
+  feature in the test setup file, before any test renders, avoids it.
+
+The implementation keeps this limitation and documents it, because the feature would ship in a
+major version, where such test breakage may be acceptable. Production gives no signal: the affected
+elements keep their classes unresolved. Options for maintainers:
+
+- Warn once per affected template in dev mode, when the feature is on but the template was compiled
+  before it turned on.
+- Drop the cached template data when the feature meets such a template, so the next instance of
+  that component compiles with automatic resolution. Instances that already exist keep the old data.
+- Set the data up lazily, as described above, which also rebuilds what the first update pass
+  records.
+
+A provider of the feature in a directive's own `providers` changes no template's setting by itself.
+`NG0322` checks a provider when it would turn automatic resolution on for a view, so such a provider
+is only checked once a component nested under that element looks it up.
+
 ### The provider's shape
 
 `provideClassResolver(resolver, ...features)` is shaped for one attribute. If

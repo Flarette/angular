@@ -707,6 +707,18 @@ hook. The per-view setting lives in a `WeakMap` keyed by component and root view
 slots, with no `LViewFlags` change. An automatically resolved element uses its view's resolver,
 which departs from D5. Two requirements were added: off instances must behave exactly like an app without the feature (a differential spec and a list of every read site), and the automatic-resolution specs run in their own Bazel targets, because the runtime turns on for the whole process.
 
+### 2026-10-29: templates compiled before `withAutoResolution()` (owner ruling)
+
+Codex's WP6 review found that a template compiled before the first `withAutoResolution()` call
+never gets automatic resolution, because definitions cache their template data. It affects several
+apps in one process and shared components that `TestBed` doesn't track. The owner ruled: keep the
+limitation and document it, with a minimal implementation and no warning, because the feature
+would ship in a major version where such test breakage may be acceptable, and maintainers make the
+final call. The proposal's notes for maintainers list the options: a dev-mode warning, dropping
+the cached template data for future instances, and lazy setup. Codex withdrew its finding that a
+directive's own provider skips `NG0322`: the check applies when a provider would turn automatic
+resolution on for a view.
+
 ## Reviews
 
 - WP0 (`adcbf79418`, fixup `d7f4b0254c`): orchestrator 9.00, Codex 9.00 before the fixup.
