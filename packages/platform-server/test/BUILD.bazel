@@ -58,6 +58,7 @@ ts_project(
     srcs = ["class_resolver_hydration_cases.ts"],
     deps = [
         ":dom_utils",
+        "//packages/common",
         "//packages/core",
     ],
 )

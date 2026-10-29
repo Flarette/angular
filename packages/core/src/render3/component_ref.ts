@@ -50,6 +50,7 @@ import {RElement, RNode} from './interfaces/renderer_dom';
 import {
   CONTEXT,
   HEADER_OFFSET,
+  HYDRATION,
   LView,
   LViewEnvironment,
   LViewFlags,
@@ -78,7 +79,7 @@ import {
 } from './node_selector_matcher';
 import {profiler} from './profiler';
 import {executeContentQueries} from './queries/query_execution';
-import {enterView, leaveView} from './state';
+import {enterView, lastNodeWasCreated, leaveView} from './state';
 import {debugStringifyTypeForError, stringifyForError} from './util/stringify_utils';
 import {getComponentLViewByIndex, getTNode, storeLViewOnDestroy} from './util/view_utils';
 import {createLView, createTView, getInitialLViewFlagsFromDef} from './view/construction';
@@ -411,6 +412,14 @@ export class ComponentFactory<T> {
       setupStaticAttributes(hostRenderer, hostElement, hostTNode);
       attachPatchData(hostElement, rootLView);
 
+      // A host that hydration claims keeps the classes that the server rendered, and class
+      // resolution starts from them. Read the component view's hydration info before the host's
+      // directives are created, so that their class resolvers know whether hydration claimed it.
+      const hostHydrationInfo = rootSelectorOrNode
+        ? retrieveHydrationInfo(hostElement, rootViewInjector)
+        : null;
+      lastNodeWasCreated(hostHydrationInfo === null);
+
       // TODO(pk): this logic is similar to the instruction code where a node can have directives
       createDirectivesInstances(rootTView, rootLView, hostTNode);
       // Set when `withAutoResolution()` is called.
@@ -425,6 +434,8 @@ export class ComponentFactory<T> {
       }
 
       componentView = getComponentLViewByIndex(hostTNode.index, rootLView);
+      // `renderComponent` reads the hydration info only if the view doesn't have it yet.
+      componentView[HYDRATION] = hostHydrationInfo;
 
       // TODO(pk): why do we need this logic?
       rootLView[CONTEXT] = componentView[CONTEXT] as T;

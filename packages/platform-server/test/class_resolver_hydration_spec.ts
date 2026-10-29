@@ -23,7 +23,10 @@ import {
   prepareEnvironmentAndHydrate,
   resetTViewsFor,
 } from './dom_utils';
-import {describeOffSubtreeHydration} from './class_resolver_hydration_cases';
+import {
+  describeOffSubtreeHydration,
+  describeRootHostHydration,
+} from './class_resolver_hydration_cases';
 import {
   clearConsole,
   getComponentRef,
@@ -94,5 +97,11 @@ describe('(class) binding with hydration', () => {
   describeOffSubtreeHydration(
     () => [],
     () => doc,
+  );
+
+  describeRootHostHydration(
+    () => [],
+    () => doc,
+    {'(class)': 'resolve'},
   );
 });

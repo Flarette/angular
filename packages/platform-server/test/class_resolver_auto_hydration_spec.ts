@@ -19,7 +19,11 @@ import {
 } from '@angular/core';
 import {TestBed} from '@angular/core/testing';
 
-import {cn, describeOffSubtreeHydration} from './class_resolver_hydration_cases';
+import {
+  cn,
+  describeOffSubtreeHydration,
+  describeRootHostHydration,
+} from './class_resolver_hydration_cases';
 import {
   clearDocument,
   getAppContents,
@@ -99,5 +103,11 @@ describe('automatic class resolution with hydration', () => {
   describeOffSubtreeHydration(
     () => [provideClassResolver(cn, withAutoResolution())],
     () => doc,
+  );
+
+  describeRootHostHydration(
+    () => [provideClassResolver(cn, withAutoResolution())],
+    () => doc,
+    {'[class]': 'classes'},
   );
 });

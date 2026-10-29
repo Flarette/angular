@@ -7,6 +7,7 @@
  */
 
 import {
+  BoundClassResolver,
   ClassResolver,
   Component,
   Directive,
@@ -223,9 +224,28 @@ describe('automatic resolution', () => {
     const fixture = TestBed.createComponent(App);
     await fixture.whenStable();
 
-    const calls = callsWith(resolver, 'px-4');
-    expect(calls.length).toBeGreaterThan(0);
-    expect(calls).toEqual(calls.map(() => ['', 'px-2', 'px-4 shadow-lg']));
+    expect(callsWith(resolver, 'px-4')).toEqual([['', 'px-2', 'px-4 shadow-lg']]);
+    expect(classesOf(fixture.nativeElement.querySelector('div'))).toEqual(['px-4', 'shadow-lg']);
+  });
+
+  it("resolves an element whose directive's host binding registers a resolver only through it", async () => {
+    const resolver = recordingResolver();
+
+    @Directive({selector: '[elevated]', host: {'class': 'px-2', '(class)': 'resolve'}})
+    class Elevated {
+      protected readonly resolve = (cn: BoundClassResolver) => cn('shadow-lg');
+    }
+
+    @Component({imports: [Elevated], template: `<div elevated class="px-4"></div>`})
+    class App {}
+
+    TestBed.configureTestingModule({
+      providers: [provideClassResolver(resolver, withAutoResolution())],
+    });
+    const fixture = TestBed.createComponent(App);
+    await fixture.whenStable();
+
+    expect(callsWith(resolver, 'px-4')).toEqual([['', 'px-2 shadow-lg', 'px-4']]);
     expect(classesOf(fixture.nativeElement.querySelector('div'))).toEqual(['px-4', 'shadow-lg']);
   });
 
@@ -267,6 +287,88 @@ describe('automatic resolution', () => {
       ['', 'px-2', 'px-4 active'],
     ]);
     expect(classesOf(fixture.nativeElement.querySelector('div'))).toEqual(['active', 'px-4']);
+  });
+
+  it('resolves a lazy route that turns it on again with its own resolver when the root providers declare it', async () => {
+    @Component({selector: 'app-page', template: '', host: {class: 'px-2 px-4'}})
+    class Page {}
+
+    @Component({imports: [RouterOutlet], template: '<router-outlet />'})
+    class App {}
+
+    TestBed.configureTestingModule({
+      providers: [
+        provideClassResolver(cn, withAutoResolution()),
+        provideRouter([
+          {
+            path: 'lazy',
+            providers: [
+              provideClassResolver(
+                (...classes) => cn(...classes, 'by-route'),
+                withAutoResolution(),
+              ),
+            ],
+            loadChildren: () => [{path: '', component: Page}],
+          },
+        ]),
+      ],
+    });
+    const fixture = TestBed.createComponent(App);
+    await fixture.whenStable();
+
+    expect(await TestBed.inject(Router).navigateByUrl('/lazy')).toBe(true);
+    await fixture.whenStable();
+
+    expect(classesOf(fixture.nativeElement.querySelector('app-page'))).toEqual([
+      'by-route',
+      'px-4',
+    ]);
+  });
+
+  describe('in production mode', () => {
+    const _global = globalThis as unknown as {ngDevMode: unknown};
+    let savedNgDevMode: unknown;
+    beforeEach(() => (savedNgDevMode = _global.ngDevMode));
+    afterEach(() => (_global.ngDevMode = savedNgDevMode));
+
+    it('ignores a lazy route that turns it on when the root providers do not', async () => {
+      _global.ngDevMode = false;
+
+      @Directive({selector: '[tone]', host: {class: 'px-2'}})
+      class Tone {}
+
+      @Component({
+        selector: 'app-page',
+        imports: [Tone],
+        template: `<div tone class="px-4"></div>`,
+        host: {class: 'px-2 px-4'},
+      })
+      class Page {}
+
+      @Component({imports: [RouterOutlet], template: '<router-outlet />'})
+      class App {}
+
+      TestBed.configureTestingModule({
+        providers: [
+          provideClassResolver(cn),
+          provideRouter([
+            {
+              path: 'lazy',
+              providers: [provideClassResolver(cn, withAutoResolution())],
+              loadChildren: () => [{path: '', component: Page}],
+            },
+          ]),
+        ],
+      });
+      const fixture = TestBed.createComponent(App);
+      await fixture.whenStable();
+
+      expect(await TestBed.inject(Router).navigateByUrl('/lazy')).toBe(true);
+      await fixture.whenStable();
+
+      expect(classesOf(fixture.nativeElement.querySelector('app-page'))).toEqual(['px-2', 'px-4']);
+      expect(classesOf(fixture.nativeElement.querySelector('div'))).toEqual(['px-2', 'px-4']);
+    });
   });
 
   describeOffSubtree(() => [provideClassResolver(cn, withAutoResolution())]);
