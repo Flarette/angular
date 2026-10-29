@@ -28,6 +28,8 @@ export const enum RuntimeErrorCode {
     // (undocumented)
     ASYNC_INITIALIZERS_STILL_RUNNING = 405,
     // (undocumented)
+    AUTO_CLASS_RESOLUTION_BELOW_ROOT = 322,
+    // (undocumented)
     BOOTSTRAP_COMPONENTS_NOT_FOUND = -403,
     // (undocumented)
     CLASS_RESOLVER_ON_CONTAINER = 321,

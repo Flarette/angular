@@ -264,7 +264,9 @@ export type ClassResolver = (...classes: string[]) => string;
 // @public
 export interface ClassResolverFeature {
     // (undocumented)
-    readonly ɵbrand: 'ClassResolverFeature';
+    readonly ɵkind: ClassResolverFeatureKind;
+    // (undocumented)
+    readonly ɵproviders: Provider[];
 }
 
 // @public
@@ -2211,6 +2213,9 @@ export interface WebMcpToolDescriptor<InputSchema extends JsonSchemaForInference
 
 // @public
 export type WebMcpToolExecute<InputSchema extends JsonSchemaForInference> = (args: InferArgsFromInputSchema<InputSchema>, client: WebMcpClient) => unknown;
+
+// @public
+export function withAutoResolution(): ClassResolverFeature;
 
 // @public
 export interface WritableResource<T> extends Resource<T> {

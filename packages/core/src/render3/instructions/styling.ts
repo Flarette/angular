@@ -384,7 +384,7 @@ function stylingFirstUpdatePass(
       tStylingKey = false;
     }
     if (isClassBased && tNode.classResolver !== null && tStylingKey !== false) {
-      // The hook is set by the same registration that sets `classResolver`.
+      // The hook is set before anything sets `classResolver`.
       _registerClassResolverBinding!(
         tNode.classResolver,
         isHostBindings ? getCurrentDirectiveIndex() : -1,
@@ -903,8 +903,15 @@ function updateStyling(
     // This is rare, but it does happen. In such a case, just ignore the binding.
     return;
   }
-  if (isClassBased && tNode.classResolver !== null) {
-    // The element's `(class)` binding applies the classes once all bindings have run.
+  const tClassResolver = tNode.classResolver;
+  if (
+    isClassBased &&
+    tClassResolver !== null &&
+    // An element without a `(class)` binding is resolved only in the instances where automatic
+    // resolution is on. Elsewhere, its classes apply like on any other element.
+    (tClassResolver.owners.length > 0 || lView[tClassResolver.index + 3] !== null)
+  ) {
+    // The element's class resolver applies the classes once all bindings have run.
     return;
   }
   const tData = tView.data;

@@ -23,6 +23,7 @@ import {
   prepareEnvironmentAndHydrate,
   resetTViewsFor,
 } from './dom_utils';
+import {describeOffSubtreeHydration} from './class_resolver_hydration_cases';
 import {
   clearConsole,
   getComponentRef,
@@ -89,4 +90,9 @@ describe('(class) binding with hydration', () => {
   it('removes a class that only the server resolved on an element without static classes', async () => {
     expect(await hydratedClasses(`<div (class)="resolve"></div>`)).toEqual(['client-only']);
   });
+
+  describeOffSubtreeHydration(
+    () => [],
+    () => doc,
+  );
 });

@@ -6,6 +6,8 @@
  * found in the LICENSE file at https://angular.dev/license
  */
 
+import type {Provider} from '../../di/interface/provider';
+
 /**
  * Classes that each source applies to an element, ordered from the lowest to the highest priority.
  * An `(attr.class)` binding receives them as `$event.sources`.
@@ -109,12 +111,19 @@ export interface ClassResolveEvent {
 export type ClassResolver = (...classes: string[]) => string;
 
 /**
- * A feature of the class resolver that `provideClassResolver` registers.
+ * A feature of the class resolver that `provideClassResolver` registers, such as
+ * `withAutoResolution()`.
  *
  * @experimental 22.3
  */
 export interface ClassResolverFeature {
-  readonly ɵbrand: 'ClassResolverFeature';
+  readonly ɵkind: ClassResolverFeatureKind;
+  readonly ɵproviders: Provider[];
+}
+
+/** Kinds of `ClassResolverFeature`. */
+export const enum ClassResolverFeatureKind {
+  AutoResolution,
 }
 
 /**
@@ -159,7 +168,10 @@ export interface TClassSourceSegment {
   bindings: number[];
 }
 
-/** Data shared by all instances of an element whose classes are computed by a `(class)` binding. */
+/**
+ * Data shared by all instances of an element whose classes are computed by a `(class)` binding or
+ * by automatic resolution.
+ */
 export interface TClassResolver {
   /**
    * Index of the per-instance state in the `LView`:
@@ -169,12 +181,20 @@ export interface TClassResolver {
    *   element still has the static classes it was created with.
    * - `index + 2`: the `ClassResolver` that each registration's owner injects, in the order of
    *   `owners`, or `null` for the plain merge.
+   *
+   * An element that automatic resolution set up has two more slots, which it uses while `owners` is
+   * empty:
+   * - `index + 3`: the `ClassResolver` of the instance's view, or `null` where automatic resolution
+   *   is off.
+   * - `index + 4`: the classes of each source, as space-separated strings, that the previous
+   *   resolution received, or `null` before the first resolution.
    */
   index: number;
 
   /**
    * Owner of each registered resolver, from the lowest to the highest priority: the index of the
-   * `DirectiveDef` in `TView.data`, or `-1` for the template.
+   * `DirectiveDef` in `TView.data`, or `-1` for the template. Empty for an element that only
+   * automatic resolution resolves.
    */
   owners: number[];
 

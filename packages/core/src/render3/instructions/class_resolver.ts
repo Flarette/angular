@@ -10,7 +10,7 @@ import {InternalInjectFlags} from '../../di/interface/injector';
 import {formatRuntimeError, RuntimeError, RuntimeErrorCode} from '../../errors';
 import {KeyValueArray} from '../../util/array_utils';
 import {EMPTY_ARRAY} from '../../util/empty';
-import {CLASS_RESOLVER} from '../class_resolver_provider';
+import {CLASS_RESOLVER, ClassResolverConfig} from '../class_resolver_provider';
 import {getOrCreateInjectable, setIncludeViewProviders} from '../di';
 import {AttributeMarker} from '../interfaces/attribute_marker';
 import {
@@ -90,7 +90,17 @@ export function ɵɵclassResolver(
   ((lView[tClassResolver.index + 2] ??= []) as Array<ClassResolver | null>).push(
     injectClassResolver(tNode, lView, owner),
   );
-  const appliedIndex = tClassResolver.index + 1;
+  seedHydratedClasses(tNode, lView, tClassResolver.index + 1);
+  return ɵɵclassResolver;
+}
+
+/**
+ * Records the classes of an element that hydration claimed as the classes that the previous
+ * resolution applied. Call it when the element is created.
+ *
+ * @param appliedIndex Index of the classes that the previous resolution applied.
+ */
+export function seedHydratedClasses(tNode: TNode, lView: LView, appliedIndex: number): void {
   if (!wasLastNodeCreated() && tNode.classes === null && lView[appliedIndex] === null) {
     // Hydration claimed the element. With static classes, the `class` attribute was rewritten to
     // them, which is where the first resolution starts anyway. Without them, the element keeps the
@@ -103,7 +113,6 @@ export function ɵɵclassResolver(
       element.getAttribute('class'),
     );
   }
-  return ɵɵclassResolver;
 }
 
 /**
@@ -139,12 +148,13 @@ function injectClassResolver(tNode: TNode, lView: LView, owner: number): ClassRe
     tNode.componentOffset > -1 && owner === tNode.directiveStart + tNode.componentOffset;
   const previousIncludeViewProviders = setIncludeViewProviders(isComponent);
   try {
-    return getOrCreateInjectable(
+    const config = getOrCreateInjectable<ClassResolverConfig>(
       tNode as TDirectiveHostNode,
       lView,
       CLASS_RESOLVER,
       InternalInjectFlags.Optional,
     );
+    return config === null ? null : config.resolver;
   } finally {
     setIncludeViewProviders(previousIncludeViewProviders);
   }
@@ -158,8 +168,8 @@ function classResolverFirstCreatePass(
   flags: ClassResolverFlags,
 ): void {
   if (tNode.classResolver !== null) {
-    // Only inheritance registers a second resolver for one directive: its host bindings run its
-    // base class's first.
+    // Automatic resolution or an earlier registration set the element up. Only inheritance
+    // registers a second resolver for one directive: its host bindings run its base class's first.
     if (ngDevMode && owner !== -1 && tNode.classResolver.owners.includes(owner)) {
       throw new RuntimeError(
         RuntimeErrorCode.MULTIPLE_CLASS_RESOLVERS,
@@ -174,6 +184,26 @@ function classResolverFirstCreatePass(
     return;
   }
 
+  // Change detection and the styling instructions reach the runtime only through these hooks, and
+  // only for nodes and views that have resolver data.
+  enableClassResolverHooks(refreshClassResolvers, registerClassResolverBinding);
+  const tClassResolver = createTClassResolver(tView, lView, tNode, 3);
+  tClassResolver.owners.push(owner);
+  tClassResolver.flags.push(flags);
+}
+
+/**
+ * Creates the resolver data of an element, without registrations, and adds the element to the
+ * view's elements with resolver data.
+ *
+ * @param slots Number of per-instance slots: 3 for registrations, 5 with automatic resolution.
+ */
+export function createTClassResolver(
+  tView: TView,
+  lView: LView,
+  tNode: TNode,
+  slots: number,
+): TClassResolver {
   const tData = tView.data;
   const segments: TClassSourceSegment[] = [];
   for (let i = tNode.directiveStart; i < tNode.directiveEnd; i++) {
@@ -191,16 +221,14 @@ function classResolverFirstCreatePass(
     bindings: [],
   });
 
-  // Change detection and the styling instructions reach the runtime only through these hooks, and
-  // only for nodes and views that have resolver data.
-  enableClassResolverHooks(refreshClassResolvers, registerClassResolverBinding);
-  tNode.classResolver = {
-    index: allocExpando(tView, lView, 3, null),
-    owners: [owner],
-    flags: [flags],
+  const tClassResolver: TClassResolver = {
+    index: allocExpando(tView, lView, slots, null),
+    owners: [],
+    flags: [],
     segments,
   };
   (tView.classResolvers ??= []).push(tNode.index);
+  return (tNode.classResolver = tClassResolver);
 }
 
 /**
@@ -212,7 +240,7 @@ function classResolverFirstCreatePass(
  *     template.
  * @param bindingIndex Index of the binding.
  */
-function registerClassResolverBinding(
+export function registerClassResolverBinding(
   tClassResolver: TClassResolver,
   directiveIndex: number,
   bindingIndex: number,
@@ -260,13 +288,24 @@ function readStaticClasses(attrs: TAttributes | null): string[] {
  *
  * Runs after the view's host bindings so the resolvers see the latest values from all sources.
  * The resolvers run on every refresh because they may read state other than their argument.
+ *
+ * @param refreshAutomatic Resolves an element that automatic resolution set up without a
+ *     registration. Only automatic resolution creates such elements, and it passes this function.
  */
-export function refreshClassResolvers(tView: TView, lView: LView): void {
+export function refreshClassResolvers(
+  tView: TView,
+  lView: LView,
+  refreshAutomatic?: (tView: TView, lView: LView, tNode: TNode) => void,
+): void {
   const resolverNodes = tView.classResolvers!;
   try {
     for (let i = 0; i < resolverNodes.length; i++) {
       const tNode = tView.data[resolverNodes[i]] as TNode;
       const tClassResolver = tNode.classResolver!;
+      if (tClassResolver.owners.length === 0) {
+        refreshAutomatic!(tView, lView, tNode);
+        continue;
+      }
       const resolverFns = lView[tClassResolver.index] as ClassResolverFn[];
       const classResolvers = lView[tClassResolver.index + 2] as Array<ClassResolver | null>;
       const lastLevel = resolverFns.length - 1;
@@ -304,7 +343,7 @@ export function refreshClassResolvers(tView: TView, lView: LView): void {
   }
 }
 
-type CollectedClassSources = [component: string[], directives: string[], template: string[]];
+export type CollectedClassSources = [component: string[], directives: string[], template: string[]];
 
 /**
  * Calls the handler of a `(class)` or `(attr.class)` binding with a new `ClassResolveEvent` and
@@ -420,7 +459,7 @@ function mergeClasses(...classes: string[]): string {
  * them: names without empty and repeated ones, and without the names of an array, a `Set`, or an
  * object map that contain a space. A `ResolvedClasses` gives its own names.
  */
-function readClassNames(value: unknown): string[] {
+export function readClassNames(value: unknown): string[] {
   if (value instanceof ResolvedClassesImpl) {
     return value.classNames;
   }
@@ -479,7 +518,7 @@ function foldClassNames(
  * priorities. A class is reported under the source that decided its value, at that binding's
  * position, so tools like `tailwind-merge` that let later classes win see the right order.
  */
-function collectClassSources(
+export function collectClassSources(
   tData: TData,
   lView: LView,
   tClassResolver: TClassResolver,
@@ -541,7 +580,7 @@ function decideClass(
  * Only classes managed by the resolver are touched, so classes added by other means (for example
  * `Renderer2.addClass` or animations) stay on the element.
  */
-function applyResolvedClasses(
+export function applyResolvedClasses(
   renderer: Renderer,
   element: RElement,
   tNode: TNode,

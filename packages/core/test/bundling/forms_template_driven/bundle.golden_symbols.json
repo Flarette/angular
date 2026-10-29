@@ -359,6 +359,7 @@
       "_refreshClassResolvers",
       "_registerClassResolverBinding",
       "_retrieveHydrationInfoImpl",
+      "_setUpClassResolution",
       "_stashEventListenerImpl",
       "_testabilityGetter",
       "_wasLastNodeCreated",

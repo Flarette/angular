@@ -1,0 +1,108 @@
+/**
+ * @license
+ * Copyright Google LLC All Rights Reserved.
+ *
+ * Use of this source code is governed by an MIT-style license that can be
+ * found in the LICENSE file at https://angular.dev/license
+ */
+
+import {Component, Directive, Input, provideClassResolver, Provider} from '@angular/core';
+
+import {getAppContents, prepareEnvironmentAndHydrate, resetTViewsFor} from './dom_utils';
+import {getComponentRef, ssr, verifyAllNodesClaimedForHydration} from './hydration_utils';
+
+/**
+ * Stand-in for `cn` (`clsx` and `tailwind-merge`). It lets a later class replace an earlier one
+ * with the same prefix, so `px-4` after `px-2` wins.
+ */
+export function cn(...inputs: string[]): string {
+  const byPrefix = new Map<string, string>();
+  for (const className of inputs.join(' ').split(/\s+/).filter(Boolean)) {
+    const prefix = className.split('-')[0];
+    byPrefix.delete(prefix);
+    byPrefix.set(prefix, className);
+  }
+  return [...byPrefix.values()].join(' ');
+}
+
+/**
+ * Specs for a subtree that provides the resolver without automatic resolution. The `test` target
+ * runs them in an app without automatic resolution, and the `class_resolver_auto_hydration_test`
+ * target runs them with automatic resolution declared in the root providers. Both must hydrate the
+ * classes that Angular gives without a class resolver, which `cn` would otherwise merge.
+ *
+ * Call it inside a `describe` that sets up hydration.
+ *
+ * @param envProviders Root providers of the server and the client app.
+ * @param doc The document that the client app hydrates.
+ */
+export function describeOffSubtreeHydration(
+  envProviders: () => Provider[],
+  doc: () => Document,
+): void {
+  describe('in a subtree that provides the resolver without automatic resolution', () => {
+    it('hydrates the classes that Angular gives without a resolver', async () => {
+      @Directive({
+        selector: '[tone]',
+        host: {
+          'class': 'px-2 tone',
+          '[class.raised]': 'raised',
+          '[class]': "raised ? 'py-1' : 'py-2'",
+        },
+      })
+      class Tone {
+        @Input() raised = true;
+      }
+
+      @Component({
+        selector: 'ui-chip',
+        template: '',
+        host: {'class': 'px-2 chip', '[class.selected]': 'selected'},
+      })
+      class UiChip {
+        @Input() selected = false;
+      }
+
+      @Component({
+        selector: 'legacy-panel',
+        imports: [Tone, UiChip],
+        providers: [provideClassResolver(cn)],
+        template: `
+          <div id="bound" tone class="px-4 static" [class]="'m-1 m-2'" [class.active]="true"></div>
+          <ui-chip id="chip" class="px-4" [selected]="true" [class.wide]="true" />
+          <div id="dynamic" tone [raised]="false" [class]="'m-1 m-2'"></div>
+        `,
+      })
+      class LegacyPanel {}
+
+      @Component({selector: 'app', imports: [LegacyPanel], template: '<legacy-panel />'})
+      class App {}
+
+      const html = await ssr(App, {envProviders: envProviders()});
+      expect(getAppContents(html)).toContain('m-1 m-2');
+
+      resetTViewsFor(App, LegacyPanel, UiChip);
+      const appRef = await prepareEnvironmentAndHydrate(doc(), html, App, {
+        envProviders: envProviders(),
+      });
+      const host = getComponentRef<App>(appRef).location.nativeElement as HTMLElement;
+      appRef.tick();
+
+      verifyAllNodesClaimedForHydration(host);
+      const classesOf = (id: string) => Array.from(host.querySelector(`#${id}`)!.classList).sort();
+      expect(classesOf('bound')).toEqual([
+        'active',
+        'm-1',
+        'm-2',
+        'px-2',
+        'px-4',
+        'py-1',
+        'raised',
+        'static',
+        'tone',
+      ]);
+      expect(classesOf('chip')).toEqual(['chip', 'px-2', 'px-4', 'selected', 'wide']);
+      expect(classesOf('dynamic')).toEqual(['m-1', 'm-2', 'px-2', 'py-2', 'tone']);
+    });
+  });
+}
