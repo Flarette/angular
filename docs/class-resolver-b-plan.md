@@ -533,7 +533,9 @@ emission, and the runtime's registration.
   (`NG5002`) in templates and a host binding parse error (`NG5001`) in `host`. Since WP3 it
   compiles like a listener chain, the last expression being `F`.
 - The specs and the compliance case that still declare a resolver with `@HostListener('class')`
-  move to `host` (B9).
+  move to `host` (B9). A compliance case whose input becomes a compile error can't stay: the
+  partial golden's generator compiles every case and stops on any error (WP4). Delete it and cover
+  the error with `ngtsc` specs.
 - B8 at runtime: a template `(class)` or `(attr.class)` on a container also emits
   `ɵɵclassResolver`. Where `ɵɵclassResolver` returns early for a node that isn't an element, report
   `NG0321` through `console.error` in dev mode. Ingest finds these bindings through the
