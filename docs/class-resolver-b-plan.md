@@ -733,3 +733,20 @@ were wrong; both are corrected.
   - For a refactoring round: `ɵɵclassResolver`'s `flags` is typed `number` because the compiler's
     literal doesn't type-check against the const enum; NG8119's message is stale until WP4 moves it
     to `NG8120`.
+- WP4 (`b09e021db9`, fixup `b60c86b5f3`): orchestrator 9.00, Codex 7.00 before the fixup and 9.00
+  after.
+  - Three questions, ruled: `NG8121` goes through an optional recorder method, so the preprocessor
+    is untouched and `NG8121` is TypeScript-only; the codes are `OUTPUT_SHADOWED_BY_CLASS_RESOLVER`
+    (8120) and `CLASS_RESOLVER_ON_CONTAINER` (8121); the `class_resolver_ng_container` compliance
+    case is deleted, because the partial golden's generator type-checks every case.
+  - Codex's blocker, dropped errors for `(class)="(cn) => () => cn()"` and
+    `$event.resolve(cn => cn())`, is an upstream bug: the `/*D:ignore*/` marker on template arrow
+    parameters drops any error that starts there, also for `(click)="takes((x) => () => x)"`.
+    Recorded in `docs/DEFERRED.md` for a separate upstream fix; Codex agreed.
+  - Fixed: a resolver binding on a container gets its own handler with `$event: any` and never
+    reaches the element path; a host test that passed with the claim exclusion reverted now fails
+    then.
+  - Untested until the container fix schedules the unclaimed check for templates: `NG8121`'s and
+    `NG8111`'s `<ng-template>` branches.
+  - For a refactoring round: errors inside `F` point at the property name, as existing mappings
+    do; `<ng-container>` handlers lose `Event` inference next to `NG8121`.

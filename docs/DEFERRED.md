@@ -26,3 +26,10 @@ bindings` (`5099d6e3`), worktree `/Users/geruch/repos/angular-cn-wt/container-no
   with `choice = null` resolves instead of throwing, and `(class)="choice?.classes"` matches it.
   From the code: `checkTargetParens` in `strip_nonrequired_parentheses.ts` drops the callee's
   parentheses, and the JIT emitter doesn't restore them. AOT output isn't measured.
+- Upstream: a TypeScript error that starts at an arrow parameter in a template is dropped, because
+  the type-check emitter marks every arrow parameter `/*D:ignore*/`
+  (`packages/compiler/src/typecheck/expression.ts` around line 386, from upstream `87a422358b`).
+  `(click)="takes((x) => () => x)"` compiles although TypeScript rejects it; so do
+  `(class)="(cn) => () => cn()"` and `(attr.class)="$event.resolve(cn => cn())"`. TS7006, TS6133,
+  and TS6199 are already filtered in `diagnostics.ts`, so removing or narrowing the marker is the
+  likely fix. From Codex's WP4 review; to be fixed as a separate upstream PR.
