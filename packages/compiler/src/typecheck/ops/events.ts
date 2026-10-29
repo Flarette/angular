@@ -200,6 +200,7 @@ export class TcbUnclaimedOutputsOp extends TcbOp {
         continue;
       }
 
+      // A structural directive's template copies its element's outputs, which the element checks.
       if (classResolverForm !== null && !(this.target instanceof Template)) {
         this.scope.addStatement(
           tcbCreateClassResolverHandler(output, classResolverForm, this.tcb, this.scope),

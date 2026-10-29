@@ -537,7 +537,7 @@ export function applyResolvedClasses(
 ): void {
   const next = toStylingKeyValueArray(classKeyValueArraySet, classStringParser, resolved);
   // Before the first resolution, an element that wasn't hydrated has the static classes from all
-  // sources. `ɵɵclassResolver` records the classes of a hydrated element instead.
+  // sources. `seedHydratedClasses` records the classes of a hydrated element instead.
   const previous =
     (lView[appliedIndex] as KeyValueArray<unknown> | null) ??
     (tNode.classes === null

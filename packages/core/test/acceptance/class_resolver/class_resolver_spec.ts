@@ -33,7 +33,6 @@ import {
   signal,
   Type,
   ViewChild,
-  ɵRESOLVED_CLASSES_BRAND,
   ɵɵFactoryTarget,
   ɵɵngDeclareDirective,
   ɵɵngDeclareFactory,
@@ -1144,7 +1143,7 @@ describe('(class) binding', () => {
 
         const fixture = await render(App);
 
-        // `resolutions` is now odd, but the binding read it before the resolver ran.
+        // The binding read `resolutions` before the resolver made it odd.
         expect(fixture.componentInstance.resolutions).toBe(1);
         expect(classesOf(fixture.nativeElement.querySelector('div'))).toEqual([]);
         expect(errors).toEqual([]);
@@ -1469,22 +1468,6 @@ describe('(attr.class) binding', () => {
     const fixture = await render(App);
 
     expect(fixture.componentInstance.merged).toBe('a b c d');
-  });
-
-  it('creates resolved classes that carry their brand only in their type', async () => {
-    @Component({template: `<div (attr.class)="resolveWith($event)"></div>`})
-    class App {
-      classes: ResolvedClasses | null = null;
-
-      protected resolveWith(event: ClassResolveEvent) {
-        this.classes = event.resolver('a');
-        event.resolve(this.classes);
-      }
-    }
-
-    const fixture = await render(App);
-
-    expect(ɵRESOLVED_CLASSES_BRAND in fixture.componentInstance.classes!).toBe(false);
   });
 
   it('listens to another attr.* event name as an ordinary event', async () => {

@@ -48,5 +48,11 @@ export function getClassResolverBindingForm(
     return 'fullForm';
   }
 
+  // Other `attr.*` names stay ordinary event bindings. Reserving the whole namespace, for resolvers
+  // of other attributes, would be this check:
+  // if (name.startsWith('attr.')) {
+  //   return 'reserved';
+  // }
+
   return null;
 }

@@ -63,6 +63,33 @@ describe('automatic resolution', () => {
     expect(classesOf(fixture.nativeElement.querySelector('span'))).toEqual(['px-2', 'px-4']);
   });
 
+  it('resolves nothing in an app whose root providers have no class resolver', async () => {
+    withAutoResolution();
+
+    @Component({selector: 'ui-button', template: '', host: {class: 'bg-primary px-2'}})
+    class UiButton {}
+
+    @Directive({selector: '[tone]', host: {class: 'px-2'}})
+    class Tone {}
+
+    @Component({
+      imports: [UiButton, Tone],
+      template: `<ui-button class="px-4" />
+        <div tone class="px-4"></div>`,
+    })
+    class App {}
+
+    const fixture = TestBed.createComponent(App);
+    await fixture.whenStable();
+
+    expect(classesOf(fixture.nativeElement.querySelector('ui-button'))).toEqual([
+      'bg-primary',
+      'px-2',
+      'px-4',
+    ]);
+    expect(classesOf(fixture.nativeElement.querySelector('div'))).toEqual(['px-2', 'px-4']);
+  });
+
   it('turns off in a component that provides the resolver without it, and back on below it', async () => {
     @Directive({selector: '[tone]', host: {class: 'px-2'}})
     class Tone {}
