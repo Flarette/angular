@@ -1076,6 +1076,35 @@ A provider of the feature in a directive's own `providers` changes no template's
 `NG0322` checks a provider when it would turn automatic resolution on for a view, so such a provider
 is only checked once a component nested under that element looks it up.
 
+### Angular's cost per element
+
+Measured on 2026-10-29 with the resolver stubbed out (`(...c) => c.join(' ')`), so the numbers are
+Angular's own work: collecting the sources, normalizing, and diffing. Each element has a directive
+whose host adds a static class and a `[class.x]` binding, plus a template static class and a
+`[class.y]` binding. Setup: Apple M4, Node 24, JIT, dev mode, Domino instead of a browser, 1000
+elements, medians of two separate runs. Production mode, AOT, and a real browser weren't measured,
+so the absolute numbers and ratios may differ there. The benchmark's source is in
+`docs/class-resolver-m1-benchmark.md`.
+
+Added time per element, compared with the same template without a resolver:
+
+| Element                       | Creation   | Refresh, nothing changed | Refresh, one class changed |
+| ----------------------------- | ---------- | ------------------------ | -------------------------- |
+| Plain Angular (baseline)      | 3.2–3.3 µs | 0.045 µs                 | 0.50–0.52 µs               |
+| Explicit `(class)`            | +2.2 µs    | +1.4–1.5 µs              | +1.6–1.7 µs                |
+| Automatic resolution, on      | +1.1 µs    | +0.26 µs                 | +1.25 µs                   |
+| Automatic resolution, but off | none       | +0.007 µs                | none measurable            |
+
+- An explicit `(class)` costs more on every refresh, because its handler runs each time with a new
+  event (its callback can read other state), while automatic resolution skips the resolver and the
+  diff when no source's string changed.
+- A subtree that turns automatic resolution off costs about 0.007 µs per element and refresh, the
+  check that skips it. Its elements still carry resolver data and five extra view slots.
+- The one-time cost of building each template's resolver data in its first creation pass isn't
+  included.
+- The resolver's own cost comes on top. Measured above, `twMerge` takes 0.03–0.04 µs per call when
+  its cache has the input, and 0.7–2.4 µs when it doesn't.
+
 ### The provider's shape
 
 `provideClassResolver(resolver, ...features)` is shaped for one attribute. If
