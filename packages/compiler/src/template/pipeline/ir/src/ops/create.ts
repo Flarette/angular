@@ -1122,8 +1122,8 @@ export interface ListenerOp extends Op<CreateOp> {
   eventTarget: string | null;
 
   /**
-   * The form of a `(class)` or `(attr.class)` binding on an element, whose handler computes the
-   * element's classes instead of reacting to an event, or `null` for an ordinary listener.
+   * The form of a `(class)` or `(attr.class)` binding, whose handler computes the element's classes
+   * instead of reacting to an event, or `null` for an ordinary listener.
    */
   classResolverForm: ClassResolverForm | null;
 

@@ -758,8 +758,6 @@ function extractHostBindings(
           }
         }
 
-        // Listeners are keyed by event name, so a second class resolver would silently replace the
-        // first one. Only the `host` object declares one.
         if (getClassResolverForm(eventName, ParsedEventType.Regular, null, 'host') !== null) {
           throw new FatalDiagnosticError(
             ErrorCode.HOST_BINDING_PARSE_ERROR,
@@ -2098,12 +2096,6 @@ function evaluateHostExpressionBindings(
   return bindings;
 }
 
-/**
- * Verifies that the `host` object declares at most one class resolver, and that a `(class)`
- * shorthand is a single expression.
- * @param bindings Host bindings parsed from the `host` object.
- * @param hostExpr Expression declaring the host bindings.
- */
 function verifyHostClassResolvers(bindings: ParsedHostBindings, hostExpr: ts.Expression): void {
   const events = makeBindingParser().createDirectiveHostEventAsts(
     bindings.listeners,
@@ -2137,11 +2129,6 @@ function verifyHostClassResolvers(bindings: ParsedHostBindings, hostExpr: ts.Exp
   }
 }
 
-/**
- * Finds the property with the given key in a `host` object literal.
- * @param hostExpr Expression declaring the host bindings.
- * @param key Key of the property, such as `(class)`.
- */
 function getHostProperty(hostExpr: ts.Expression, key: string): ts.PropertyAssignment | null {
   if (ts.isObjectLiteralExpression(hostExpr)) {
     for (const prop of hostExpr.properties) {

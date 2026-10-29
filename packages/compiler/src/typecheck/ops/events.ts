@@ -48,10 +48,6 @@ function tcbEventHandlerExpression(ast: AST, tcb: Context, scope: Scope): TcbExp
   return translator.translate(ast);
 }
 
-/**
- * Gets the form of class resolver that an event binding declares on an element, a container, or a
- * host, or `null` for any other binding. A directive output of the same name never claims it.
- */
 function getClassResolverBindingFormOf(
   node: LocalSymbol,
   output: BoundEvent,
@@ -62,10 +58,6 @@ function getClassResolverBindingFormOf(
   return getClassResolverBindingForm(output.name, output.type, output.target);
 }
 
-/**
- * Whether a node is a container, which has no classes to resolve. A structural directive's
- * template isn't one: it copies the event bindings of the element it wraps.
- */
 function isClassResolverContainer(node: LocalSymbol): boolean {
   return (
     (node instanceof Element && isNgContainer(node.name)) ||
@@ -182,7 +174,6 @@ export class TcbUnclaimedOutputsOp extends TcbOp {
 
     // TODO(alxhub): this could be more efficient.
     for (const output of this.outputs) {
-      // A directive output of the same name doesn't claim `(class)` or `(attr.class)`.
       const classResolverForm = getClassResolverBindingFormOf(this.target, output);
 
       if (classResolverForm === null && this.claimedOutputs?.has(output.name)) {
@@ -203,20 +194,13 @@ export class TcbUnclaimedOutputsOp extends TcbOp {
       }
 
       if (classResolverForm !== null && isClassResolverContainer(this.target)) {
-        // A container has no classes to resolve, and it may not resolve to an element either. The
-        // handler is still checked, with an `$event` of type `any`.
         this.tcb.oobRecorder.classResolverOnContainer?.(this.tcb.id, output);
         const handler = tcbCreateEventHandler(output, this.tcb, this.scope, EventParamType.Any);
         this.scope.addStatement(handler);
         continue;
       }
 
-      if (
-        classResolverForm !== null &&
-        // A structural directive's template copies the binding from the element it wraps, where
-        // it's checked as a resolver.
-        !(this.target instanceof Template)
-      ) {
+      if (classResolverForm !== null && !(this.target instanceof Template)) {
         this.scope.addStatement(
           tcbCreateClassResolverHandler(output, classResolverForm, this.tcb, this.scope),
         );
@@ -382,12 +366,10 @@ function tcbCreateEventHandler(
 }
 
 /**
- * Creates the handler function of a `(class)` or `(attr.class)` binding, whose `$event` is a
- * `ClassResolveEvent`. The shorthand `(class)="F"` is checked the way it's compiled, as
- * `$event.resolve((F)($event.resolver))`. When the type of `$event` is checked, `F` is first passed
- * to a `ClassCallback` parameter, because a direct call accepts `(cn) => 'x'`. The parameter also
- * infers the parameters of an arrow function. In a chain, `F` is the last expression and the
- * earlier ones run as statements.
+ * Creates the handler function of a `(class)` or `(attr.class)` binding. The shorthand
+ * `(class)="F"` is checked the way it's compiled, as `$event.resolve((F)($event.resolver))`. When
+ * the type of `$event` is checked, `F` is first passed to a `ClassCallback` parameter, because a
+ * direct call accepts `(cn) => 'x'`. The parameter also infers the parameters of an arrow function.
  */
 function tcbCreateClassResolverHandler(
   event: BoundEvent,
@@ -422,10 +404,6 @@ function tcbCreateClassResolverHandler(
   return tcbCreateHandlerFunction(statements, scope, eventType);
 }
 
-/**
- * Creates an arrow function with the given statements as its body and a single `$event`
- * parameter of the given type.
- */
 function tcbCreateHandlerFunction(
   statements: TcbExpr[],
   scope: Scope,

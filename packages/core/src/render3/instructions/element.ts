@@ -146,7 +146,6 @@ function initializeElement(
   if (isDirectiveHost(tNode)) {
     const tView = lView[TVIEW];
     createDirectivesInstances(tView, lView, tNode);
-    // Set when `withAutoResolution()` is called.
     if (_setUpClassResolution !== null) {
       _setUpClassResolution(tView, lView, tNode);
     }

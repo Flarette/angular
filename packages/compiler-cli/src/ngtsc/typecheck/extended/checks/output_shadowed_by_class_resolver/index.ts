@@ -26,8 +26,7 @@ import {
 
 /**
  * Warns when a `(class)` or `(attr.class)` binding on an element sits next to a directive output of
- * the same name. The binding resolves the element's classes, so the output isn't listened to, for
- * example `<div withClassOutput (class)="(cn) => cn('px-2')"></div>`.
+ * the same name.
  */
 class OutputShadowedByClassResolverCheck extends TemplateCheckWithVisitor<ErrorCode.OUTPUT_SHADOWED_BY_CLASS_RESOLVER> {
   override code = ErrorCode.OUTPUT_SHADOWED_BY_CLASS_RESOLVER as const;
@@ -39,7 +38,6 @@ class OutputShadowedByClassResolverCheck extends TemplateCheckWithVisitor<ErrorC
   ): NgTemplateDiagnostic<ErrorCode.OUTPUT_SHADOWED_BY_CLASS_RESOLVER>[] {
     if (!(node instanceof TmplAstElement)) return [];
 
-    // A binding on `<ng-container>`, in any namespace, resolves nothing, so it shadows no output.
     const nodeKind = isNgContainer(node.name) ? 'container' : 'element';
     const bindings = node.outputs.filter(
       (output) => getClassResolverForm(output.name, output.type, output.target, nodeKind) !== null,

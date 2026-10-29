@@ -24,10 +24,7 @@ import {
 import {getAppContents, prepareEnvironmentAndHydrate, resetTViewsFor} from './dom_utils';
 import {getComponentRef, ssr, verifyAllNodesClaimedForHydration} from './hydration_utils';
 
-/**
- * Stand-in for `cn` (`clsx` and `tailwind-merge`). It lets a later class replace an earlier one
- * with the same prefix, so `px-4` after `px-2` wins.
- */
+/** Stand-in for `cn` (`clsx` and `tailwind-merge`). */
 export function cn(...inputs: string[]): string {
   const byPrefix = new Map<string, string>();
   for (const className of inputs.join(' ').split(/\s+/).filter(Boolean)) {
@@ -39,15 +36,9 @@ export function cn(...inputs: string[]): string {
 }
 
 /**
- * Specs for a subtree that provides the resolver without automatic resolution. The `test` target
- * runs them in an app without automatic resolution, and the `class_resolver_auto_hydration_test`
- * target runs them with automatic resolution declared in the root providers. Both must hydrate the
- * classes that Angular gives without a class resolver, which `cn` would otherwise merge.
- *
- * Call it inside a `describe` that sets up hydration.
- *
- * @param envProviders Root providers of the server and the client app.
- * @param doc The document that the client app hydrates.
+ * The `test` target runs these specs without automatic resolution, and the
+ * `class_resolver_auto_hydration_test` target runs them with automatic resolution in the root
+ * providers. Call it inside a `describe` that sets up hydration.
  */
 export function describeOffSubtreeHydration(
   envProviders: () => Provider[],
@@ -121,15 +112,10 @@ export function describeOffSubtreeHydration(
 }
 
 /**
- * Specs for the host of a component created in code, which hydration claims or not. The `test`
- * target runs them with an explicit `(class)` host binding, and the
+ * The `test` target runs these specs with an explicit `(class)` host binding, and the
  * `class_resolver_auto_hydration_test` target with a `[class]` host binding that automatic
- * resolution resolves.
+ * resolution resolves. Call it inside a `describe` that sets up hydration.
  *
- * Call it inside a `describe` that sets up hydration.
- *
- * @param envProviders Root providers of the server and the client app.
- * @param doc The document that the client app hydrates.
  * @param host Host bindings that resolve the host's classes from the component's `classes` field,
  *     either directly or through its `resolve` callback.
  */

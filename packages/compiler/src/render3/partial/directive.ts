@@ -167,10 +167,7 @@ function getMinimumVersionForPartialOutput(meta: R3DirectiveMetadata): string {
   return minVersion;
 }
 
-/**
- * Gets whether the given directive declares a class resolver in its host, through
- * `host: {'(class)': ...}`, `host: {'(attr.class)': ...}`, or `@HostListener`.
- */
+/** Gets whether the given directive declares a class resolver in its host. */
 export function hasHostClassResolver(meta: R3DirectiveMetadata): boolean {
   // Listener keys aren't parsed, so a key with a target, such as `window:class`, never matches.
   return Object.keys(meta.host.listeners).some(

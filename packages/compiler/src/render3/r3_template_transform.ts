@@ -1184,10 +1184,6 @@ class HtmlAstToIvyAst implements html.Visitor {
     }
   }
 
-  /**
-   * Reports a second `(class)` or `(attr.class)` binding on one element, and a `(class)` shorthand
-   * that isn't a single expression. Containers are included: their bindings compile the same way.
-   */
   private validateClassResolvers(boundEvents: t.BoundEvent[]): void {
     let hasClassResolver = false;
     for (const event of boundEvents) {

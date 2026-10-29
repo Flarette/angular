@@ -443,6 +443,7 @@ export const NGP_KNOWN_NGTSC_FAILURES: ReadonlySet<string> = new Set([
   'ngtsc behavioral tests animate.leave should compile animate.leave bindings with a class string',
   'ngtsc behavioral tests animate.leave should compile animate.leave bindings with a string array',
   'ngtsc behavioral tests animate.leave should compile animate.leave event bindings with a function call',
+  'ngtsc behavioral tests class resolver declarations should not require 22.3.0 in the partial declaration of a host (window:class) listener',
   'ngtsc behavioral tests class resolver declarations should report (class) and (attr.class) in one host',
   "ngtsc behavioral tests class resolver declarations should report @HostListener('attr.class')",
   "ngtsc behavioral tests class resolver declarations should report @HostListener('class')",

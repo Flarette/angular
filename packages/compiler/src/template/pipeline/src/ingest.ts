@@ -273,7 +273,6 @@ function ingestHostEvent(job: HostBindingCompilationJob, event: e.ParsedEvent) {
         ? [null, event.targetOrPhase]
         : [event.targetOrPhase, null];
 
-    // `(class)` and `(attr.class)` in host bindings compute the host element's classes.
     const classResolverForm = getClassResolverForm(event.name, event.type, target, 'host');
     const listenerOp = ir.createListenerOp(
       job.root.xref,
@@ -1653,9 +1652,8 @@ function ingestElementBindings(
         ),
       );
     } else {
-      // `(class)` and `(attr.class)` on an element compute the element's classes. On
-      // `<ng-container>`, which has none, they still compile to a class resolver, and the runtime
-      // reports it.
+      // On `<ng-container>`, which has no classes, `(class)` and `(attr.class)` still compile to a
+      // class resolver, which the runtime reports.
       const classResolverForm = getClassResolverBindingForm(
         output.name,
         output.type,
@@ -1798,8 +1796,8 @@ function ingestTemplateBindings(
           ),
         );
       } else {
-        // `(class)` and `(attr.class)` compile to a class resolver, as on an element.
-        // `<ng-template>` has no classes, so the runtime reports it.
+        // As on `<ng-container>`, `(class)` and `(attr.class)` compile to a class resolver, which
+        // the runtime reports.
         const classResolverForm = getClassResolverBindingForm(
           output.name,
           output.type,
@@ -2010,8 +2008,7 @@ function makeListenerHandlerOps(
 
 /**
  * Makes the handler of a `(class)` shorthand. `(class)="F"` means exactly
- * `(attr.class)="$event.resolve((F)($event.resolver))"`. Like any listener, the expressions before
- * the last one in a chain run as statements.
+ * `(attr.class)="$event.resolve((F)($event.resolver))"`.
  */
 function makeClassShorthandHandlerOps(
   unit: CompilationUnit,

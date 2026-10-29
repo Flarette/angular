@@ -121,16 +121,11 @@ export interface ClassResolverFeature {
   readonly ɵproviders: Provider[];
 }
 
-/** Kinds of `ClassResolverFeature`. */
 export const enum ClassResolverFeatureKind {
   AutoResolution,
 }
 
-/**
- * Handler compiled from a `(class)` or `(attr.class)` binding. It receives a `ClassResolveEvent` as
- * `$event`, and its return value is ignored. The handler of `(class)="F"` is
- * `$event.resolve((F)($event.resolver))`.
- */
+/** Handler compiled from a `(class)` or `(attr.class)` binding. */
 export type ClassResolverFn = (event: ClassResolveEvent) => unknown;
 
 /**

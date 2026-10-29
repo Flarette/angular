@@ -9,10 +9,7 @@
 import {Component, Directive, Input, provideClassResolver, Provider, signal} from '@angular/core';
 import {TestBed} from '@angular/core/testing';
 
-/**
- * Stand-in for `cn` (`clsx` and `tailwind-merge`). It lets a later class replace an earlier one
- * with the same prefix, so `px-4` after `px-2` wins.
- */
+/** Stand-in for `cn` (`clsx` and `tailwind-merge`). */
 export function cn(...inputs: string[]): string {
   const byPrefix = new Map<string, string>();
   for (const className of inputs.join(' ').split(/\s+/).filter(Boolean)) {
@@ -28,13 +25,8 @@ export function classesOf(element: Element): string[] {
 }
 
 /**
- * Specs for a subtree that provides the resolver without automatic resolution. The
- * `class_resolver` target runs them in an app without automatic resolution, and the
- * `auto_resolution` target runs them with automatic resolution declared in the root providers. Both
- * must give the classes that Angular gives without a class resolver, which `cn` would otherwise
- * merge (`px-2` and `px-4`, `m-1` and `m-2`).
- *
- * @param rootProviders Providers of the test's root injector.
+ * The `class_resolver` target runs these specs without automatic resolution, and the
+ * `auto_resolution` target runs them with automatic resolution in the root providers.
  */
 export function describeOffSubtree(rootProviders: () => Provider[]): void {
   describe('in a subtree that provides the resolver without automatic resolution', () => {

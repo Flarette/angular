@@ -14,16 +14,12 @@ import {ParsedEventType} from '../expression_parser/ast';
  */
 export type ClassResolverForm = 'shorthand' | 'fullForm';
 
-/**
- * The kind of node that declares an event binding. A host binding resolves the classes of the host
- * element. A container, such as `<ng-container>`, has no classes to resolve.
- */
+/** The kind of node that declares an event binding. */
 export type ClassResolverNodeKind = 'host' | 'element' | 'container';
 
 /**
  * Gets the form of class resolver that an event binding declares, or `null` for an ordinary event
- * binding. A binding with a target, such as `(window:class)`, never resolves, and neither does a
- * binding on a container.
+ * binding.
  */
 export function getClassResolverForm(
   name: string,
@@ -34,10 +30,7 @@ export function getClassResolverForm(
   return nodeKind === 'container' ? null : getClassResolverBindingForm(name, type, target);
 }
 
-/**
- * Gets the form of class resolver that an event binding declares, whichever node declares it. A
- * binding on a container still has a form, although the container has no classes to resolve.
- */
+/** Gets the form of class resolver that an event binding declares, whichever node declares it. */
 export function getClassResolverBindingForm(
   name: string,
   type: ParsedEventType,
@@ -54,12 +47,6 @@ export function getClassResolverBindingForm(
   if (name === 'attr.class') {
     return 'fullForm';
   }
-
-  // Other `attr.*` names stay ordinary event bindings. Reserving the whole namespace, for resolvers
-  // of other attributes, would be this check:
-  // if (name.startsWith('attr.')) {
-  //   return 'reserved';
-  // }
 
   return null;
 }

@@ -33,6 +33,10 @@ import {
   signal,
   Type,
   ViewChild,
+  ɵRESOLVED_CLASSES_BRAND,
+  ɵɵFactoryTarget,
+  ɵɵngDeclareDirective,
+  ɵɵngDeclareFactory,
 } from '@angular/core';
 import {TestBed} from '@angular/core/testing';
 
@@ -59,7 +63,6 @@ function cn(...inputs: unknown[]): string {
   return [...byPrefix.values()].join(' ');
 }
 
-/** A resolver that adds a class named after itself, to show which resolver merged the classes. */
 function markingResolver(name: string): ClassResolver {
   return (...classes) => [...classes, `by-${name}`].join(' ');
 }
@@ -472,6 +475,30 @@ describe('(class) binding', () => {
     expect(classesOf(fixture.nativeElement.querySelector('div'))).toEqual(['a', 'c']);
   });
 
+  it('listens to a global event named class with a target', async () => {
+    @Directive({selector: '[dir]', host: {'(document:class)': 'count = count + 1'}})
+    class Dir {
+      count = 0;
+    }
+
+    @Component({
+      imports: [Dir],
+      template: `<div dir class="c" (document:class)="count = count + 1"></div>`,
+    })
+    class App {
+      count = 0;
+      @ViewChild(Dir, {static: true}) dir!: Dir;
+    }
+
+    const fixture = await render(App);
+    fixture.nativeElement.ownerDocument.dispatchEvent(new Event('class'));
+    await fixture.whenStable();
+
+    expect(fixture.componentInstance.count).toBe(1);
+    expect(fixture.componentInstance.dir.count).toBe(1);
+    expect(classesOf(fixture.nativeElement.querySelector('div'))).toEqual(['c']);
+  });
+
   describe('when the callback returns classes that its own resolver did not create', () => {
     it('reports a value of another type in dev mode', async () => {
       @Component({template: `<div (class)="(asString)"></div>`})
@@ -516,7 +543,6 @@ describe('(class) binding', () => {
       const fixture = await render(App);
       expect(errors).toEqual([]);
 
-      // Each refresh has its own event, so the classes of an earlier one are foreign.
       fixture.componentInstance.reuse.set(true);
       await fixture.whenStable();
 
@@ -564,6 +590,36 @@ describe('(class) binding', () => {
 
       expect(fixture.componentInstance.sources).toEqual([['py-1'], [], ['px-4']]);
       expect(classesOf(fixture.nativeElement.querySelector('ui-button'))).toEqual(['px-4', 'py-1']);
+    });
+
+    it('runs the expressions before the last one of a chain in a linked declaration as statements', async () => {
+      class Counted {
+        count = 0;
+        protected readonly resolve = (cn: BoundClassResolver) => cn('counted');
+
+        static ɵfac = ɵɵngDeclareFactory({
+          type: Counted,
+          deps: [],
+          target: ɵɵFactoryTarget.Directive,
+        });
+        static ɵdir = ɵɵngDeclareDirective({
+          version: '22.3.0',
+          type: Counted,
+          isStandalone: true,
+          selector: '[counted]',
+          host: {listeners: {'class': 'count = count + 1; resolve'}},
+        });
+      }
+
+      @Component({imports: [Counted], template: `<div counted class="c"></div>`})
+      class App {
+        @ViewChild(Counted, {static: true}) counted!: Counted;
+      }
+
+      const fixture = await render(App);
+
+      expect(fixture.componentInstance.counted.count).toBeGreaterThan(0);
+      expect(classesOf(fixture.nativeElement.querySelector('div'))).toEqual(['c', 'counted']);
     });
 
     for (const tag of ['ng-container', 'ng-template']) {
@@ -1211,7 +1267,6 @@ describe('class resolver declarations', () => {
     `A '(class)' shorthand must be a single expression, a function that receives the ` +
     `resolver. Bind '(attr.class)' to run more than one statement.`;
 
-  /** Matches an error message that contains the given text. */
   function containing(text: string): RegExp {
     return new RegExp(text.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'));
   }
@@ -1306,6 +1361,24 @@ describe('class resolver declarations', () => {
 
     expect(() => TestBed.createComponent(App)).toThrowError(containing(chainMessage));
   });
+
+  for (const tag of ['ng-container', 'ng-template']) {
+    it(`rejects a second class resolver on <${tag}>`, () => {
+      @Component({
+        template: `<${tag} (class)="(cn) => cn()" (attr.class)="received.push($event)"></${tag}>`,
+      })
+      class App {
+        readonly received: unknown[] = [];
+      }
+
+      expect(() => TestBed.createComponent(App)).toThrowError(
+        containing(
+          `Can't have multiple class resolvers on one element. Use only one '(class)' or ` +
+            `'(attr.class)' binding.`,
+        ),
+      );
+    });
+  }
 });
 
 describe('(attr.class) binding', () => {
@@ -1366,6 +1439,67 @@ describe('(attr.class) binding', () => {
     const fixture = await render(App);
 
     expect(classesOf(fixture.nativeElement.querySelector('ui-button'))).toEqual(['only']);
+  });
+
+  it('resolves through resolve() and the resolver called on their own', async () => {
+    @Component({template: `<div class="c" (attr.class)="apply($event)"></div>`})
+    class App {
+      protected apply({resolve, resolver}: ClassResolveEvent) {
+        resolve(resolver('d'));
+      }
+    }
+
+    const fixture = await render(App);
+
+    expect(classesOf(fixture.nativeElement.querySelector('div'))).toEqual(['c', 'd']);
+  });
+
+  it('merges without empty and repeated names, in order, without a registered resolver', async () => {
+    @Component({template: `<div class="a b" (attr.class)="resolveWith($event)"></div>`})
+    class App {
+      merged = '';
+
+      protected resolveWith(event: ClassResolveEvent) {
+        const classes = event.resolver('c a', 'b d');
+        this.merged = String(classes);
+        event.resolve(classes);
+      }
+    }
+
+    const fixture = await render(App);
+
+    expect(fixture.componentInstance.merged).toBe('a b c d');
+  });
+
+  it('creates resolved classes that carry their brand only in their type', async () => {
+    @Component({template: `<div (attr.class)="resolveWith($event)"></div>`})
+    class App {
+      classes: ResolvedClasses | null = null;
+
+      protected resolveWith(event: ClassResolveEvent) {
+        this.classes = event.resolver('a');
+        event.resolve(this.classes);
+      }
+    }
+
+    const fixture = await render(App);
+
+    expect(ɵRESOLVED_CLASSES_BRAND in fixture.componentInstance.classes!).toBe(false);
+  });
+
+  it('listens to another attr.* event name as an ordinary event', async () => {
+    @Component({template: `<div class="c" (attr.title)="count = count + 1"></div>`})
+    class App {
+      count = 0;
+    }
+
+    const fixture = await render(App);
+    const div = fixture.nativeElement.querySelector('div');
+    div.dispatchEvent(new Event('attr.title'));
+    await fixture.whenStable();
+
+    expect(fixture.componentInstance.count).toBe(1);
+    expect(classesOf(div)).toEqual(['c']);
   });
 
   describe("ranks the resolver's extras at the end of the caller's source", () => {
@@ -1550,7 +1684,6 @@ describe('(attr.class) binding', () => {
     }
   });
 
-  /** Resolves `['a b', 'c']` in a lower `(class)` shorthand, below a resolving template binding. */
   function renderBelowSpacedNames(callback: ClassCallback) {
     @Directive({selector: '[lower]', host: {'(class)': 'resolve'}})
     class Lower {
@@ -1658,7 +1791,6 @@ describe('(attr.class) binding', () => {
     expect(() => events[0].resolve('late')).toThrowError(/NG0320/);
   });
 
-  /** Resolves classes with a value whose getter calls `resolve()` again while it's read. */
   @Component({template: `<div (attr.class)="$event.resolve(reentrant($event))"></div>`})
   class ReentrantApp {
     protected reentrant(event: ClassResolveEvent) {
@@ -1763,10 +1895,6 @@ describe('(attr.class) binding', () => {
     expect(() => fixture.componentInstance.event!.resolve('late')).toThrowError(/NG0320/);
   });
 });
-
-/**
- * Typing tests.
- */
 
 // @ts-expect-error: only a resolver creates `ResolvedClasses`, so a string isn't one.
 const resolveToString: ClassCallback = (cn) => 'x';

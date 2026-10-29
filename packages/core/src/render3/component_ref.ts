@@ -281,9 +281,9 @@ export class ComponentFactory<T> {
     profiler(ProfilerEvent.DynamicComponentStart);
 
     const prevConsumer = setActiveConsumer(null);
-    // Creating the host sets whether the last node was created or claimed by hydration. Restore it
-    // afterwards, so that a component created in a constructor doesn't change what the code that
-    // creates the outer node reads.
+    // Creating the host sets whether the last node was created or claimed by hydration. Restore it,
+    // so that a component created in a constructor doesn't change what the code that creates the
+    // outer node reads.
     const prevWasLastNodeCreated = wasLastNodeCreated();
     try {
       const cmpDef = this.componentDef;
@@ -417,9 +417,8 @@ export class ComponentFactory<T> {
       setupStaticAttributes(hostRenderer, hostElement, hostTNode);
       attachPatchData(hostElement, rootLView);
 
-      // A host that hydration claims keeps the classes that the server rendered, and class
-      // resolution starts from them. Read the component view's hydration info before the host's
-      // directives are created, so that their class resolvers know whether hydration claimed it.
+      // Read before the host's directives are created, so that their class resolvers know whether
+      // hydration claimed the host.
       const hostHydrationInfo = rootSelectorOrNode
         ? retrieveHydrationInfo(hostElement, rootViewInjector)
         : null;
@@ -427,7 +426,6 @@ export class ComponentFactory<T> {
 
       // TODO(pk): this logic is similar to the instruction code where a node can have directives
       createDirectivesInstances(rootTView, rootLView, hostTNode);
-      // Set when `withAutoResolution()` is called.
       if (_setUpClassResolution !== null) {
         _setUpClassResolution(rootTView, rootLView, hostTNode as TElementNode);
       }

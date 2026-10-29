@@ -1310,7 +1310,6 @@ runInEachFileSystem(() => {
           `count(value: number) {}`,
         );
 
-        // The chain is a parse error, but the template is still type-checked.
         const diags = env.driveDiagnostics();
         expect(
           diags.map((diag) => [diag.code, flatten(diag), getSourceCodeForDiagnostic(diag)]),
@@ -1374,6 +1373,21 @@ runInEachFileSystem(() => {
           `Argument of type 'ClassResolveEvent' is not assignable to parameter of type 'number'.`,
         ]);
         expect(getSourceCodeForDiagnostic(diags[0])).toBe('$event');
+      });
+
+      it('should check a (class) binding under a structural directive once, as a resolver', () => {
+        writeComponent(
+          `<div *dir (class)="(cn) => 'x'"></div>`,
+          '',
+          `@Directive({selector: '[dir]'})
+           class TestDir {}`,
+        );
+
+        const diags = env.driveDiagnostics();
+        expect(diags.map(flatten)).toEqual([
+          `Type 'string' is not assignable to type 'ResolvedClasses'.`,
+        ]);
+        expect(getSourceCodeForDiagnostic(diags[0])).toBe(`'x'`);
       });
 
       it('should report a class resolver on a container', () => {

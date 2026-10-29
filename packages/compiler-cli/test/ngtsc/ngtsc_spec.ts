@@ -3916,6 +3916,26 @@ runInEachFileSystem((os: string) => {
           );
         });
       }
+
+      it('should not require 22.3.0 in the partial declaration of a host (window:class) listener', () => {
+        env.tsconfig({compilationMode: 'partial'});
+        env.write(
+          'test.ts',
+          `
+          import {Directive} from '@angular/core';
+
+          @Directive({selector: '[dir]', host: {'(window:class)': 'onClass()'}})
+          export class Dir {
+            onClass() {}
+          }
+        `,
+        );
+
+        env.driveMain();
+        const jsContents = env.getContents('test.js');
+        expect(jsContents).toContain(`"window:class": "onClass()"`);
+        expect(jsContents).not.toMatch(/minVersion: "22\.3\.0"/);
+      });
     });
 
     describe('multiple decorators on classes', () => {

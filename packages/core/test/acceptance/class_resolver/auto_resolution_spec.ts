@@ -23,16 +23,13 @@ import {provideRouter, Router, RouterOutlet} from '@angular/router';
 
 import {classesOf, cn, describeOffSubtree} from './off_subtree_cases';
 
-// Automatic resolution turns its runtime on for the whole process and a component caches its
-// `TView`, so every spec here declares its own components and provides `withAutoResolution()`
-// before it renders.
+// A component caches its `TView`, so every spec here declares its own components and provides
+// `withAutoResolution()` before it renders.
 describe('automatic resolution', () => {
-  /** A resolver that records the classes it receives and merges them with `cn`. */
   function recordingResolver() {
     return jasmine.createSpy<ClassResolver>('resolver').and.callFake(cn);
   }
 
-  /** The calls of `resolver` that received `className`. */
   function callsWith(resolver: jasmine.Spy<ClassResolver>, className: string): string[][] {
     return resolver.calls
       .allArgs()
@@ -114,6 +111,38 @@ describe('automatic resolution', () => {
     expect(classesOf(element('#legacy-nested'))).toEqual(['px-2', 'px-4']);
     expect(classesOf(element('modern-card'))).toEqual(['px-2', 'px-4']);
     expect(classesOf(element('#modern'))).toEqual(['px-4']);
+  });
+
+  it('resolves the instances of a template where it is on after the first instance was created where it is off', async () => {
+    @Directive({selector: '[tone]', host: {class: 'px-2'}})
+    class Tone {}
+
+    @Component({selector: 'ui-card', imports: [Tone], template: `<div tone class="px-4"></div>`})
+    class UiCard {}
+
+    @Component({
+      selector: 'legacy-panel',
+      imports: [UiCard],
+      template: `<ui-card />`,
+      providers: [provideClassResolver(cn)],
+    })
+    class LegacyPanel {}
+
+    @Component({
+      imports: [LegacyPanel, UiCard],
+      template: `<legacy-panel /><ui-card id="modern" />`,
+    })
+    class App {}
+
+    TestBed.configureTestingModule({providers: [provideClassResolver(cn, withAutoResolution())]});
+    const fixture = TestBed.createComponent(App);
+    await fixture.whenStable();
+
+    expect(classesOf(fixture.nativeElement.querySelector('legacy-panel div'))).toEqual([
+      'px-2',
+      'px-4',
+    ]);
+    expect(classesOf(fixture.nativeElement.querySelector('#modern div'))).toEqual(['px-4']);
   });
 
   it('resolves a routed component and its host directives', async () => {
@@ -215,6 +244,32 @@ describe('automatic resolution', () => {
     @Component({
       imports: [Tone],
       template: `<div tone class="px-4" (class)="(cn) => cn('shadow-lg')"></div>`,
+    })
+    class App {}
+
+    TestBed.configureTestingModule({
+      providers: [provideClassResolver(resolver, withAutoResolution())],
+    });
+    const fixture = TestBed.createComponent(App);
+    await fixture.whenStable();
+
+    expect(callsWith(resolver, 'px-4')).toEqual([['', 'px-2', 'px-4 shadow-lg']]);
+    expect(classesOf(fixture.nativeElement.querySelector('div'))).toEqual(['px-4', 'shadow-lg']);
+  });
+
+  it('resolves an element with an (attr.class) binding only through that binding', async () => {
+    const resolver = recordingResolver();
+
+    @Directive({selector: '[tone]', host: {class: 'px-2'}})
+    class Tone {}
+
+    @Component({
+      imports: [Tone],
+      template: `<div
+        tone
+        class="px-4"
+        (attr.class)="$event.resolve($event.resolver('shadow-lg'))"
+      ></div>`,
     })
     class App {}
 

@@ -38,8 +38,6 @@ import {
   verifyAllNodesClaimedForHydration,
 } from './hydration_utils';
 
-// Automatic resolution turns its runtime on for the whole process, so these specs run in their own
-// target.
 describe('automatic class resolution with hydration', () => {
   const originalWindow = globalThis.window;
   let doc: Document;

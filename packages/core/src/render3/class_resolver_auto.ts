@@ -42,10 +42,6 @@ import {
 } from './interfaces/view';
 import {getComponentLViewByIndex, getNativeByTNode} from './util/view_utils';
 
-/**
- * Whether the root providers declare automatic resolution. Below the root, a provider can turn it
- * back on only if the root declares it.
- */
 const AUTO_RESOLUTION_IN_ROOT = new InjectionToken<boolean>(
   typeof ngDevMode !== 'undefined' && ngDevMode ? 'AUTO_RESOLUTION_IN_ROOT' : '',
   {
@@ -54,10 +50,7 @@ const AUTO_RESOLUTION_IN_ROOT = new InjectionToken<boolean>(
   },
 );
 
-/**
- * The resolver of each component view and root view where automatic resolution is on. The views of
- * a component's template take the setting of the component's view.
- */
+/** The resolver of each component view and root view where automatic resolution is on. */
 const autoResolvers = /* @__PURE__ */ new WeakMap<LView, ClassResolver>();
 
 /**
@@ -93,20 +86,11 @@ function refreshAllClassResolvers(tView: TView, lView: LView): void {
   refreshClassResolvers(tView, lView, refreshAutoResolvedClasses);
 }
 
-/**
- * Sets up automatic resolution for an element that a component or directive matches, once its
- * directives are created, and looks up the setting of the component's view on a component host.
- */
 function setUpClassResolution(tView: TView, lView: LView, tNode: TElementNode): void {
   if (isRootView(lView)) {
-    // The root view of a component created in code holds only the component's host, which takes
-    // the setting of the place where the component is inserted.
     decideAutoResolution(lView, lView[INJECTOR].get(CLASS_RESOLVER, null), lView, tNode, false);
   }
 
-  // Every instance of the template shares the data, so every element that a component or directive
-  // matches gets it, whatever this instance's setting is. An element whose host bindings registered
-  // a resolver already has it, and a template's `(class)` binding registers after this.
   if (tView.firstCreatePass && tNode.classResolver === null) {
     createTClassResolver(tView, lView, tNode, 5);
   }
@@ -143,17 +127,6 @@ function setUpClassResolution(tView: TView, lView: LView, tNode: TElementNode): 
   }
 }
 
-/**
- * Turns automatic resolution on for a component view or a root view if its template sees a
- * provider with `withAutoResolution()` and the root providers declare it.
- *
- * @param view The component view or root view.
- * @param config The provider that the view's template sees.
- * @param hostLView The view that holds the component's host.
- * @param hostTNode The component's host.
- * @param isOnAbove Whether automatic resolution is on where the host is. The root check passed
- *     above it then.
- */
 function decideAutoResolution(
   view: LView,
   config: ClassResolverConfig | null,
@@ -177,16 +150,11 @@ function decideAutoResolution(
           'providers, such as those of `bootstrapApplication()`.',
       );
     }
-    // In production, the provider is ignored.
     return;
   }
   autoResolvers.set(view, config.resolver);
 }
 
-/**
- * Resolves an element without a registration in an instance where automatic resolution is on.
- * Calls the resolver only when the classes of a source changed since the previous resolution.
- */
 function refreshAutoResolvedClasses(tView: TView, lView: LView, tNode: TNode): void {
   const tClassResolver = tNode.classResolver!;
   const resolver = lView[tClassResolver.index + 3] as ClassResolver | null;

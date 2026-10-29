@@ -56,12 +56,7 @@ import {classKeyValueArraySet, classStringParser, toStylingKeyValueArray} from '
  * classes, and each later one receives the previous one's result folded back into `ClassSources`.
  * The classes that the highest one resolves become the element's classes.
  *
- * The binding resolves the element's classes even if a directive on the element declares an output
- * with the same name; the output's emissions don't reach it. On `<ng-container>` and
- * `<ng-template>`, which have no classes, the binding does nothing, and dev mode reports it.
- *
- * @param resolverFn Handler compiled from the binding, which receives a `ClassResolveEvent` as
- * `$event`.
+ * @param resolverFn Handler compiled from the binding.
  * @param flags `ClassResolverFlags` of the binding.
  *
  * @codeGenApi
@@ -97,8 +92,6 @@ export function ɵɵclassResolver(
 /**
  * Records the classes of an element that hydration claimed as the classes that the previous
  * resolution applied. Call it when the element is created.
- *
- * @param appliedIndex Index of the classes that the previous resolution applied.
  */
 export function seedHydratedClasses(tNode: TNode, lView: LView, appliedIndex: number): void {
   if (!wasLastNodeCreated() && tNode.classes === null && lView[appliedIndex] === null) {
@@ -115,12 +108,6 @@ export function seedHydratedClasses(tNode: TNode, lView: LView, appliedIndex: nu
   }
 }
 
-/**
- * Reports a `(class)` or `(attr.class)` binding on `<ng-container>` or `<ng-template>`, which has no
- * classes to resolve.
- *
- * @param owner Index of the directive whose host binding this is, or `-1` for the template.
- */
 function reportClassResolverOnContainer(tView: TView, owner: number, flags: number): void {
   const form = flags & ClassResolverFlags.Shorthand ? '`(class)`' : '`(attr.class)`';
   const directiveName =
@@ -168,8 +155,8 @@ function classResolverFirstCreatePass(
   flags: ClassResolverFlags,
 ): void {
   if (tNode.classResolver !== null) {
-    // Automatic resolution or an earlier registration set the element up. Only inheritance
-    // registers a second resolver for one directive: its host bindings run its base class's first.
+    // Only inheritance registers a second resolver for one directive: its host bindings run its
+    // base class's first.
     if (ngDevMode && owner !== -1 && tNode.classResolver.owners.includes(owner)) {
       throw new RuntimeError(
         RuntimeErrorCode.MULTIPLE_CLASS_RESOLVERS,
@@ -184,20 +171,13 @@ function classResolverFirstCreatePass(
     return;
   }
 
-  // Change detection and the styling instructions reach the runtime only through these hooks, and
-  // only for nodes and views that have resolver data.
   enableClassResolverHooks(refreshClassResolvers, registerClassResolverBinding);
   const tClassResolver = createTClassResolver(tView, lView, tNode, 3);
   tClassResolver.owners.push(owner);
   tClassResolver.flags.push(flags);
 }
 
-/**
- * Creates the resolver data of an element, without registrations, and adds the element to the
- * view's elements with resolver data.
- *
- * @param slots Number of per-instance slots: 3 for registrations, 5 with automatic resolution.
- */
+/** Creates the resolver data of an element, without registrations. */
 export function createTClassResolver(
   tView: TView,
   lView: LView,
@@ -231,15 +211,7 @@ export function createTClassResolver(
   return (tNode.classResolver = tClassResolver);
 }
 
-/**
- * Records a class binding with the source that owns it, so that the element's `(class)` binding
- * can group the binding's classes by source.
- *
- * @param tClassResolver Resolver data of the element.
- * @param directiveIndex Index of the directive whose host binding this is, or `-1` for the
- *     template.
- * @param bindingIndex Index of the binding.
- */
+/** Records a class binding with the source that owns it. */
 export function registerClassResolverBinding(
   tClassResolver: TClassResolver,
   directiveIndex: number,
@@ -345,14 +317,6 @@ export function refreshClassResolvers(
 
 export type CollectedClassSources = [component: string[], directives: string[], template: string[]];
 
-/**
- * Calls the handler of a `(class)` or `(attr.class)` binding with a new `ClassResolveEvent` and
- * returns the classes that it resolved. If the handler doesn't call `resolve()`, the sources pass
- * through.
- *
- * @param classResolver The `ClassResolver` that the event's resolver calls, or `null` for the plain
- *     merge.
- */
 function resolveThroughEvent(
   resolverFn: ClassResolverFn,
   flags: ClassResolverFlags,
@@ -363,7 +327,6 @@ function resolveThroughEvent(
   let resolved: string[] | null = null;
   let calls = 0;
   let sealed = false;
-  // `resolver` and `resolve` close over this refresh, so they work when called on their own.
   const event: ClassResolveEvent = {
     sources,
     resolver: (...extras) =>
@@ -382,7 +345,6 @@ function resolveThroughEvent(
             : `The ${form} handler called \`resolve()\` more than once. Call it at most once.`,
         );
       }
-      // In production, a late call is ignored.
       if (sealed) {
         return;
       }
@@ -414,7 +376,6 @@ function resolveThroughEvent(
   return resolved ?? sources.flat();
 }
 
-/** Classes that a `ClassResolveEvent`'s resolver merged, with the event that created them. */
 class ResolvedClassesImpl implements ResolvedClasses {
   declare readonly [ɵRESOLVED_CLASSES_BRAND]: true;
 
@@ -428,10 +389,6 @@ class ResolvedClassesImpl implements ResolvedClasses {
   }
 }
 
-/**
- * Merges the sources with the extras of a `ClassResolveEvent`'s resolver, with `classResolver` or
- * the plain merge. The extras rank at the end of the source of the binding's owner.
- */
 function mergeClassSources(
   sources: CollectedClassSources,
   extras: ClassBindingValue[],
@@ -446,19 +403,11 @@ function mergeClassSources(
   return readClassNames((classResolver ?? mergeClasses)(...classes));
 }
 
-/**
- * The resolver without a registration: flattens the classes in order, drops empty and repeated
- * names, keeping the first position, and joins them with spaces.
- */
 function mergeClasses(...classes: string[]): string {
   return readClassNames(classes.join(' ')).join(' ');
 }
 
-/**
- * Reads classes for the extras, `resolve()`, and the plain merge the way a `[class]` binding reads
- * them: names without empty and repeated ones, and without the names of an array, a `Set`, or an
- * object map that contain a space. A `ResolvedClasses` gives its own names.
- */
+/** Reads classes the way a `[class]` binding reads them, but without names that contain a space. */
 export function readClassNames(value: unknown): string[] {
   if (value instanceof ResolvedClassesImpl) {
     return value.classNames;
@@ -466,8 +415,6 @@ export function readClassNames(value: unknown): string[] {
   const classNames = new Set<string>();
   const add = (className: unknown) => {
     const name = String(className);
-    // A string splits on whitespace, so only the names of an array, a `Set`, or an object map can
-    // contain a space.
     if (name !== '' && !name.includes(' ')) {
       classNames.add(name);
     }

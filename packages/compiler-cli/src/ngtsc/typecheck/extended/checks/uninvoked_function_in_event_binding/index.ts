@@ -44,7 +44,6 @@ import {
 class UninvokedFunctionInEventBindingSpec extends TemplateCheckWithVisitor<ErrorCode.UNINVOKED_FUNCTION_IN_EVENT_BINDING> {
   override code = ErrorCode.UNINVOKED_FUNCTION_IN_EVENT_BINDING as const;
 
-  /** Event bindings declared on containers, such as `<ng-container>`, which resolve no classes. */
   private readonly containerBindings = new WeakSet<TmplAstBoundEvent>();
 
   override visitNode(
@@ -68,8 +67,7 @@ class UninvokedFunctionInEventBindingSpec extends TemplateCheckWithVisitor<Error
       return [];
 
     // A `(class)` shorthand calls the function its expression returns, so `(class)="resolve"` and
-    // `(class)="(cn) => cn()"` are intended. On a container, the runtime runs no handler of either
-    // form, and the binding is reported as a resolver on a container instead.
+    // `(class)="(cn) => cn()"` are intended.
     const classResolverForm = getClassResolverBindingForm(node.name, node.type, node.target);
     if (
       classResolverForm === 'shorthand' ||

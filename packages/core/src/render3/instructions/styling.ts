@@ -384,7 +384,6 @@ function stylingFirstUpdatePass(
       tStylingKey = false;
     }
     if (isClassBased && tNode.classResolver !== null && tStylingKey !== false) {
-      // The hook is set before anything sets `classResolver`.
       _registerClassResolverBinding!(
         tNode.classResolver,
         isHostBindings ? getCurrentDirectiveIndex() : -1,

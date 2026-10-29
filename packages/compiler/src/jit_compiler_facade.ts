@@ -943,8 +943,6 @@ function extractHostBindings(
         } else if (isHostListener(ann)) {
           const eventName = ann.eventName || field;
           const handler = `${field}(${(ann.args || []).join(',')})`;
-          // Listeners are keyed by event name, so a second class resolver would silently replace
-          // the first one. Only the `host` object declares one.
           if (getClassResolverForm(eventName, ParsedEventType.Regular, null, 'host') !== null) {
             throw new Error(
               `@HostListener('${eventName}') can't declare a class resolver. Bind it in the host ` +
@@ -968,10 +966,6 @@ function extractHostBindings(
   return bindings;
 }
 
-/**
- * Verifies that host bindings declare at most one class resolver, and that a `(class)` shorthand
- * is a single expression.
- */
 function verifyHostClassResolvers(bindings: ParsedHostBindings, sourceSpan: ParseSourceSpan): void {
   const events = makeBindingParser().createDirectiveHostEventAsts(bindings.listeners, sourceSpan);
   let hasClassResolver = false;

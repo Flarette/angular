@@ -297,9 +297,9 @@ class BlockPresenceVisitor extends RecursiveVisitor {
 }
 
 /**
- * Finds a class resolver in a template, in either form, so that a template with `(attr.class)`
- * needs a linker that knows it too. A resolver on `<ng-container>` or `<ng-template>` counts as
- * well: it compiles to the same instruction, which an older linker compiles to a listener.
+ * Finds a class resolver in a template, in either form. A resolver on `<ng-container>` or
+ * `<ng-template>` counts as well: it compiles to the same instruction, which an older linker
+ * compiles to a listener.
  */
 class ClassResolverPresenceVisitor extends RecursiveVisitor {
   hasClassResolver = false;

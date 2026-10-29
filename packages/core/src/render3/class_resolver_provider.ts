@@ -17,7 +17,6 @@ import {
 
 /** What a `provideClassResolver` call registers. */
 export interface ClassResolverConfig {
-  /** Merges the classes of an element. */
   readonly resolver: ClassResolver;
 
   /** Whether `withAutoResolution()` resolves the elements that this provider reaches. */
@@ -26,8 +25,7 @@ export interface ClassResolverConfig {
 
 /**
  * The resolver that merges an element's classes for its `(class)` and `(attr.class)` bindings, and
- * whether elements without such a binding are resolved automatically. Without a provider, the
- * bindings use the plain merge and nothing is resolved automatically.
+ * whether elements without such a binding are resolved automatically.
  */
 export const CLASS_RESOLVER = new InjectionToken<ClassResolverConfig>(
   typeof ngDevMode !== 'undefined' && ngDevMode ? 'CLASS_RESOLVER' : '',
