@@ -190,24 +190,21 @@ runInEachFileSystem(() => {
       expect(diags[0].messageText).toBe(generateDiagnosticText('resolve()'));
     });
 
-    it('should produce a diagnostic for a function in a (class) binding on a container', () => {
+    it('should not produce a diagnostic for a class resolver on a container', () => {
       const diags = setupTestComponent(
         `
           <ng-container (class)="resolve"></ng-container>
+          <ng-container (class)="(cn) => resolve(cn)"></ng-container>
+          <ng-container (attr.class)="resolve"></ng-container>
+          <ng-template (class)="resolve"></ng-template>
+          <ng-template (class)="(cn) => resolve(cn)"></ng-template>
+          <ng-template (attr.class)="resolve"></ng-template>
           <svg><ng-container (class)="resolve"></ng-container></svg>
         `,
         `resolve(cn: () => string) { return cn(); }`,
       );
 
-      expect(diags.length).toBe(2);
-      expect(diags.map((diag) => getSourceCodeForDiagnostic(diag))).toEqual([
-        `(class)="resolve"`,
-        `(class)="resolve"`,
-      ]);
-      expect(diags.map((diag) => diag.messageText)).toEqual([
-        generateDiagnosticText('resolve()'),
-        generateDiagnosticText('resolve()'),
-      ]);
+      expect(diags.length).toBe(0);
     });
 
     it('should not produce a warning when the function is not invoked in two-way-binding', () => {

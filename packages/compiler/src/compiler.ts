@@ -206,6 +206,7 @@ export {
 export {
   ClassResolverForm,
   ClassResolverNodeKind,
+  getClassResolverBindingForm,
   getClassResolverForm,
 } from './render3/r3_class_resolver';
 export {

@@ -62,6 +62,21 @@
       ]
     },
     {
+      "description": "should create class resolver instructions for (class) and (attr.class) on an ng-template",
+      "inputFiles": ["class_resolver_ng_template.ts"],
+      "expectations": [
+        {
+          "files": [
+            {
+              "expected": "class_resolver_ng_template_template.js",
+              "generated": "class_resolver_ng_template.js"
+            }
+          ],
+          "failureMessage": "Incorrect template"
+        }
+      ]
+    },
+    {
       "description": "should create a class resolver instruction for (class) inside a block",
       "inputFiles": ["class_resolver_with_blocks.ts"],
       "expectations": [

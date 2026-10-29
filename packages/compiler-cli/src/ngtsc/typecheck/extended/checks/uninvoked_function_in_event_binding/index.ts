@@ -12,7 +12,7 @@ import {
   Call,
   Chain,
   Conditional,
-  getClassResolverForm,
+  getClassResolverBindingForm,
   isNgContainer,
   isNgTemplate,
   ParsedEventType,
@@ -67,11 +67,14 @@ class UninvokedFunctionInEventBindingSpec extends TemplateCheckWithVisitor<Error
     if (node.type !== ParsedEventType.Regular && node.type !== ParsedEventType.LegacyAnimation)
       return [];
 
-    // A `(class)` shorthand that resolves calls the function its expression returns, so
-    // `(class)="resolve"` and `(class)="(cn) => cn()"` are intended. On a container, it resolves
-    // nothing and nothing calls the function.
-    const nodeKind = this.containerBindings.has(node) ? 'container' : 'element';
-    if (getClassResolverForm(node.name, node.type, node.target, nodeKind) === 'shorthand')
+    // A `(class)` shorthand calls the function its expression returns, so `(class)="resolve"` and
+    // `(class)="(cn) => cn()"` are intended. On a container, the runtime runs no handler of either
+    // form, and the binding is reported as a resolver on a container instead.
+    const classResolverForm = getClassResolverBindingForm(node.name, node.type, node.target);
+    if (
+      classResolverForm === 'shorthand' ||
+      (classResolverForm !== null && this.containerBindings.has(node))
+    )
       return [];
 
     if (!(node.handler instanceof ASTWithSource)) return [];

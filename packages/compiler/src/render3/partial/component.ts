@@ -6,11 +6,10 @@
  * found in the LICENSE file at https://angular.dev/license
  */
 import * as core from '../../core';
-import {isNgContainer} from '../../ml_parser/tags';
 import * as o from '../../output/output_ast';
 import {ParseLocation, ParseSourceFile, ParseSourceSpan} from '../../parse_util';
-import {Element, RecursiveVisitor, visitAll} from '../r3_ast';
-import {getClassResolverForm} from '../r3_class_resolver';
+import {BoundEvent, Element, RecursiveVisitor, Template, visitAll} from '../r3_ast';
+import {getClassResolverBindingForm} from '../r3_class_resolver';
 import {Identifiers as R3} from '../r3_identifiers';
 import {generateForwardRef, R3CompiledExpression} from '../util';
 import {
@@ -298,22 +297,30 @@ class BlockPresenceVisitor extends RecursiveVisitor {
 }
 
 /**
- * Finds a class resolver on a template element, in either form, so that a template with
- * `(attr.class)` needs a linker that knows it too.
+ * Finds a class resolver in a template, in either form, so that a template with `(attr.class)`
+ * needs a linker that knows it too. A resolver on `<ng-container>` or `<ng-template>` counts as
+ * well: it compiles to the same instruction, which an older linker compiles to a listener.
  */
 class ClassResolverPresenceVisitor extends RecursiveVisitor {
   hasClassResolver = false;
 
   override visitElement(element: Element): void {
-    const nodeKind = isNgContainer(element.name) ? 'container' : 'element';
+    this.visitOutputs(element.outputs);
+    super.visitElement(element);
+  }
+
+  override visitTemplate(template: Template): void {
+    this.visitOutputs(template.outputs);
+    super.visitTemplate(template);
+  }
+
+  private visitOutputs(outputs: BoundEvent[]): void {
     if (
-      element.outputs.some(
-        (output) =>
-          getClassResolverForm(output.name, output.type, output.target, nodeKind) !== null,
+      outputs.some(
+        (output) => getClassResolverBindingForm(output.name, output.type, output.target) !== null,
       )
     ) {
       this.hasClassResolver = true;
     }
-    super.visitElement(element);
   }
 }

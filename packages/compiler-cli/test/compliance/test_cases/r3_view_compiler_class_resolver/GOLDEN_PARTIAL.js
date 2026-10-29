@@ -141,6 +141,43 @@ export declare class MyComponent {
 }
 
 /****************************************************************************************************
+ * PARTIAL FILE: class_resolver_ng_template.js
+ ****************************************************************************************************/
+import { Component } from '@angular/core';
+import * as i0 from "@angular/core";
+export class MyComponent {
+    resolve = (cn) => cn();
+    capture(event) { }
+    static ɵfac = i0.ɵɵngDeclareFactory({ minVersion: "12.0.0", version: "0.0.0-PLACEHOLDER", ngImport: i0, type: MyComponent, deps: [], target: i0.ɵɵFactoryTarget.Component });
+    static ɵcmp = i0.ɵɵngDeclareComponent({ minVersion: "22.3.0", version: "0.0.0-PLACEHOLDER", type: MyComponent, isStandalone: true, selector: "my-component", ngImport: i0, template: `
+    <ng-template (class)="resolve"></ng-template>
+    <ng-template (attr.class)="capture($event)"></ng-template>
+  `, isInline: true });
+}
+i0.ɵɵngDeclareClassMetadata({ minVersion: "12.0.0", version: "0.0.0-PLACEHOLDER", ngImport: i0, type: MyComponent, decorators: [{
+            type: Component,
+            args: [{
+                    selector: 'my-component',
+                    template: `
+    <ng-template (class)="resolve"></ng-template>
+    <ng-template (attr.class)="capture($event)"></ng-template>
+  `,
+                }]
+        }] });
+
+/****************************************************************************************************
+ * PARTIAL FILE: class_resolver_ng_template.d.ts
+ ****************************************************************************************************/
+import { ClassCallback, ClassResolveEvent } from '@angular/core';
+import * as i0 from "@angular/core";
+export declare class MyComponent {
+    resolve: ClassCallback;
+    capture(event: ClassResolveEvent): void;
+    static ɵfac: i0.ɵɵFactoryDeclaration<MyComponent, never>;
+    static ɵcmp: i0.ɵɵComponentDeclaration<MyComponent, "my-component", never, {}, {}, never, never, true, never>;
+}
+
+/****************************************************************************************************
  * PARTIAL FILE: class_resolver_with_blocks.js
  ****************************************************************************************************/
 import { Component } from '@angular/core';

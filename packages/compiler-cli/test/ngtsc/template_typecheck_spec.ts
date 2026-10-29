@@ -1304,6 +1304,34 @@ runInEachFileSystem(() => {
         expect(getSourceCodeForDiagnostic(diags[0])).toBe('classes');
       });
 
+      it('should check the earlier expressions of a shorthand chain as statements', () => {
+        writeComponent(
+          `<div (class)="count($event); (cn) => 'x'"></div>`,
+          `count(value: number) {}`,
+        );
+
+        // The chain is a parse error, but the template is still type-checked.
+        const diags = env.driveDiagnostics();
+        expect(
+          diags.map((diag) => [diag.code, flatten(diag), getSourceCodeForDiagnostic(diag)]),
+        ).toEqual(
+          jasmine.arrayWithExactContents([
+            [
+              ngErrorCode(ErrorCode.TEMPLATE_PARSE_ERROR),
+              `A '(class)' shorthand must be a single expression, a function that receives the ` +
+                `resolver. Bind '(attr.class)' to run more than one statement.`,
+              `count($event); (cn) => 'x'`,
+            ],
+            [
+              2345,
+              `Argument of type 'ClassResolveEvent' is not assignable to parameter of type 'number'.`,
+              '$event',
+            ],
+            [2322, `Type 'string' is not assignable to type 'ResolvedClasses'.`, `'x'`],
+          ]),
+        );
+      });
+
       it('should not let a directive output named class claim a (class) binding', () => {
         env.tsconfig({
           strictTemplates: true,
