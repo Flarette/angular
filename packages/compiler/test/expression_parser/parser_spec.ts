@@ -1351,6 +1351,27 @@ describe('parser', () => {
           expect(getSource(arrowFn.parameters[1].span)).toBe('bar');
           expect(getSource(arrowFn.parameters[1].sourceSpan)).toBe('bar');
         });
+
+        it('should produce spans for an unparenthesized parameter in a later interpolation', () => {
+          const template = '{{a}} {{foo => foo}}';
+
+          for (const absoluteOffset of [0, 100]) {
+            const ast = createParser().parseInterpolation(
+              template,
+              getFakeSpan(),
+              absoluteOffset,
+              null,
+            )!;
+            const arrowFn = (ast.ast as Interpolation).expressions[1] as ArrowFunction;
+
+            expect(ast.errors).toEqual([]);
+            expect(arrowFn.parameters.length).toBe(1);
+            expect(arrowFn.parameters[0].span).toEqual(new ParseSpan(8, 11));
+            expect(arrowFn.parameters[0].sourceSpan).toEqual(
+              new AbsoluteSourceSpan(absoluteOffset + 8, absoluteOffset + 11),
+            );
+          }
+        });
       });
 
       describe('arrow function validations', () => {
