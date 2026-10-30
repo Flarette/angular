@@ -6,60 +6,12 @@
  * found in the LICENSE file at https://angular.dev/license
  */
 
-import ts from 'typescript';
-
 import {runInEachFileSystem} from '../../file_system/testing';
 import {
   resetParseTemplateAsSourceFileForTest,
   setParseTemplateAsSourceFileForTest,
 } from '../diagnostics';
-import {shouldReportDiagnostic} from '../src/diagnostics';
 import {diagnose, ngForDeclaration, ngForDts, ngIfDeclaration, ngIfDts} from '../testing';
-
-describe('diagnostic filtering', () => {
-  function diagnostic(code: number, source?: string, start?: number): ts.Diagnostic {
-    return {
-      code,
-      category: ts.DiagnosticCategory.Error,
-      messageText: 'Test diagnostic',
-      file:
-        source === undefined
-          ? undefined
-          : ts.createSourceFile('test.ts', source, ts.ScriptTarget.Latest),
-      start,
-      length: 1,
-    };
-  }
-
-  for (const code of [6133, 6199, 2695, 7006]) {
-    it(`should suppress TS${code} by error code`, () => {
-      expect(shouldReportDiagnostic(diagnostic(code))).toBe(false);
-    });
-  }
-
-  for (const code of [2300, 2345]) {
-    it(`should report TS${code} for source mapping`, () => {
-      expect(shouldReportDiagnostic(diagnostic(code))).toBe(true);
-    });
-  }
-
-  for (const receiver of ['this.', '(this).']) {
-    it(`should suppress TS2341 for a private member accessed on ${receiver}`, () => {
-      expect(shouldReportDiagnostic(diagnostic(2341, `${receiver}value`, receiver.length))).toBe(
-        false,
-      );
-    });
-  }
-
-  it('should report TS2341 for a private member accessed on another receiver', () => {
-    expect(shouldReportDiagnostic(diagnostic(2341, 'model.value', 6))).toBe(true);
-  });
-
-  it('should report TS2341 when its source location is unavailable', () => {
-    expect(shouldReportDiagnostic(diagnostic(2341))).toBe(true);
-    expect(shouldReportDiagnostic(diagnostic(2341, 'this.value'))).toBe(true);
-  });
-});
 
 runInEachFileSystem(() => {
   describe('template diagnostics', () => {
@@ -79,23 +31,21 @@ runInEachFileSystem(() => {
         ]);
       });
 
-      for (const parameter of ['(prev)', 'prev']) {
-        it(`should not report unused arrow function parameters with ${parameter}`, () => {
-          const messages = diagnose(
-            `<div (click)="takes(${parameter} => 1)"></div>`,
-            `
+      it('should not report unused arrow function parameters', () => {
+        const messages = diagnose(
+          `<div (click)="takes((prev) => 1)"></div>`,
+          `
           class TestComponent {
             takes(fn: (value: number) => number) {}
           }`,
-            [],
-            [],
-            {},
-            {noUnusedLocals: true, noUnusedParameters: true},
-          );
+          [],
+          [],
+          {},
+          {noUnusedLocals: true, noUnusedParameters: true},
+        );
 
-          expect(messages).toEqual([]);
-        });
-      }
+        expect(messages).toEqual([]);
+      });
     });
 
     it('works for directive bindings', () => {

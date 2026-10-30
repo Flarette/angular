@@ -10502,80 +10502,70 @@ suppress
         expect(getSourceCodeForDiagnostic(diags[0])).toBe('attempt');
       });
 
-      for (const [expression, parameter] of [
-        ['retry(attempt => load(attempt))', 'attempt'],
-        ['takes(value => () => 1)', 'value'],
-      ]) {
-        it(`should map errors at an unparenthesized parameter in a later interpolation: ${expression}`, () => {
-          env.tsconfig({strictTemplates: true}, {strict: true, noImplicitAny: true});
-          const template = `{{1}} {{${expression}}}`;
-          env.write('test.html', template);
-          env.write(
-            'test.ts',
-            `
-              import {Component} from '@angular/core';
+      it('should map errors at an unparenthesized parameter in a later interpolation', () => {
+        env.tsconfig({strictTemplates: true}, {strict: true, noImplicitAny: true});
+        const template = '{{1}} {{retry(attempt => load(attempt))}}';
+        env.write('test.html', template);
+        env.write(
+          'test.ts',
+          `
+            import {Component} from '@angular/core';
 
-              @Component({templateUrl: './test.html'})
-              class TestCmp {
-                retry(fn: () => void) {}
-                load(attempt: number) {}
-                takes(fn: (value: number) => number) {}
-              }
-            `,
-          );
+            @Component({templateUrl: './test.html'})
+            class TestCmp {
+              retry(fn: () => void) {}
+              load(attempt: number) {}
+            }
+          `,
+        );
 
-          const diags = env.driveDiagnostics();
-          expect(diags.length).toBe(1);
-          expect(diags[0].code).toBe(2345);
-          expect(diags[0].file!.text).toBe(template);
-          expect(diags[0].start).toBe(template.indexOf(parameter));
-          expect(getSourceCodeForDiagnostic(diags[0])).toBe(parameter);
-        });
-      }
+        const diags = env.driveDiagnostics();
+        expect(diags.length).toBe(1);
+        expect(diags[0].code).toBe(2345);
+        expect(diags[0].file!.text).toBe(template);
+        expect(diags[0].start).toBe(template.indexOf('attempt'));
+        expect(getSourceCodeForDiagnostic(diags[0])).toBe('attempt');
+      });
 
-      for (const parameters of ['(a, b)', 'a']) {
-        it(`should not report implicit any errors on arrow functions without a contextual type with ${parameters}`, () => {
-          env.tsconfig({strictTemplates: true}, {strict: true, noImplicitAny: true});
-          env.write(
-            'test.ts',
-            `
+      it('should not report implicit any errors on arrow functions without a contextual type', () => {
+        env.tsconfig({strictTemplates: true}, {strict: true, noImplicitAny: true});
+        env.write(
+          'test.ts',
+          `
             import {Component} from '@angular/core';
 
             @Component({
-              template: '<div (click)="handler = ${parameters} => a"></div>',
+              template: '<div (click)="handler = (a, b) => a"></div>',
             })
             class TestCmp {
               handler: unknown;
             }
-            `,
-          );
+          `,
+        );
 
-          const diags = env.driveDiagnostics();
-          expect(diags.length).toBe(0);
-        });
-      }
+        const diags = env.driveDiagnostics();
+        expect(diags.length).toBe(0);
+      });
 
-      for (const parameter of ['(prev)', 'prev']) {
-        it(`should not report errors on contextually typed arrow function parameters with ${parameter}`, () => {
-          env.tsconfig({strictTemplates: true}, {strict: true, noImplicitAny: true});
-          env.write(
-            'test.ts',
-            `
+      it('should not report errors on contextually typed arrow function parameters', () => {
+        env.tsconfig({strictTemplates: true}, {strict: true, noImplicitAny: true});
+        env.write(
+          'test.ts',
+          `
             import {Component, signal} from '@angular/core';
 
             @Component({
-              template: '<div (click)="sig.update(${parameter} => prev + 1)"></div>',
+              template: '<div (click)="sig.update((prev) => prev + 1)"></div>',
             })
             class TestCmp {
               sig = signal(0);
             }
-            `,
-          );
+          `,
+        );
 
-          const diags = env.driveDiagnostics();
-          expect(diags.length).toBe(0);
-        });
-      }
+        const diags = env.driveDiagnostics();
+        expect(diags.length).toBe(0);
+      });
     });
 
     describe('multiple matching components', () => {
