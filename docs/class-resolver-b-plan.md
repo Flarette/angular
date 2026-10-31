@@ -89,7 +89,7 @@ Listed for the owner at review.
 | D4  | Error codes. Runtime: `NG0320` misuse of `resolve()` or a foreign shorthand result (B1, B2; throws in dev mode); `NG0321` a resolver on a container (B8; `console.error` in dev mode, like `NG0303`); `NG0322` automatic resolution below a root that doesn't declare it (B14; throws in dev mode); `NG0323` a second resolver inherited by one directive (B10; throws in dev mode). Compile time: `NG8120` replaces `NG8119` for B7's warning; `NG8121` a resolver on a container (B8). B9, B10 and B11 reuse `HOST_BINDING_PARSE_ERROR` (`NG5001`) for host metadata and the template parse error (`NG5002`) for templates. `CLASS_RESOLVER_OUTPUT_CONFLICT` (`-319`) is removed. |
 | D5  | The resolver is looked up once per registration when the element is created, from the element's injector as the registration's owner would inject it. Absent a provider, the plain merge applies. The token is internal; `provideClassResolver` is the only public way to set it.                                                                                                                                                                                                                                                                                                                                                                                                   |
 | D6  | Public names: `ClassResolveEvent`, `ClassBindingValue`, `ResolvedClasses`, `BoundClassResolver`, `ClassCallback`, `ClassResolver`, `ClassResolverFeature`, `provideClassResolver`, and `withAutoResolution`. All carry `@experimental 22.3`, like `ClassSources`.                                                                                                                                                                                                                                                                                                                                                                                                                   |
-| D7  | Type checking checks a shorthand's `F` as `((F) satisfies ClassCallback)!($event.resolver)`, because a plain call doesn't reject `(cn) => 'x'` (measured). `satisfies` types arrow parameters and rejects a result that isn't `ResolvedClasses`, and it keeps `F`'s own type, so TypeScript checks the receiver of the call as it's emitted (A1). The non-null assertion keeps one diagnostic for a nullable `F`. Synthesized callees and calls are parenthesized.                                                                                                                                                                                                                  |
+| D7  | Type checking checks a shorthand's `F` as `$event.resolve(((F) satisfies ClassCallback)!($event.resolver) as any)`, because a plain call doesn't reject `(cn) => 'x'` (measured). `satisfies` types arrow parameters and rejects a result that isn't `ResolvedClasses`, and it keeps `F`'s own type, so TypeScript checks the receiver of the call as it's emitted (A1). The non-null assertion keeps one diagnostic for a nullable `F`, and `as any` keeps `resolve()` from reporting a result that `satisfies` already rejected. Synthesized callees and calls are parenthesized.                                                                                                 |
 | D8  | `minVersion` stays `"22.3.0"`: the prototype's semantics never shipped, so no linker with them exists outside this fork. The partial-declaration rule also recognizes `(attr.class)`.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                               |
 | D9  | Automatic resolution looks its setting up once per template instance, from the injector of the component that declares the template, and stores it in the instance. Instances where it's off skip their elements on refresh.                                                                                                                                                                                                                                                                                                                                                                                                                                                        |
 | D10 | Automatic resolution remembers each element's last per-source strings and skips the resolver and the DOM diff when they haven't changed. Explicit resolvers still run on every refresh (R3).                                                                                                                                                                                                                                                                                                                                                                                                                                                                                        |
@@ -662,7 +662,7 @@ class Cmp {
 ```
 
 Emit the shorthand's call as D7 states:
-`$event.resolve(((F) satisfies ClassCallback)!($event.resolver))`. TypeScript treats `satisfies`,
+`$event.resolve(((F) satisfies ClassCallback)!($event.resolver) as any)`. TypeScript treats `satisfies`,
 `!`, and parentheses as transparent when it finds a call's receiver. Measured with `tsc` 6.0.3,
 outside ngtsc:
 
@@ -680,12 +680,16 @@ outside ngtsc:
 Diagnostics, ruled by the orchestrator:
 
 - Every diagnostic maps to the binding's `F` in the template (`getSourceCodeForDiagnostic`), or to
-  the place inside `F` where it maps today.
+  the place inside `F` where it maps today. TypeScript reports TS1360 on the `satisfies` keyword,
+  so it maps to the whole `F`, even where today's TS2345 mapped to a name inside `F`.
 - The synthesized `$event.resolver` argument reports nothing: mark it to ignore diagnostics, so a
   wrong parameter type reports once, as today.
-- Existing specs keep their diagnostic counts and spans. Only messages change, from
+- The call's result is cast `as any`. `satisfies` already checks it, and without the cast an `F`
+  that returns `void` also reports from `resolve()`, on the same token as TS2684.
+- Existing specs keep their diagnostic counts. Messages change, from
   `Argument of type '…' is not assignable to parameter of type 'ClassCallback'` to
-  `Type '…' does not satisfy the expected type 'ClassCallback'`.
+  `Type '…' does not satisfy the expected type 'ClassCallback'`, and a span widens to the whole
+  `F` where TS1360 replaces a TS2345 that mapped inside it.
 - One exception: an `F` that isn't callable at all, such as `classes()` that returns a string,
   also reports TS2349, `This expression is not callable`. Both messages are true, and the
   literal expansion reports TS2349, so the second diagnostic is accepted. Update that spec's
@@ -869,6 +873,17 @@ The audit's other probes pass, and several cover cases no spec covers, such as t
 across an opt-out boundary. WP8 keeps those, deduplicated against the existing specs. It drops
 the two runtime probes that expect A1's `TypeError`, because JIT doesn't type-check and they would
 pin the crash. The superseded WP5 `minVersion` note leaves `docs/DEFERRED.md`, as the audit noted.
+
+### 2026-10-31: where WP7's diagnostics map
+
+The WP7 agent measured two conflicts between D7's shape and the rule that existing spans don't
+change. TypeScript reports TS1360 on the `satisfies` keyword, so ngtsc maps it to the whole `F`.
+No emission shape maps it inside `F`, where today's TS2345 pointed for a safe read and a call
+(`classes` became `choice?.classes` and `classes()`). The orchestrator ruled to accept the whole
+`F`, instead of choosing a span by expression kind. And without a cast, an `F` that returns `void`
+also reported from `resolve()`, on the same token as TS2684, so an ignore marker couldn't drop
+only that error. Ruled: the call's result is cast `as any`, because `satisfies` already checks it.
+D7 and WP7 are edited to match.
 
 ## Reviews
 
