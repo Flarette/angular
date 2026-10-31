@@ -1024,3 +1024,20 @@ type-checked, and legacy optional chaining losing a receiver at runtime goes to 
     as before this round.
   - For a refactoring round: the production rule for a below-root declaration has one spec, for a
     lazy route; component-level declarations in production aren't tested.
+- WP7 (`759644e4e5`, fixup `3fb056630e`): orchestrator 9.25, Codex 6.50 before the fixup and 9.50
+  after.
+  - The agent stopped twice where measured mapping contradicted the entry, and both stops were
+    right: TS1360 maps to the whole `F`, and a cast was needed for the shape as first ruled.
+  - Codex found that shape's two suppressions hid errors of overloaded callbacks. The
+    orchestrator's proposals, documenting the gap or checking a second copy of `F`, were rejected
+    with counterexamples, and Codex's shape was ruled (see Errata). A wrong callback now reports up
+    to three diagnostics, all on `F`.
+  - Fixed on the way: with `strictOutputEventTypes` off, a `this` mismatch in a shorthand was
+    dropped, because its callee had no span.
+  - One preprocessor exception (R10): the preprocessor also type-checks the generated runtime code,
+    so `() => saved` reports a second TS2554 with an unusable span.
+  - Deferred (`docs/DEFERRED.md`): legacy optional chaining drops the receiver of `(a?.b)(c)` at
+    runtime, for any template.
+  - For a refactoring round: deduplicating diagnostics by check after type checking; controls for
+    generic callbacks and for `F` being emitted once; long import lines in the specs' template
+    strings.
