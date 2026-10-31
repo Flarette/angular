@@ -89,7 +89,7 @@ Listed for the owner at review.
 | D4  | Error codes. Runtime: `NG0320` misuse of `resolve()` or a foreign shorthand result (B1, B2; throws in dev mode); `NG0321` a resolver on a container (B8; `console.error` in dev mode, like `NG0303`); `NG0322` automatic resolution below a root that doesn't declare it (B14; throws in dev mode); `NG0323` a second resolver inherited by one directive (B10; throws in dev mode). Compile time: `NG8120` replaces `NG8119` for B7's warning; `NG8121` a resolver on a container (B8). B9, B10 and B11 reuse `HOST_BINDING_PARSE_ERROR` (`NG5001`) for host metadata and the template parse error (`NG5002`) for templates. `CLASS_RESOLVER_OUTPUT_CONFLICT` (`-319`) is removed. |
 | D5  | The resolver is looked up once per registration when the element is created, from the element's injector as the registration's owner would inject it. Absent a provider, the plain merge applies. The token is internal; `provideClassResolver` is the only public way to set it.                                                                                                                                                                                                                                                                                                                                                                                                   |
 | D6  | Public names: `ClassResolveEvent`, `ClassBindingValue`, `ResolvedClasses`, `BoundClassResolver`, `ClassCallback`, `ClassResolver`, `ClassResolverFeature`, `provideClassResolver`, and `withAutoResolution`. All carry `@experimental 22.3`, like `ClassSources`.                                                                                                                                                                                                                                                                                                                                                                                                                   |
-| D7  | Type checking checks a shorthand's `F` by assigning it to a `ClassCallback`-typed position before the call, because a plain call doesn't reject `(cn) => 'x'` (measured). Synthesized callees and calls are parenthesized.                                                                                                                                                                                                                                                                                                                                                                                                                                                          |
+| D7  | Type checking checks a shorthand's `F` as `((F) satisfies ClassCallback)!($event.resolver)`, because a plain call doesn't reject `(cn) => 'x'` (measured). `satisfies` types arrow parameters and rejects a result that isn't `ResolvedClasses`, and it keeps `F`'s own type, so TypeScript checks the receiver of the call as it's emitted (A1). The non-null assertion keeps one diagnostic for a nullable `F`. Synthesized callees and calls are parenthesized.                                                                                                                                                                                                                  |
 | D8  | `minVersion` stays `"22.3.0"`: the prototype's semantics never shipped, so no linker with them exists outside this fork. The partial-declaration rule also recognizes `(attr.class)`.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                               |
 | D9  | Automatic resolution looks its setting up once per template instance, from the injector of the component that declares the template, and stores it in the instance. Instances where it's off skip their elements on refresh.                                                                                                                                                                                                                                                                                                                                                                                                                                                        |
 | D10 | Automatic resolution remembers each element's last per-source strings and skips the resolver and the DOM diff when they haven't changed. Explicit resolvers still run on every refresh (R3).                                                                                                                                                                                                                                                                                                                                                                                                                                                                                        |
@@ -623,6 +623,131 @@ their own Bazel targets (BUILD edits are in scope), and every target that calls
 
 Commit: `feat(core): resolve classes automatically when the root opts in`.
 
+### WP7: check a shorthand's receiver as it's called
+
+From the external audit, finding A1. Scope: `tcbCreateClassResolverHandler` in
+`packages/compiler/src/typecheck/ops/events.ts`, the class resolver specs in
+`packages/compiler-cli/test/ngtsc/template_typecheck_spec.ts` and
+`host_bindings_type_check_spec.ts`, and `ngp_known_failures.ts` if the preprocessor fails a new
+spec (R10).
+
+Type checking passes `F` through `((cb: ClassCallback) => cb)((F))` and calls the result.
+`ClassCallback` declares no `this`, so a method that declares `this: T` loses that requirement,
+and TypeScript never checks the call that runs. With `strictTemplates`:
+
+```ts
+class Cmp {
+  active = false;
+  extra = 'extra';
+  first(this: Cmp, cn: BoundClassResolver) {
+    return cn();
+  }
+  classes(this: Cmp, cn: BoundClassResolver) {
+    return cn(this.extra);
+  }
+}
+```
+
+```html
+<!-- Today: no diagnostic. At runtime, `classes` runs with `this` undefined and throws. -->
+<div (class)="active ? first : classes"></div>
+
+<!-- The literal expansion (B2): TS2684 today. -->
+<div (attr.class)="$event.resolve((active ? first : classes)($event.resolver))"></div>
+
+<!-- Valid, and must stay valid: a property read keeps its receiver. -->
+<div (class)="classes"></div>
+```
+
+Emit the shorthand's call as D7 states:
+`$event.resolve(((F) satisfies ClassCallback)!($event.resolver))`. TypeScript treats `satisfies`,
+`!`, and parentheses as transparent when it finds a call's receiver. Measured with `tsc` 6.0.3,
+outside ngtsc:
+
+| `F`                                                  | Today                    | With D7's shape                    |
+| ---------------------------------------------------- | ------------------------ | ---------------------------------- |
+| `active ? first : classes`, methods with `this: Cmp` | none                     | TS2684                             |
+| `classes`, a method with `this: Cmp`                 | none                     | none                               |
+| `active ? (cn) => cn('a') : (cn) => cn()`            | none                     | none, `cn` inferred in both        |
+| `(cn) => 'x'`                                        | TS2322 at `'x'`          | TS2322 at `'x'`                    |
+| `str`, a method that returns a string                | TS2345 (`ClassCallback`) | TS1360 (`satisfies`)               |
+| `maybe?.cb`, `ClassCallback \| undefined`            | TS2345                   | TS1360                             |
+| `(cn: number) => cn`, or `h(e: number)`              | TS2345                   | TS1360, and TS2345 at the argument |
+| `classes()`, which returns a string                  | TS2345                   | TS1360 and TS2349                  |
+
+Diagnostics, ruled by the orchestrator:
+
+- Every diagnostic maps to the binding's `F` in the template (`getSourceCodeForDiagnostic`), or to
+  the place inside `F` where it maps today.
+- The synthesized `$event.resolver` argument reports nothing: mark it to ignore diagnostics, so a
+  wrong parameter type reports once, as today.
+- Existing specs keep their diagnostic counts and spans. Only messages change, from
+  `Argument of type '…' is not assignable to parameter of type 'ClassCallback'` to
+  `Type '…' does not satisfy the expected type 'ClassCallback'`.
+- One exception: an `F` that isn't callable at all, such as `classes()` that returns a string,
+  also reports TS2349, `This expression is not callable`. Both messages are true, and the
+  literal expansion reports TS2349, so the second diagnostic is accepted. Update that spec's
+  expected list for it and for nothing else.
+
+The audit's compiler probes are evidence:
+`git show 2f8725ea5c:packages/compiler-cli/test/ngtsc/class_resolver_audit_spec.ts`. Read them,
+don't add that file.
+
+Tests, red first, in `template_typecheck_spec.ts`'s `class resolver bindings` block, each with
+the diagnostic codes and the source code each diagnostic maps to:
+
+- `(class)="active ? first : classes"`, methods with `this: TestCmp`: one TS2684 at the
+  conditional. Red today.
+- The same in a host binding, `host: {'(class)': 'active ? first : classes'}`, in
+  `host_bindings_type_check_spec.ts`: one TS2684. Red today.
+- Controls, green before and after: the literal expansion gives one TS2684; `(class)="classes"`
+  with `this: TestCmp` gives none; `(class)="active ? (cn) => cn('a') : (cn) => cn(42)"` gives
+  one error at `42`, so `cn` is inferred in both branches; `(class)="active ? plainA : plainB"`,
+  methods without `this`, gives none.
+- Every existing spec stays green, with the message changes the rules above allow.
+
+Gates: the compiler regression targets.
+
+Commit: `fix(compiler-cli): check this in class shorthands`.
+
+### WP8: keep the audit's probes that cover untested cases
+
+From the external audit triage. Test files only: the specs and `BUILD.bazel` under
+`packages/core/test/acceptance/class_resolver/`, the class resolver specs under
+`packages/compiler-cli/test/ngtsc/`, and `ngp_known_failures.ts` (R10).
+
+The audit wrote probes that pass but that no existing spec covers in the same way. Its branch goes
+away when the round finishes. The probes are evidence; read them, don't add their files:
+
+```bash
+git show 2f8725ea5c:packages/core/test/acceptance/class_resolver/external_audit_spec.ts
+```
+
+```bash
+git show 2f8725ea5c:packages/core/test/acceptance/class_resolver/auto_external_audit_spec.ts
+```
+
+```bash
+git show 2f8725ea5c:packages/compiler-cli/test/ngtsc/class_resolver_audit_spec.ts
+```
+
+For each probe, find the existing spec that pins the same behavior. Port the probe only if none
+does, into the spec file that owns the behavior, in the style of its neighbors. An automatic
+resolution probe goes in the `auto_resolution` target, never next to explicit-only specs. Don't
+port:
+
+- `A1 reproduces an unbound method failure in the shorthand` and `… in the literal expansion`.
+  They expect the `TypeError`, and JIT doesn't type-check, so they would pin the crash after WP7.
+- The A1 compiler probes; WP7 owns them.
+
+The report lists every probe with one line each: ported, and where; or skipped, and the spec that
+already covers it.
+
+Gates: the runtime regression targets, `//packages/core/test/acceptance/class_resolver:auto_resolution`
+with `--runs_per_test=10`, and the full ngtsc targets from the compiler regression targets.
+
+Commit: `test: keep class resolver probes from the audit`.
+
 ## After the work packages
 
 - M1, by the orchestrator: measure Angular's own cost per element and refresh (collecting,
@@ -718,6 +843,30 @@ final call. The proposal's notes for maintainers list the options: a dev-mode wa
 the cached template data for future instances, and lazy setup. Codex withdrew its finding that a
 directive's own provider skips `NG0322`: the check applies when a provider would turn automatic
 resolution on for a view.
+
+### 2026-10-31: external audit triage
+
+The audit, [`class-resolver-b-audit-report.md`](class-resolver-b-audit-report.md) (branch
+`codex/class-resolver-b-audit-1`, commit `2f8725ea5c`), has one finding.
+
+A1, major: a shorthand whose `F` loses its receiver compiles, though the literal expansion is
+rejected with TS2684 and both throw at runtime. Triage: a bug against B2, with a local cause. D7's
+wrapper returns a `ClassCallback`, which declares no `this`, so TypeScript checks a different call
+from the one the compiler emits. The emitted code, the runtime, and TypeScript are right. The fix
+is WP7, with D7 edited in place. The orchestrator measured three shapes with `tsc`:
+
+- The audit's proposal, an assignability check and then the original call, writes `F` twice, so
+  every error inside `F` would be reported twice.
+- Constraining only the call's result to `ResolvedClasses` loses arrow inference inside a
+  conditional (TS7006).
+- `((F) satisfies ClassCallback)!(…)` keeps inference, the receiver, and the brand. A nullable `F`
+  still reports once. An `F` that isn't callable now reports twice, TS1360 and TS2349; the
+  orchestrator accepts that, because both are true and the literal expansion reports TS2349.
+
+The audit's other probes pass, and several cover cases no spec covers, such as templates moved
+across an opt-out boundary. WP8 keeps those, deduplicated against the existing specs. It drops
+the two runtime probes that expect A1's `TypeError`, because JIT doesn't type-check and they would
+pin the crash. The superseded WP5 `minVersion` note leaves `docs/DEFERRED.md`, as the audit noted.
 
 ## Reviews
 

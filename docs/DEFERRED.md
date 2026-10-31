@@ -32,10 +32,9 @@ bindings` (`5099d6e3`), worktree `/Users/geruch/repos/angular-cn-wt/container-no
   `(click)="takes((x) => () => x)"` compiles although TypeScript rejects it; so do
   `(class)="(cn) => () => cn()"` and `(attr.class)="$event.resolve(cn => cn())"`. TS7006, TS6133,
   and TS6199 are already filtered in `diagnostics.ts`, so removing or narrowing the marker is the
-  likely fix. From Codex's WP4 review; fixed separately on branch
-  `fix/template-arrow-param-diagnostics` (commit `d81abfb647`, not yet upstream). Once it lands,
+  likely fix. From Codex's WP4 review; fixed separately in upstream
+  PR #71734 (issue #71733), open. Once it lands,
   add the two class-resolver cases above to `template_typecheck_spec.ts` as rejected templates.
-- WP5: `ClassResolverPresenceVisitor` in `packages/compiler/src/render3/partial/component.ts` doesn't count `(class)` or `(attr.class)` on `<ng-container>` or `<ng-template>`, which now compile to `ɵɵclassResolver`, so such a template keeps its older `minVersion` and an older linker compiles the binding as a listener.
 - Pre-existing: a constructor that calls `ViewContainerRef.createEmbeddedView` overwrites the
   `wasLastNodeCreated()` flag before its element's host bindings run (`view_manipulation.ts`
   around line 65 renders without restoring it), so a hydrated element's class resolver can skip
