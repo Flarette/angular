@@ -1295,25 +1295,17 @@ runInEachFileSystem(() => {
         expect(env.driveDiagnostics()).toEqual([]);
       });
 
-      it('should infer the parameter of an arrow function in the shorthand', () => {
-        writeComponent(`<div (class)="(cn) => cn(42)"></div>`, '');
+      for (const name of ['cn', '$event']) {
+        it(`should infer the parameter named ${name} of an arrow function in the shorthand`, () => {
+          writeComponent(`<div (class)="(${name}) => ${name}(42)"></div>`, '');
 
-        const diags = env.driveDiagnostics();
-        expect(diags.map(flatten)).toEqual([
-          `Argument of type '42' is not assignable to parameter of type 'ClassBindingValue'.`,
-        ]);
-        expect(getSourceCodeForDiagnostic(diags[0])).toBe('42');
-      });
-
-      it('should infer the parameter of an arrow function in the shorthand that is named $event', () => {
-        writeComponent(`<div (class)="($event) => $event(42)"></div>`, '');
-
-        const diags = env.driveDiagnostics();
-        expect(diags.map(flatten)).toEqual([
-          `Argument of type '42' is not assignable to parameter of type 'ClassBindingValue'.`,
-        ]);
-        expect(getSourceCodeForDiagnostic(diags[0])).toBe('42');
-      });
+          const diags = env.driveDiagnostics();
+          expect(diags.map(flatten)).toEqual([
+            `Argument of type '42' is not assignable to parameter of type 'ClassBindingValue'.`,
+          ]);
+          expect(getSourceCodeForDiagnostic(diags[0])).toBe('42');
+        });
+      }
 
       it('should check a safe read in the shorthand as it is called', () => {
         writeComponent(

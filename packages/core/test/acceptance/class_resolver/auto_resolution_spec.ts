@@ -329,11 +329,11 @@ describe('automatic resolution', () => {
     expect(classesOf(legacy)).toEqual(['px-2', 'px-4']);
 
     app.classes.set('px-6');
-    app.legacy.classes.set('px-6');
+    app.legacy.classes.set('px-8');
     await fixture.whenStable();
 
     expect(classesOf(modern)).toEqual(['by-root', 'px-6']);
-    expect(classesOf(legacy)).toEqual(['px-2', 'px-6']);
+    expect(classesOf(legacy)).toEqual(['px-2', 'px-8']);
   });
 
   it('reports NG0322 when a lazy route turns it on and the root providers do not', async () => {
@@ -361,6 +361,27 @@ describe('automatic resolution', () => {
     await expectAsync(TestBed.inject(Router).navigateByUrl('/lazy')).toBeRejectedWithError(
       /^NG0322: /,
     );
+  });
+
+  it('reports NG0322 when a component turns it on and the root providers have no class resolver', () => {
+    const resolver = recordingResolver();
+
+    @Directive({selector: '[tone]', host: {class: 'px-2'}})
+    class Tone {}
+
+    @Component({
+      selector: 'modern-card',
+      imports: [Tone],
+      template: `<div tone class="px-4"></div>`,
+      providers: [provideClassResolver(resolver, withAutoResolution())],
+    })
+    class ModernCard {}
+
+    @Component({imports: [ModernCard], template: '<modern-card />'})
+    class App {}
+
+    expect(() => TestBed.createComponent(App)).toThrowError(/^NG0322: /);
+    expect(resolver).not.toHaveBeenCalled();
   });
 
   it('resolves an element with a (class) binding only through that binding', async () => {
