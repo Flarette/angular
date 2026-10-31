@@ -395,24 +395,24 @@ function tcbCreateClassResolverHandler(
     tcbEventHandlerExpression(expression, tcb, scope),
   );
   const callback = statements.pop()!;
-  // The callee, the argument, and the result check map their diagnostics to `F`.
+  // The symbol search visits nodes, not tokens: node spans sit only on parentheses that unwrap to
+  // `F` or the argument, and diagnostics that start at a token map through a span on that token.
   const span = expressions[expressions.length - 1].sourceSpan;
-  const resolver = new TcbExpr(`${EVENT_PARAMETER}.resolver`).addParseSpanInfo(span);
+  const callee = new TcbExpr(`(${callback.print()})`).addParseSpanInfo(span);
+  const resolver = new TcbExpr(`(${EVENT_PARAMETER}.resolver)`).addParseSpanInfo(span);
   let call: TcbExpr;
 
   if (checkType) {
     const classCallback = tcb.env.referenceExternalSymbol('@angular/core', 'ClassCallback');
     const resolvedClasses = tcb.env.referenceExternalSymbol('@angular/core', 'ResolvedClasses');
-    const callee = new TcbExpr(
-      `(((${callback.print()}) satisfies ${classCallback.print()})!)`,
-    ).addParseSpanInfo(span);
-    const result = new TcbExpr(
-      `(${callee.print()}(${resolver.print()}) satisfies ${resolvedClasses.print()})`,
-    ).addParseSpanInfo(span);
+    const open = new TcbExpr('(').addParseSpanInfo(span).print();
+    const satisfies = new TcbExpr('satisfies').addParseSpanInfo(span).print();
+    const checkedCallee = `${open}(${callee.print()} ${satisfies} ${classCallback.print()})!)`;
     // `resolve()` doesn't check the result again.
-    call = new TcbExpr(`${result.print()} as any`);
+    call = new TcbExpr(
+      `(${checkedCallee}(${resolver.print()}) ${satisfies} ${resolvedClasses.print()}) as any`,
+    );
   } else {
-    const callee = new TcbExpr(`(${callback.print()})`).addParseSpanInfo(span);
     call = new TcbExpr(`${callee.print()}(${resolver.print()})`);
   }
 
