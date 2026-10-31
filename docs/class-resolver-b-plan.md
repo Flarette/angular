@@ -946,6 +946,18 @@ expansion. Deduplicating by check after type checking is an option, recorded in 
 for maintainers. Also from the review: the call-level span applies when output events aren't
 type-checked, and legacy optional chaining losing a receiver at runtime goes to `docs/DEFERRED.md`.
 
+### 2026-10-31: WP9 keeps wrappers out of the symbol search
+
+WP9 measured that two of five template symbols in a `(class)` shorthand resolve to type-check
+wrappers. A safe read, `choice?.classes`, found the `$event.resolver` argument, and a whole
+conditional found the `satisfies ResolvedClasses` wrapper. The symbol builder takes the first node
+with the expression's span, in pre-order, and unwraps only parentheses, so a wrapper that is an
+ancestor of `F` wins. Ruled, as the agent measured: node spans stay only on parentheses that
+unwrap to `F` or the argument, and diagnostics that TypeScript starts at a token, the callee's
+opening parenthesis and each `satisfies` keyword, map through a span comment after that token.
+The symbol search visits nodes, not tokens. Changing the symbol builder instead was rejected: its
+first-match search is shared by every template expression.
+
 ## Reviews
 
 - WP0 (`adcbf79418`, fixup `d7f4b0254c`): orchestrator 9.00, Codex 9.00 before the fixup.
