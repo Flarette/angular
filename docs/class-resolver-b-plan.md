@@ -1041,3 +1041,13 @@ type-checked, and legacy optional chaining losing a receiver at runtime goes to 
   - For a refactoring round: deduplicating diagnostics by check after type checking; controls for
     generic callbacks and for `F` being emitted once; long import lines in the specs' template
     strings.
+- WP8 (`fc0a926614`, fixup `599a5ae216`): orchestrator 9.00, Codex 9.25 before the fixup.
+  - 15 of the audit's 24 probes are ported into the spec files that own them. The 9 skipped are
+    the three A1 probes and six that existing specs cover; Codex checked each skip.
+  - One preprocessor exception (R10): the NG8120 spec, because the preprocessor runs no extended
+    checks.
+  - The fixup restores distinct update values in the transplanted-template spec, so a view that
+    reads the wrong component fails. It also merges two inference specs into one loop over `cn`
+    and `$event`. And it adds the dev-mode `NG0322` spec for a component's own providers, which the
+    WP6 review left untested; `TestBed.createComponent` throws it synchronously.
+  - For a refactoring round: the NG8120 spec pins codes and categories, not spans.
