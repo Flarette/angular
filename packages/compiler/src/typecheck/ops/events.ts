@@ -395,8 +395,9 @@ function tcbCreateClassResolverHandler(
     tcbEventHandlerExpression(expression, tcb, scope),
   );
   const callback = statements.pop()!;
-  // The symbol search visits nodes, not tokens: node spans sit only on parentheses that unwrap to
-  // `F` or the argument, and diagnostics that start at a token map through a span on that token.
+  // The symbol search doesn't visit `(` and `satisfies` tokens. Node spans sit only on parentheses
+  // that unwrap to `F` or the argument, and diagnostics that start at those tokens map through
+  // spans on them.
   const span = expressions[expressions.length - 1].sourceSpan;
   const callee = new TcbExpr(`(${callback.print()})`).addParseSpanInfo(span);
   const resolver = new TcbExpr(`(${EVENT_PARAMETER}.resolver)`).addParseSpanInfo(span);
