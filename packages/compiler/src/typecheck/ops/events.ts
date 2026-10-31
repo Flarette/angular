@@ -369,8 +369,9 @@ function tcbCreateEventHandler(
 /**
  * Creates the handler function of a `(class)` or `(attr.class)` binding. The shorthand
  * `(class)="F"` is checked the way it's compiled, as `$event.resolve((F)($event.resolver))`. When
- * the type of `$event` is checked, `F` is first passed to a `ClassCallback` parameter, because a
- * direct call accepts `(cn) => 'x'`. The parameter also infers the parameters of an arrow function.
+ * the type of `$event` is checked, the call is `((F) satisfies ClassCallback)!($event.resolver)`,
+ * because a direct call accepts `(cn) => 'x'`. `satisfies` also infers the parameters of an arrow
+ * function and keeps the type of `F`, so the call checks the `this` that a method declares.
  */
 function tcbCreateClassResolverHandler(
   event: BoundEvent,
@@ -392,16 +393,26 @@ function tcbCreateClassResolverHandler(
   const statements = expressions.map((expression) =>
     tcbEventHandlerExpression(expression, tcb, scope),
   );
-  let callback = statements.pop()!;
+  const callback = statements.pop()!;
+  const callbackAst = expressions[expressions.length - 1];
+  const resolver = new TcbExpr(`${EVENT_PARAMETER}.resolver`);
+  let call: string;
 
   if (checkType) {
     const classCallback = tcb.env.referenceExternalSymbol('@angular/core', 'ClassCallback');
-    callback = new TcbExpr(`((cb: ${classCallback.print()}) => cb)((${callback.print()}))`);
+    // The callee maps call errors, such as a `this` mismatch, and the `satisfies` check to `F`. A
+    // wrong parameter type is reported once, by `satisfies`, so the argument reports nothing, and
+    // neither does the result, which `satisfies` has checked.
+    const callee = new TcbExpr(
+      `(((${callback.print()}) satisfies ${classCallback.print()})!)`,
+    ).addParseSpanInfo(callbackAst.sourceSpan);
+    resolver.markIgnoreDiagnostics();
+    call = `${callee.print()}(${resolver.print()}) as any`;
+  } else {
+    call = `(${callback.print()})(${resolver.print()})`;
   }
 
-  statements.push(
-    new TcbExpr(`${EVENT_PARAMETER}.resolve(((${callback.print()})(${EVENT_PARAMETER}.resolver)))`),
-  );
+  statements.push(new TcbExpr(`${EVENT_PARAMETER}.resolve((${call}))`));
   return tcbCreateHandlerFunction(statements, scope, eventType);
 }
 

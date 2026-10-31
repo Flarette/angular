@@ -353,6 +353,36 @@ runInEachFileSystem(() => {
       expect(getDiagnosticSourceCode(diags[0])).toBe('$event');
     });
 
+    it('should check this when a host (class) binding calls a method it reads from a conditional', () => {
+      env.write(
+        'test.ts',
+        `
+        import {BoundClassResolver, Component} from '@angular/core';
+
+        @Component({
+          template: '',
+          selector: 'ui-button',
+          host: {'(class)': 'active ? first : classes'},
+        })
+        export class Comp {
+          active = false;
+          extra = 'extra';
+          first(this: Comp, cn: BoundClassResolver) {
+            return cn();
+          }
+          classes(this: Comp, cn: BoundClassResolver) {
+            return cn(this.extra);
+          }
+        }
+      `,
+      );
+
+      const diags = env.driveDiagnostics();
+      expect(diags.map((diag) => [diag.code, getDiagnosticSourceCode(diag)])).toEqual([
+        [2684, 'active ? first : classes'],
+      ]);
+    });
+
     it('should not check a host (class) binding against an own output named class', () => {
       env.write(
         'test.ts',
@@ -395,8 +425,8 @@ runInEachFileSystem(() => {
       const diags = env.driveDiagnostics();
       expect(diags.length).toBe(1);
       expect(ts.flattenDiagnosticMessageText(diags[0].messageText, '\n')).toBe(
-        `Argument of type '(value: number) => string' is not assignable to parameter of type ` +
-          `'ClassCallback'.\n  Types of parameters 'value' and 'cn' are incompatible.\n` +
+        `Type '(value: number) => string' does not satisfy the expected type 'ClassCallback'.\n` +
+          `  Types of parameters 'value' and 'cn' are incompatible.\n` +
           `    Type 'BoundClassResolver' is not assignable to type 'number'.`,
       );
       expect(getDiagnosticSourceCode(diags[0])).toBe('resolve');
@@ -454,8 +484,8 @@ runInEachFileSystem(() => {
       const diags = env.driveDiagnostics();
       expect(diags.length).toBe(1);
       expect(ts.flattenDiagnosticMessageText(diags[0].messageText, '\n')).toBe(
-        `Argument of type '(value: number) => string' is not assignable to parameter of type ` +
-          `'ClassCallback'.\n  Types of parameters 'value' and 'cn' are incompatible.\n` +
+        `Type '(value: number) => string' does not satisfy the expected type 'ClassCallback'.\n` +
+          `  Types of parameters 'value' and 'cn' are incompatible.\n` +
           `    Type 'BoundClassResolver' is not assignable to type 'number'.`,
       );
       expect(getDiagnosticSourceCode(diags[0])).toBe('resolve');
