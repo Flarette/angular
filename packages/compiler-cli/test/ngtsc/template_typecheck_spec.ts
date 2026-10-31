@@ -1211,8 +1211,13 @@ runInEachFileSystem(() => {
         expect(diags.map((diag) => diag.messageText)).toEqual([
           `Argument of type 'ClassResolveEvent' is not assignable to parameter of type 'number'.`,
           `Type 'string' is not assignable to type 'ResolvedClasses'.`,
+          `Type 'string' does not satisfy the expected type 'ResolvedClasses'.`,
         ]);
-        expect(diags.map((diag) => getSourceCodeForDiagnostic(diag))).toEqual(['$event', `'x'`]);
+        expect(diags.map((diag) => getSourceCodeForDiagnostic(diag))).toEqual([
+          '$event',
+          `'x'`,
+          `(cn) => 'x'`,
+        ]);
       });
 
       it('should not infer the type of $event or check the shorthand when not enabled', () => {
@@ -1227,7 +1232,7 @@ runInEachFileSystem(() => {
         env.write(
           'test.ts',
           `
-          import {BoundClassResolver, ClassCallback, Component, Directive, EventEmitter, Output} from '@angular/core';
+          import {BoundClassResolver, ClassCallback, Component, Directive, EventEmitter, Output, ResolvedClasses} from '@angular/core';
 
           ${preamble}
 
@@ -1247,6 +1252,10 @@ runInEachFileSystem(() => {
         return ts.flattenDiagnosticMessageText(diag.messageText, '\n');
       }
 
+      function codesAndSources(): [number, string][] {
+        return env.driveDiagnostics().map((diag) => [diag.code, getSourceCodeForDiagnostic(diag)]);
+      }
+
       it('should check the shorthand as a ClassCallback', () => {
         writeComponent(
           `<div (class)="(cn) => 'x'"></div>
@@ -1259,13 +1268,17 @@ runInEachFileSystem(() => {
         const diags = env.driveDiagnostics();
         expect(diags.map(flatten)).toEqual([
           `Type 'string' is not assignable to type 'ResolvedClasses'.`,
+          `Type 'string' does not satisfy the expected type 'ResolvedClasses'.`,
           `Type 'string' is not assignable to type 'ResolvedClasses'.`,
+          `Type 'string' does not satisfy the expected type 'ResolvedClasses'.`,
           `This expression is not callable.\n  Type 'String' has no call signatures.`,
           `Type 'string' does not satisfy the expected type 'ClassCallback'.`,
         ]);
         expect(diags.map((diag) => [diag.code, getSourceCodeForDiagnostic(diag)])).toEqual([
           [2322, `'x'`],
+          [1360, `(cn) => 'x'`],
           [2322, 'other'],
+          [1360, '(cn) => other()'],
           [2349, 'classes()'],
           [1360, 'classes()'],
         ]);
@@ -1317,12 +1330,6 @@ runInEachFileSystem(() => {
             return cn(this.extra);
           }`;
 
-        function codesAndSources(): [number, string][] {
-          return env
-            .driveDiagnostics()
-            .map((diag) => [diag.code, getSourceCodeForDiagnostic(diag)]);
-        }
-
         it('should check this when the shorthand calls a method it reads from a conditional', () => {
           writeComponent(`<div (class)="active ? first : classes"></div>`, members);
 
@@ -1345,6 +1352,51 @@ runInEachFileSystem(() => {
 
           expect(codesAndSources()).toEqual([]);
         });
+
+        it('should check this when the shorthand calls a method it reads from a conditional without strictOutputEventTypes', () => {
+          env.tsconfig({strictTemplates: true, strictOutputEventTypes: false});
+          writeComponent(`<div (class)="active ? first : classes"></div>`, members);
+
+          expect(codesAndSources()).toEqual([[2684, 'active ? first : classes']]);
+        });
+      });
+
+      it('should check the result of the overload that the shorthand calls', () => {
+        writeComponent(
+          `<div (class)="classes"></div>`,
+          `classes(cn: BoundClassResolver): number;
+           classes(cn: unknown): ResolvedClasses;
+           classes(cn: unknown): any { return null; }`,
+        );
+
+        expect(codesAndSources()).toEqual([[1360, 'classes']]);
+      });
+
+      it('should check the argument of the overload that the shorthand calls', () => {
+        writeComponent(
+          `<div (class)="classes"></div>`,
+          `classes(): ResolvedClasses;
+           classes(n: number): ResolvedClasses;
+           classes(n?: number): any { return null; }`,
+        );
+
+        expect(codesAndSources()).toEqual([[2345, 'classes']]);
+      });
+
+      it('should check the number of parameters of an arrow function in the shorthand', () => {
+        writeComponent(`<div (class)="() => saved"></div>`, `saved!: ResolvedClasses;`);
+
+        expect(codesAndSources()).toEqual([[2554, '() => saved']]);
+      });
+
+      it('should report every check that a callback with the wrong parameter fails', () => {
+        writeComponent(`<div (class)="onClick"></div>`, `onClick(e: MouseEvent): void {}`);
+
+        expect(codesAndSources()).toEqual([
+          [1360, 'onClick'],
+          [2345, 'onClick'],
+          [1360, 'onClick'],
+        ]);
       });
 
       it('should infer the parameter of an arrow function in both branches of a conditional', () => {
@@ -1392,6 +1444,11 @@ runInEachFileSystem(() => {
               '$event',
             ],
             [2322, `Type 'string' is not assignable to type 'ResolvedClasses'.`, `'x'`],
+            [
+              1360,
+              `Type 'string' does not satisfy the expected type 'ResolvedClasses'.`,
+              `(cn) => 'x'`,
+            ],
           ]),
         );
       });
@@ -1415,8 +1472,15 @@ runInEachFileSystem(() => {
           `Type '(e: number) => void' does not satisfy the expected type 'ClassCallback'.\n` +
             `  Types of parameters 'e' and 'cn' are incompatible.\n` +
             `    Type 'BoundClassResolver' is not assignable to type 'number'.`,
+          `Argument of type '(...extras: ClassBindingValue[]) => ResolvedClasses' is not ` +
+            `assignable to parameter of type 'number'.`,
+          `Type 'void' does not satisfy the expected type 'ResolvedClasses'.`,
         ]);
-        expect(getSourceCodeForDiagnostic(diags[0])).toBe('h');
+        expect(diags.map((diag) => [diag.code, getSourceCodeForDiagnostic(diag)])).toEqual([
+          [1360, 'h'],
+          [2345, 'h'],
+          [1360, 'h'],
+        ]);
       });
 
       it('should not let a directive output named attr.class claim an (attr.class) binding', () => {
@@ -1451,8 +1515,12 @@ runInEachFileSystem(() => {
         const diags = env.driveDiagnostics();
         expect(diags.map(flatten)).toEqual([
           `Type 'string' is not assignable to type 'ResolvedClasses'.`,
+          `Type 'string' does not satisfy the expected type 'ResolvedClasses'.`,
         ]);
-        expect(getSourceCodeForDiagnostic(diags[0])).toBe(`'x'`);
+        expect(diags.map((diag) => getSourceCodeForDiagnostic(diag))).toEqual([
+          `'x'`,
+          `(cn) => 'x'`,
+        ]);
       });
 
       it('should report a class resolver on a container', () => {

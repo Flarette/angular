@@ -776,6 +776,7 @@ export const NGP_KNOWN_NGTSC_FAILURES: ReadonlySet<string> = new Set([
   'ngtsc type checking @let declarations should report @let declaration used in the expression of a @if block before it is defined',
   'ngtsc type checking class resolver bindings should check the handler with $event as any after reporting a class resolver on an ng-container in the math namespace',
   'ngtsc type checking class resolver bindings should check the handler with $event as any after reporting a class resolver on an ng-container in the svg namespace',
+  'ngtsc type checking class resolver bindings should check the number of parameters of an arrow function in the shorthand',
   'ngtsc type checking class resolver bindings should report a class resolver on a container',
   'ngtsc type checking class resolver bindings should report a class resolver on a container next to a directive output named class',
   'ngtsc type checking class resolver bindings should report a class resolver on an ng-container in the svg namespace',

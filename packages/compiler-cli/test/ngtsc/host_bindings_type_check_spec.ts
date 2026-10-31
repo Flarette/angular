@@ -321,11 +321,11 @@ runInEachFileSystem(() => {
       );
 
       const diags = env.driveDiagnostics();
-      expect(diags.length).toBe(1);
-      expect(diags[0].messageText).toBe(
+      expect(diags.map((diag) => diag.messageText)).toEqual([
         `Type 'string' is not assignable to type 'ResolvedClasses'.`,
-      );
-      expect(getDiagnosticSourceCode(diags[0])).toBe(`'x'`);
+        `Type 'string' does not satisfy the expected type 'ResolvedClasses'.`,
+      ]);
+      expect(diags.map((diag) => getDiagnosticSourceCode(diag))).toEqual([`'x'`, `(cn) => 'x'`]);
     });
 
     it('should infer the type of $event in a host (class) binding as ClassResolveEvent', () => {
@@ -423,13 +423,19 @@ runInEachFileSystem(() => {
       );
 
       const diags = env.driveDiagnostics();
-      expect(diags.length).toBe(1);
-      expect(ts.flattenDiagnosticMessageText(diags[0].messageText, '\n')).toBe(
+      expect(diags.map((diag) => ts.flattenDiagnosticMessageText(diag.messageText, '\n'))).toEqual([
         `Type '(value: number) => string' does not satisfy the expected type 'ClassCallback'.\n` +
           `  Types of parameters 'value' and 'cn' are incompatible.\n` +
           `    Type 'BoundClassResolver' is not assignable to type 'number'.`,
-      );
-      expect(getDiagnosticSourceCode(diags[0])).toBe('resolve');
+        `Argument of type '(...extras: ClassBindingValue[]) => ResolvedClasses' is not ` +
+          `assignable to parameter of type 'number'.`,
+        `Type 'string' does not satisfy the expected type 'ResolvedClasses'.`,
+      ]);
+      expect(diags.map((diag) => [diag.code, getDiagnosticSourceCode(diag)])).toEqual([
+        [1360, 'resolve'],
+        [2345, 'resolve'],
+        [1360, 'resolve'],
+      ]);
     });
 
     it('should not check a host (class) binding against a host directive output aliased as class', () => {
@@ -482,13 +488,19 @@ runInEachFileSystem(() => {
       );
 
       const diags = env.driveDiagnostics();
-      expect(diags.length).toBe(1);
-      expect(ts.flattenDiagnosticMessageText(diags[0].messageText, '\n')).toBe(
+      expect(diags.map((diag) => ts.flattenDiagnosticMessageText(diag.messageText, '\n'))).toEqual([
         `Type '(value: number) => string' does not satisfy the expected type 'ClassCallback'.\n` +
           `  Types of parameters 'value' and 'cn' are incompatible.\n` +
           `    Type 'BoundClassResolver' is not assignable to type 'number'.`,
-      );
-      expect(getDiagnosticSourceCode(diags[0])).toBe('resolve');
+        `Argument of type '(...extras: ClassBindingValue[]) => ResolvedClasses' is not ` +
+          `assignable to parameter of type 'number'.`,
+        `Type 'string' does not satisfy the expected type 'ResolvedClasses'.`,
+      ]);
+      expect(diags.map((diag) => [diag.code, getDiagnosticSourceCode(diag)])).toEqual([
+        [1360, 'resolve'],
+        [2345, 'resolve'],
+        [1360, 'resolve'],
+      ]);
     });
 
     it('should check @HostListener with a target', () => {

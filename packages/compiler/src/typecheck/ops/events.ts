@@ -371,7 +371,8 @@ function tcbCreateEventHandler(
  * `(class)="F"` is checked the way it's compiled, as `$event.resolve((F)($event.resolver))`. When
  * the type of `$event` is checked, the call is `((F) satisfies ClassCallback)!($event.resolver)`,
  * because a direct call accepts `(cn) => 'x'`. `satisfies` also infers the parameters of an arrow
- * function and keeps the type of `F`, so the call checks the `this` that a method declares.
+ * function and keeps the type of `F`, so the call checks the `this` that a method declares, the
+ * overload it selects, and its argument. A second `satisfies` checks the call's result.
  */
 function tcbCreateClassResolverHandler(
   event: BoundEvent,
@@ -394,25 +395,28 @@ function tcbCreateClassResolverHandler(
     tcbEventHandlerExpression(expression, tcb, scope),
   );
   const callback = statements.pop()!;
-  const callbackAst = expressions[expressions.length - 1];
-  const resolver = new TcbExpr(`${EVENT_PARAMETER}.resolver`);
-  let call: string;
+  // The callee, the argument, and the result check map their diagnostics to `F`.
+  const span = expressions[expressions.length - 1].sourceSpan;
+  const resolver = new TcbExpr(`${EVENT_PARAMETER}.resolver`).addParseSpanInfo(span);
+  let call: TcbExpr;
 
   if (checkType) {
     const classCallback = tcb.env.referenceExternalSymbol('@angular/core', 'ClassCallback');
-    // The callee maps call errors, such as a `this` mismatch, and the `satisfies` check to `F`. A
-    // wrong parameter type is reported once, by `satisfies`, so the argument reports nothing, and
-    // neither does the result, which `satisfies` has checked.
+    const resolvedClasses = tcb.env.referenceExternalSymbol('@angular/core', 'ResolvedClasses');
     const callee = new TcbExpr(
       `(((${callback.print()}) satisfies ${classCallback.print()})!)`,
-    ).addParseSpanInfo(callbackAst.sourceSpan);
-    resolver.markIgnoreDiagnostics();
-    call = `${callee.print()}(${resolver.print()}) as any`;
+    ).addParseSpanInfo(span);
+    const result = new TcbExpr(
+      `(${callee.print()}(${resolver.print()}) satisfies ${resolvedClasses.print()})`,
+    ).addParseSpanInfo(span);
+    // `resolve()` doesn't check the result again.
+    call = new TcbExpr(`${result.print()} as any`);
   } else {
-    call = `(${callback.print()})(${resolver.print()})`;
+    const callee = new TcbExpr(`(${callback.print()})`).addParseSpanInfo(span);
+    call = new TcbExpr(`${callee.print()}(${resolver.print()})`);
   }
 
-  statements.push(new TcbExpr(`${EVENT_PARAMETER}.resolve((${call}))`));
+  statements.push(new TcbExpr(`${EVENT_PARAMETER}.resolve((${call.print()}))`));
   return tcbCreateHandlerFunction(statements, scope, eventType);
 }
 
