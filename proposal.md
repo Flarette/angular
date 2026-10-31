@@ -1,10 +1,9 @@
 # Proposal: resolve an element's classes with a `(class)` binding
 
-Status: prototype on the `feat/class-resolver` branch of the Flarette/angular fork. Not pushed. The
-decisions dated 2026-10-17 and 2026-10-26 are implemented on that branch, and
-[`docs/class-resolver.md`](docs/class-resolver.md) describes the feature as built. The next design,
-[the `resolve()` class event](#next-the-resolve-class-event), is decided and gets its own
-implementation round.
+Status: prototype on the `feat/class-resolver` branch of the Flarette/angular fork. Not pushed.
+[The `resolve()` class event](#next-the-resolve-class-event) is built on that branch since
+2026-10-31, and [`docs/class-resolver.md`](docs/class-resolver.md) describes the feature as built.
+The sections before it record the first prototype, whose handlers returned the classes.
 
 ## Summary
 
@@ -707,7 +706,7 @@ it ranks at the component's source, below the template, which matches the priori
 
 ## Next: the `resolve()` class event
 
-Decided on 2026-10-26 for its own implementation round. It keeps `ClassSources`, the priorities
+Decided on 2026-10-26 and built on 2026-10-31. It keeps `ClassSources`, the priorities
 between sources, and the fold. It changes how a handler hands back the classes.
 
 ### Why the return value goes
@@ -762,7 +761,7 @@ interface ClassResolveEvent {
 - If the handler doesn't call `resolve()`, the payload passes through, as if the binding weren't
   there.
 - A repeated call, or one after the handler returns, throws in dev mode, with one new error code. In
-  production, a late call is ignored, and the last call during the handler wins.
+  production, a late call is ignored, and the call that starts last during the handler wins.
 - `resolve()` accepts what `[class]` accepts. It doesn't accept a function.
 - The handler's return value is ignored, as for any event.
 
