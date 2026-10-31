@@ -756,6 +756,41 @@ with `--runs_per_test=10`, and the full ngtsc targets from the compiler regressi
 
 Commit: `test: keep class resolver probes from the audit`.
 
+### WP9: template symbols of a class shorthand
+
+From the review of WP7. Measure first. Scope: the template symbol specs in
+`packages/compiler-cli/src/ngtsc/typecheck/test/type_checker__get_symbol_of_template_node_spec.ts`,
+and `tcbCreateClassResolverHandler` only after a ruling.
+
+WP7's shape gives three type-check nodes the span of `F`: the callee wrapper, the
+`$event.resolver` argument, and the `satisfies ResolvedClasses` wrapper. The template symbol
+builder (`getSymbolOfTemplateExpression` in
+`packages/compiler-cli/src/ngtsc/typecheck/src/template_symbol_builder.ts`) finds an
+expression's node by its span, in pre-order: first a `PropertyAccessExpression` for a property
+or safe read, then any node. It could find a wrapper or the argument before the node of `F`, so
+hover and go-to-definition would show `ResolvedClasses` or `BoundClassResolver` instead of the
+callback.
+
+Specs, with `strictTemplates`, asserting each symbol's kind and its type or declaration as the
+neighboring specs do:
+
+- `(class)="classes"`, a method: the symbol of `classes`.
+- `(class)="choice?.classes"`: the symbol of the safe read.
+- `(class)="active ? first : classes"`: the symbol of `first`, and of the whole conditional.
+- `(class)="(cn) => cn()"`: the symbol of `cn` inside the arrow function.
+- Control: `(attr.class)="$event.resolve(classes($event.resolver))"`, the symbol of `classes`.
+
+Run them at `HEAD` and report which resolve to the callback's own node. If any don't, stop under
+`## QUESTIONS` with the measured symbols and a proposed emission change, for example moving the
+argument's span onto a parenthesized wrapper. Diagnostics must keep mapping to `F` in both
+backends. Don't change source until the orchestrator rules.
+
+Gates: `//packages/compiler-cli/src/ngtsc/typecheck/test:test` and `:test_ngp`; with a source
+change, the compiler regression targets.
+
+Commit: `test(compiler-cli): pin symbols of class shorthands`, or a `fix(compiler-cli)` subject of
+50 characters or fewer if source changes.
+
 ## After the work packages
 
 - M1, by the orchestrator: measure Angular's own cost per element and refresh (collecting,
