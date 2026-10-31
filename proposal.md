@@ -1105,6 +1105,27 @@ Added time per element, compared with the same template without a resolver:
 - The resolver's own cost comes on top. Measured above, `twMerge` takes 0.03–0.04 µs per call when
   its cache has the input, and 0.7–2.4 µs when it doesn't.
 
+### Diagnostics for a wrong shorthand callback
+
+Type checking checks a `(class)` callback twice. A check against `ClassCallback` gives arrow
+parameters their type and names the expected shape in its message. The call that runs, with its
+result, is checked too, and only that check catches a callback that loses its `this`, or an
+overloaded method whose call selects a different overload from the one that fits `ClassCallback`.
+So a wrong callback can report up to three errors, all on the callback:
+
+```ts
+onClick(event: MouseEvent): void {}
+```
+
+```html
+<!-- TS1360 for ClassCallback, TS2345 for the argument, and TS1360 for the void result. -->
+<div (class)="onClick"></div>
+```
+
+The generated type-checking code can't drop the second and third errors, because there a repeated
+error and the only error of an overloaded callback look the same. Deduplicating diagnostics after
+type checking, by the check each one comes from, could report one error instead.
+
 ### The provider's shape
 
 `provideClassResolver(resolver, ...features)` is shaped for one attribute. If

@@ -26,6 +26,10 @@ bindings` (`5099d6e3`), worktree `/Users/geruch/repos/angular-cn-wt/container-no
   with `choice = null` resolves instead of throwing, and `(class)="choice?.classes"` matches it.
   From the code: `checkTargetParens` in `strip_nonrequired_parentheses.ts` drops the callee's
   parentheses, and the JIT emitter doesn't restore them. AOT output isn't measured.
+  Codex's WP7 review found a second problem with legacy optional chaining: AOT and the JIT emitter
+  lower `(a?.b)(c)` to `(a == null ? null : a.b)(c)`, which drops the receiver, so
+  `(class)="choice?.classes"` passes type checking but runs a method that declares `this`
+  without it. Any template call of a parenthesized safe read is affected.
 - Upstream: a TypeScript error that starts at an arrow parameter in a template is dropped, because
   the type-check emitter marks every arrow parameter `/*D:ignore*/`
   (`packages/compiler/src/typecheck/expression.ts` around line 386, from upstream `87a422358b`).

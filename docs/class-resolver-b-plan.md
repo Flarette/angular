@@ -81,21 +81,21 @@ Design B, decided on 2026-10-26 and 2026-10-28:
 
 Listed for the owner at review.
 
-| ID  | Default                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                             |
-| --- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| D1  | One instruction, `ɵɵclassResolver(handlerFn, flags)`. `flags` is a bit mask: `ClassResolverFlags.FullForm` means the handler receives a `ClassResolveEvent`, and `ClassResolverFlags.Shorthand` turns on B2's provenance check. Until WP3, `flags` of `0` keeps the prototype's behavior, where the return value applies, so every commit stays green. WP3 removes that path.                                                                                                                                                                                                                                                                                                       |
-| D2  | A registration gets a new event object on each refresh. `resolver` and `resolve` are closures over that refresh; when the handler returns, the event is sealed, and a later call is the late call in B1.                                                                                                                                                                                                                                                                                                                                                                                                                                                                            |
-| D3  | `ResolvedClasses` is an instance of an internal class that holds the class names and the event that created it. `toString()` returns the names joined with spaces.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                  |
-| D4  | Error codes. Runtime: `NG0320` misuse of `resolve()` or a foreign shorthand result (B1, B2; throws in dev mode); `NG0321` a resolver on a container (B8; `console.error` in dev mode, like `NG0303`); `NG0322` automatic resolution below a root that doesn't declare it (B14; throws in dev mode); `NG0323` a second resolver inherited by one directive (B10; throws in dev mode). Compile time: `NG8120` replaces `NG8119` for B7's warning; `NG8121` a resolver on a container (B8). B9, B10 and B11 reuse `HOST_BINDING_PARSE_ERROR` (`NG5001`) for host metadata and the template parse error (`NG5002`) for templates. `CLASS_RESOLVER_OUTPUT_CONFLICT` (`-319`) is removed. |
-| D5  | The resolver is looked up once per registration when the element is created, from the element's injector as the registration's owner would inject it. Absent a provider, the plain merge applies. The token is internal; `provideClassResolver` is the only public way to set it.                                                                                                                                                                                                                                                                                                                                                                                                   |
-| D6  | Public names: `ClassResolveEvent`, `ClassBindingValue`, `ResolvedClasses`, `BoundClassResolver`, `ClassCallback`, `ClassResolver`, `ClassResolverFeature`, `provideClassResolver`, and `withAutoResolution`. All carry `@experimental 22.3`, like `ClassSources`.                                                                                                                                                                                                                                                                                                                                                                                                                   |
-| D7  | Type checking checks a shorthand's `F` as `$event.resolve(((F) satisfies ClassCallback)!($event.resolver) as any)`, because a plain call doesn't reject `(cn) => 'x'` (measured). `satisfies` types arrow parameters and rejects a result that isn't `ResolvedClasses`, and it keeps `F`'s own type, so TypeScript checks the receiver of the call as it's emitted (A1). The non-null assertion keeps one diagnostic for a nullable `F`, and `as any` keeps `resolve()` from reporting a result that `satisfies` already rejected. Synthesized callees and calls are parenthesized.                                                                                                 |
-| D8  | `minVersion` stays `"22.3.0"`: the prototype's semantics never shipped, so no linker with them exists outside this fork. The partial-declaration rule also recognizes `(attr.class)`.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                               |
-| D9  | Automatic resolution looks its setting up once per template instance, from the injector of the component that declares the template, and stores it in the instance. Instances where it's off skip their elements on refresh.                                                                                                                                                                                                                                                                                                                                                                                                                                                        |
-| D10 | Automatic resolution remembers each element's last per-source strings and skips the resolver and the DOM diff when they haven't changed. Explicit resolvers still run on every refresh (R3).                                                                                                                                                                                                                                                                                                                                                                                                                                                                                        |
-| D11 | One normalization function serves extras, `resolve()`, and the plain merge (B5).                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                    |
-| D12 | The hooks are module-level function references in a small module: the refresh hook, which `change_detection.ts` imports, the binding registration hook, which `styling.ts` imports, and from WP6 the setup hook `_setUpClassResolution`, which element creation calls. `ɵɵclassResolver` and the automatic feature set them in one call, the way `enableLocateOrCreateElementNodeImpl()` switches hydration on (`packages/core/src/hydration/api.ts`).                                                                                                                                                                                                                              |
-| D13 | The shared classifier lives in `packages/compiler` and is exported for `compiler-cli`. It answers, for an event binding, whether it's a resolver and which form it is.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                              |
+| ID  | Default                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                   |
+| --- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| D1  | One instruction, `ɵɵclassResolver(handlerFn, flags)`. `flags` is a bit mask: `ClassResolverFlags.FullForm` means the handler receives a `ClassResolveEvent`, and `ClassResolverFlags.Shorthand` turns on B2's provenance check. Until WP3, `flags` of `0` keeps the prototype's behavior, where the return value applies, so every commit stays green. WP3 removes that path.                                                                                                                                                                                                                                                                                                                                                                             |
+| D2  | A registration gets a new event object on each refresh. `resolver` and `resolve` are closures over that refresh; when the handler returns, the event is sealed, and a later call is the late call in B1.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                  |
+| D3  | `ResolvedClasses` is an instance of an internal class that holds the class names and the event that created it. `toString()` returns the names joined with spaces.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                        |
+| D4  | Error codes. Runtime: `NG0320` misuse of `resolve()` or a foreign shorthand result (B1, B2; throws in dev mode); `NG0321` a resolver on a container (B8; `console.error` in dev mode, like `NG0303`); `NG0322` automatic resolution below a root that doesn't declare it (B14; throws in dev mode); `NG0323` a second resolver inherited by one directive (B10; throws in dev mode). Compile time: `NG8120` replaces `NG8119` for B7's warning; `NG8121` a resolver on a container (B8). B9, B10 and B11 reuse `HOST_BINDING_PARSE_ERROR` (`NG5001`) for host metadata and the template parse error (`NG5002`) for templates. `CLASS_RESOLVER_OUTPUT_CONFLICT` (`-319`) is removed.                                                                       |
+| D5  | The resolver is looked up once per registration when the element is created, from the element's injector as the registration's owner would inject it. Absent a provider, the plain merge applies. The token is internal; `provideClassResolver` is the only public way to set it.                                                                                                                                                                                                                                                                                                                                                                                                                                                                         |
+| D6  | Public names: `ClassResolveEvent`, `ClassBindingValue`, `ResolvedClasses`, `BoundClassResolver`, `ClassCallback`, `ClassResolver`, `ClassResolverFeature`, `provideClassResolver`, and `withAutoResolution`. All carry `@experimental 22.3`, like `ClassSources`.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                         |
+| D7  | Type checking checks a shorthand's `F` as `$event.resolve((((F) satisfies ClassCallback)!($event.resolver) satisfies ResolvedClasses) as any)`, with `F` emitted once, because a plain call doesn't reject `(cn) => 'x'` (measured). `satisfies ClassCallback` types arrow parameters and keeps `F`'s own type, so TypeScript checks the call as it runs: its receiver (A1), the overload it selects, and its argument. `satisfies ResolvedClasses` checks that call's result. The non-null assertion keeps one diagnostic for a nullable `F`, and `as any` keeps `resolve()` from checking the result again. Nothing is suppressed, so a wrong callback can report up to three diagnostics, all on `F`. Synthesized callees and calls are parenthesized. |
+| D8  | `minVersion` stays `"22.3.0"`: the prototype's semantics never shipped, so no linker with them exists outside this fork. The partial-declaration rule also recognizes `(attr.class)`.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                     |
+| D9  | Automatic resolution looks its setting up once per template instance, from the injector of the component that declares the template, and stores it in the instance. Instances where it's off skip their elements on refresh.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                              |
+| D10 | Automatic resolution remembers each element's last per-source strings and skips the resolver and the DOM diff when they haven't changed. Explicit resolvers still run on every refresh (R3).                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                              |
+| D11 | One normalization function serves extras, `resolve()`, and the plain merge (B5).                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                          |
+| D12 | The hooks are module-level function references in a small module: the refresh hook, which `change_detection.ts` imports, the binding registration hook, which `styling.ts` imports, and from WP6 the setup hook `_setUpClassResolution`, which element creation calls. `ɵɵclassResolver` and the automatic feature set them in one call, the way `enableLocateOrCreateElementNodeImpl()` switches hydration on (`packages/core/src/hydration/api.ts`).                                                                                                                                                                                                                                                                                                    |
+| D13 | The shared classifier lives in `packages/compiler` and is exported for `compiler-cli`. It answers, for an event binding, whether it's a resolver and which form it is.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                    |
 
 ## Environment
 
@@ -662,38 +662,35 @@ class Cmp {
 ```
 
 Emit the shorthand's call as D7 states:
-`$event.resolve(((F) satisfies ClassCallback)!($event.resolver) as any)`. TypeScript treats `satisfies`,
-`!`, and parentheses as transparent when it finds a call's receiver. Measured with `tsc` 6.0.3,
-outside ngtsc:
+`$event.resolve((((F) satisfies ClassCallback)!($event.resolver) satisfies ResolvedClasses) as any)`.
+TypeScript treats `satisfies`, `!`, and parentheses as transparent when it finds a call's
+receiver. Measured with `tsc` 6.0.3, outside ngtsc:
 
-| `F`                                                  | Today                    | With D7's shape                    |
-| ---------------------------------------------------- | ------------------------ | ---------------------------------- |
-| `active ? first : classes`, methods with `this: Cmp` | none                     | TS2684                             |
-| `classes`, a method with `this: Cmp`                 | none                     | none                               |
-| `active ? (cn) => cn('a') : (cn) => cn()`            | none                     | none, `cn` inferred in both        |
-| `(cn) => 'x'`                                        | TS2322 at `'x'`          | TS2322 at `'x'`                    |
-| `str`, a method that returns a string                | TS2345 (`ClassCallback`) | TS1360 (`satisfies`)               |
-| `maybe?.cb`, `ClassCallback \| undefined`            | TS2345                   | TS1360                             |
-| `(cn: number) => cn`, or `h(e: number)`              | TS2345                   | TS1360, and TS2345 at the argument |
-| `classes()`, which returns a string                  | TS2345                   | TS1360 and TS2349                  |
+| `F`                                                                            | Before WP7      | D7's shape                                 |
+| ------------------------------------------------------------------------------ | --------------- | ------------------------------------------ |
+| `active ? first : classes`, methods with `this: Cmp`                           | none            | TS2684                                     |
+| `classes`, a method with `this: Cmp`                                           | none            | none                                       |
+| `active ? (cn) => cn('a') : (cn) => cn()`                                      | none            | none, `cn` inferred in both                |
+| `(cn) => 'x'`                                                                  | TS2322 at `'x'` | TS2322 at `'x'`, TS1360 (result)           |
+| `str`, a method that returns a string                                          | TS2345          | TS1360, TS1360 (result)                    |
+| `maybe?.cb`, `ClassCallback \| undefined`                                      | TS2345          | TS1360                                     |
+| `onClick(e: MouseEvent): void`                                                 | TS2345          | TS1360, TS2345 (argument), TS1360 (result) |
+| `toggle(): void`                                                               | TS2345          | TS1360, TS2554 (argument), TS1360 (result) |
+| `classes()`, which returns a string                                            | TS2345          | TS1360, TS2349                             |
+| Overloads `(cn: BoundClassResolver): number`, `(cn: unknown): ResolvedClasses` | none            | TS1360 (result)                            |
+| Overloads `(): ResolvedClasses`, `(n: number): ResolvedClasses`                | none            | TS2345 (argument)                          |
+| `() => saved`, with no parameter                                               | none            | TS2554, as the literal expansion reports   |
 
 Diagnostics, ruled by the orchestrator:
 
 - Every diagnostic maps to the binding's `F` in the template (`getSourceCodeForDiagnostic`), or to
   the place inside `F` where it maps today. TypeScript reports TS1360 on the `satisfies` keyword,
-  so it maps to the whole `F`, even where today's TS2345 mapped to a name inside `F`.
-- The synthesized `$event.resolver` argument reports nothing: mark it to ignore diagnostics, so a
-  wrong parameter type reports once, as today.
-- The call's result is cast `as any`. `satisfies` already checks it, and without the cast an `F`
-  that returns `void` also reports from `resolve()`, on the same token as TS2684.
-- Existing specs keep their diagnostic counts. Messages change, from
-  `Argument of type '…' is not assignable to parameter of type 'ClassCallback'` to
-  `Type '…' does not satisfy the expected type 'ClassCallback'`, and a span widens to the whole
-  `F` where TS1360 replaces a TS2345 that mapped inside it.
-- One exception: an `F` that isn't callable at all, such as `classes()` that returns a string,
-  also reports TS2349, `This expression is not callable`. Both messages are true, and the
-  literal expansion reports TS2349, so the second diagnostic is accepted. Update that spec's
-  expected list for it and for nothing else.
+  so it maps to the whole `F`. Give the callee, the synthesized argument, and the result check
+  `F`'s span, also when `checkTypeOfOutputEvents` is off.
+- Nothing is suppressed. An ignore marker or a cast can't tell a duplicate from the only error of
+  an overloaded callback, so a wrong callback reports every check it fails, up to three
+  diagnostics. `as any` comes after `satisfies ResolvedClasses`, so it only keeps `resolve()`
+  from checking the result again.
 
 The audit's compiler probes are evidence:
 `git show 2f8725ea5c:packages/compiler-cli/test/ngtsc/class_resolver_audit_spec.ts`. Read them,
@@ -703,14 +700,19 @@ Tests, red first, in `template_typecheck_spec.ts`'s `class resolver bindings` bl
 the diagnostic codes and the source code each diagnostic maps to:
 
 - `(class)="active ? first : classes"`, methods with `this: TestCmp`: one TS2684 at the
-  conditional. Red today.
+  conditional.
 - The same in a host binding, `host: {'(class)': 'active ? first : classes'}`, in
-  `host_bindings_type_check_spec.ts`: one TS2684. Red today.
-- Controls, green before and after: the literal expansion gives one TS2684; `(class)="classes"`
-  with `this: TestCmp` gives none; `(class)="active ? (cn) => cn('a') : (cn) => cn(42)"` gives
-  one error at `42`, so `cn` is inferred in both branches; `(class)="active ? plainA : plainB"`,
-  methods without `this`, gives none.
-- Every existing spec stays green, with the message changes the rules above allow.
+  `host_bindings_type_check_spec.ts`: one TS2684.
+- The two overload sets in the table: one diagnostic each, at `F`.
+- `(class)="() => saved"`: TS2554 at `F`.
+- `(class)="onClick"` with `onClick(e: MouseEvent): void`: the three codes in the table, at `F`.
+- With `strictOutputEventTypes: false`, `(class)="active ? first : classes"` reports TS2684 at
+  `F`.
+- Controls: the literal expansion gives one TS2684; `(class)="classes"` with `this: TestCmp`
+  gives none; `(class)="active ? (cn) => cn('a') : (cn) => cn(42)"` gives one error at `42`, so
+  `cn` is inferred in both branches; `(class)="active ? plainA : plainB"`, methods without
+  `this`, gives none.
+- Existing specs change only as the table says.
 
 Gates: the compiler regression targets.
 
@@ -884,6 +886,30 @@ No emission shape maps it inside `F`, where today's TS2345 pointed for a safe re
 also reported from `resolve()`, on the same token as TS2684, so an ignore marker couldn't drop
 only that error. Ruled: the call's result is cast `as any`, because `satisfies` already checks it.
 D7 and WP7 are edited to match.
+
+### 2026-10-31: WP7 checks the call and its result, without suppressions
+
+Codex's WP7 review measured two holes in the shape ruled earlier, both with overloaded callbacks.
+`satisfies ClassCallback` passes when any overload fits, but the call selects the first overload
+that fits its argument. With `(cn: BoundClassResolver): number` before
+`(cn: unknown): ResolvedClasses`, the `as any` cast hid the number result. With
+`(): ResolvedClasses` before `(n: number): ResolvedClasses`, the ignore marker on the argument hid
+the only error. The literal expansion rejects both.
+
+The orchestrator first proposed keeping the suppressions and documenting the gap, and measured an
+exact alternative that emits `F` twice and checks the argument and the result only when the first
+copy satisfies `ClassCallback`. Codex rejected both. The overload set is a valid API, and a
+dev-mode check doesn't meet B2's compile-time rule. Two copies of `F` can check different calls:
+an assignment inside `F` narrows the second copy, a generic `T extends ClassCallback` field fails
+the gate, and the second copy loses the contextual type of arrows in a conditional.
+
+Ruled, as Codex proposed: emit `F` once, check the call's result with `satisfies ResolvedClasses`,
+and suppress nothing (D7 and WP7 edited). This relaxes the orchestrator's earlier rule that existing
+specs keep their diagnostic counts: a wrong callback reports every check it fails, up to three
+diagnostics, all on `F`. A callback without parameters is rejected with TS2554, as in the literal
+expansion. Deduplicating by check after type checking is an option, recorded in the proposal's notes
+for maintainers. Also from the review: the call-level span applies when output events aren't
+type-checked, and legacy optional chaining losing a receiver at runtime goes to `docs/DEFERRED.md`.
 
 ## Reviews
 
