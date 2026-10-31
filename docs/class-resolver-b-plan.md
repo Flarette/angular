@@ -127,6 +127,8 @@ Listed for the owner at review.
 - In zsh, write `"${T}:test"`, not `$T:test`: `:t` is a modifier and mangles the target.
 - The Bazel output symlink is `dist/bin`, not `bazel-bin`.
 - Known tool problems:
+  - A shell may start without `node` and `pnpm` on `PATH`, and then the commit hook skips its
+    checks. Start each command with `export PATH=/Users/geruch/.nvm/versions/node/v26.2.0/bin:$PATH`.
   - Bazel can fail with `uv_os_homedir returned ENOENT` after the server outlives a shell. Run
     `pnpm bazel shutdown` and retry.
   - A shell hook may compress `cat` output; `/bin/cat` prints files as they are.
