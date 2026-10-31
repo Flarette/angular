@@ -44,3 +44,12 @@ bindings` (`5099d6e3`), worktree `/Users/geruch/repos/angular-cn-wt/container-no
   around line 65 renders without restoring it), so a hydrated element's class resolver can skip
   seeding. WP6 made `ComponentFactory.create` restore the flag; embedded views don't. From Codex's
   WP6 review.
+- R10: the preprocessor's language-service mapper
+  (`packages/compiler-cli/preprocessor/language-service/src/diagnostic_mapping.ts`) maps a
+  diagnostic to the nearest span comment without first walking up the type-check AST. WP9 put a
+  span comment on the opening parenthesis of a `(class)` shorthand's callee, so an error inside a
+  long name, such as a missing method in `(class)="veryLongMissingName() ? a : b"`, can widen to
+  the whole expression there. Both compiler mappers keep the name's span. From Codex's WP9 review.
+- `ngtsc_ngp`'s test driver falls back to the nearest span comment, so its suite can't detect a
+  diagnostic that lost its mapping. Mappings to a `(class)` shorthand are verified by `ngtsc` and
+  by reading ngp's `translateTcbDiagnostic`. From WP9.

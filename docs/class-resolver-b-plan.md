@@ -1098,3 +1098,15 @@ first-match search is shared by every template expression.
     and `$event`. And it adds the dev-mode `NG0322` spec for a component's own providers, which the
     WP6 review left untested; `TestBed.createComponent` throws it synchronously.
   - For a refactoring round: the NG8120 spec pins codes and categories, not spans.
+- WP9 (`c88b25c360`, fixup `a05f2be40f`): orchestrator 9.25, Codex 9.00.
+  - Measured first: a safe read and a whole conditional resolved to type-check wrappers. Ruled the
+    agent's measured fix (see Errata); six symbol specs pin it on both backends, also with
+    `checkTypeOfOutputEvents` off.
+  - Codex mapped every shorthand diagnostic in both compiler mappers to `F`, found no wrapper hit
+    in definition, rename, and call-signature searches, and found no fallback use in ngp's mapper.
+  - The fixup corrects the comment: the symbol search skips the `(` and `satisfies` tokens, not
+    every token.
+  - Deferred (`docs/DEFERRED.md`, R10): the preprocessor's language-service mapper can widen an
+    error inside a long name to the whole shorthand. `ngtsc_ngp` can't detect a lost mapping.
+  - For a refactoring round: span comments on tokens are a new idiom in the type-check block, and
+    they rely on TypeScript starting a `satisfies` error at the keyword.
