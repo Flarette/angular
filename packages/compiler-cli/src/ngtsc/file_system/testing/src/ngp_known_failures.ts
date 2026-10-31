@@ -780,6 +780,7 @@ export const NGP_KNOWN_NGTSC_FAILURES: ReadonlySet<string> = new Set([
   'ngtsc type checking class resolver bindings should report a class resolver on a container',
   'ngtsc type checking class resolver bindings should report a class resolver on a container next to a directive output named class',
   'ngtsc type checking class resolver bindings should report a class resolver on an ng-container in the svg namespace',
+  'ngtsc type checking class resolver bindings should warn when a class resolver shadows a host directive output exposed as class or attr.class',
   'ngtsc type checking control flow content projection diagnostics should report nodes that are targeting different slots but cannot be projected',
   'ngtsc type checking control flow content projection diagnostics should report nodes that are targeting the same slot but cannot be projected',
   'ngtsc type checking control flow content projection diagnostics should report when an @boundary block prevents an element from being projected',

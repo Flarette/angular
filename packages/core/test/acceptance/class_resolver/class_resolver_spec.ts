@@ -328,6 +328,31 @@ describe('(class) binding', () => {
     expect(classesOf(fixture.nativeElement.querySelector('ui-card'))).toEqual(['shadow']);
   });
 
+  it('leaves out a class only while a higher-priority binding turns it off', async () => {
+    @Directive({selector: '[rounded]', host: {class: 'rounded'}})
+    class Rounded {}
+
+    @Component({
+      imports: [Rounded],
+      template: `<div rounded [class]="opinion()" (class)="(cn) => cn()"></div>`,
+    })
+    class App {
+      readonly opinion = signal<{rounded: boolean | undefined}>({rounded: undefined});
+    }
+
+    const fixture = await render(App);
+    const div = fixture.nativeElement.querySelector('div');
+    expect(classesOf(div)).toEqual(['rounded']);
+
+    fixture.componentInstance.opinion.set({rounded: false});
+    await fixture.whenStable();
+    expect(classesOf(div)).toEqual([]);
+
+    fixture.componentInstance.opinion.set({rounded: undefined});
+    await fixture.whenStable();
+    expect(classesOf(div)).toEqual(['rounded']);
+  });
+
   it('leaves out a [class] binding that an input named "class" consumes', async () => {
     @Component({selector: 'ui-button', template: '', host: {class: 'px-2'}})
     class UiButton {
@@ -376,6 +401,43 @@ describe('(class) binding', () => {
       expect(classesOf(fixture.nativeElement.querySelector('div'))).toEqual(['m-1', 'p-2']);
     });
   }
+
+  it('calls a method that the shorthand reads on its component, as the expansion does', async () => {
+    @Component({
+      template: `<div (class)="(classes)"></div>
+        <span (attr.class)="$event.resolve(classes($event.resolver))"></span>`,
+    })
+    class App {
+      readonly extra = signal('a');
+
+      protected classes(cn: BoundClassResolver) {
+        return cn(this.extra());
+      }
+    }
+
+    const fixture = await render(App);
+    const elements = () => Array.from<Element>(fixture.nativeElement.children);
+    expect(elements().map(classesOf)).toEqual([['a'], ['a']]);
+
+    fixture.componentInstance.extra.set('b');
+    await fixture.whenStable();
+    expect(elements().map(classesOf)).toEqual([['b'], ['b']]);
+  });
+
+  it('lets an arrow function name its parameter $event, as the expansion does', async () => {
+    @Component({
+      template: `<div (class)="($event) => $event('a')"></div>
+        <span (attr.class)="$event.resolve((($event) => $event('a'))($event.resolver))"></span>`,
+    })
+    class App {}
+
+    const fixture = await render(App);
+
+    expect(Array.from<Element>(fixture.nativeElement.children).map(classesOf)).toEqual([
+      ['a'],
+      ['a'],
+    ]);
+  });
 
   it('resolves again when state read by the callback changes', async () => {
     TestBed.configureTestingModule({providers: [provideClassResolver(cn)]});
@@ -450,6 +512,45 @@ describe('(class) binding', () => {
     ]);
   });
 
+  it('resolves embedded views that move, go away, and come back with their own context', async () => {
+    @Component({
+      template: `
+        @for (item of items(); track item.id) {
+          <span (class)="(cn) => cn(item.name)"></span>
+        }
+      `,
+    })
+    class App {
+      readonly items = signal([
+        {id: 1, name: 'one'},
+        {id: 2, name: 'two'},
+      ]);
+    }
+
+    const fixture = await render(App);
+    const spans = () => Array.from<Element>(fixture.nativeElement.querySelectorAll('span'));
+    const [first, second] = spans();
+    expect(spans().map(classesOf)).toEqual([['one'], ['two']]);
+
+    fixture.componentInstance.items.set([
+      {id: 2, name: 'changed'},
+      {id: 1, name: 'one'},
+    ]);
+    await fixture.whenStable();
+    expect(spans()[0]).toBe(second);
+    expect(spans()[1]).toBe(first);
+    expect(spans().map(classesOf)).toEqual([['changed'], ['one']]);
+
+    fixture.componentInstance.items.set([]);
+    await fixture.whenStable();
+    expect(spans()).toEqual([]);
+
+    fixture.componentInstance.items.set([{id: 1, name: 'new'}]);
+    await fixture.whenStable();
+    expect(spans()[0]).not.toBe(first);
+    expect(spans().map(classesOf)).toEqual([['new']]);
+  });
+
   it('calls the callback once with the resolver of its event', async () => {
     const runs: Array<{event: ClassResolveEvent; calls: unknown[]}> = [];
 
@@ -494,6 +595,30 @@ describe('(class) binding', () => {
     await fixture.whenStable();
 
     expect(fixture.componentInstance.count).toBe(1);
+    expect(fixture.componentInstance.dir.count).toBe(1);
+    expect(classesOf(fixture.nativeElement.querySelector('div'))).toEqual(['c']);
+  });
+
+  it('listens to a global event named class with a target through @HostListener', async () => {
+    @Directive({selector: '[dir]'})
+    class Dir {
+      count = 0;
+
+      @HostListener('document:class')
+      onClass() {
+        this.count++;
+      }
+    }
+
+    @Component({imports: [Dir], template: `<div dir class="c"></div>`})
+    class App {
+      @ViewChild(Dir, {static: true}) dir!: Dir;
+    }
+
+    const fixture = await render(App);
+    fixture.nativeElement.ownerDocument.dispatchEvent(new Event('class'));
+    await fixture.whenStable();
+
     expect(fixture.componentInstance.dir.count).toBe(1);
     expect(classesOf(fixture.nativeElement.querySelector('div'))).toEqual(['c']);
   });
@@ -1438,6 +1563,43 @@ describe('(attr.class) binding', () => {
     const fixture = await render(App);
 
     expect(classesOf(fixture.nativeElement.querySelector('ui-button'))).toEqual(['only']);
+  });
+
+  it('applies the sources again after a refresh in which the handler replaced them', async () => {
+    @Directive({selector: '[focusRing]'})
+    class FocusRing {
+      constructor() {
+        inject(Renderer2).addClass(inject(ElementRef).nativeElement, 'focus-ring');
+      }
+    }
+
+    @Component({
+      imports: [FocusRing],
+      template: `<div focusRing class="c" [class]="classes()" (attr.class)="apply($event)"></div>`,
+    })
+    class App {
+      readonly replace = signal(true);
+      readonly classes = signal('a');
+
+      protected apply(event: ClassResolveEvent) {
+        if (this.replace()) {
+          event.resolve('only');
+        }
+      }
+    }
+
+    const fixture = await render(App);
+    const div = fixture.nativeElement.querySelector('div');
+    expect(classesOf(div)).toEqual(['focus-ring', 'only']);
+
+    fixture.componentInstance.classes.set('b');
+    fixture.componentInstance.replace.set(false);
+    await fixture.whenStable();
+    expect(classesOf(div)).toEqual(['b', 'c', 'focus-ring']);
+
+    fixture.componentInstance.replace.set(true);
+    await fixture.whenStable();
+    expect(classesOf(div)).toEqual(['focus-ring', 'only']);
   });
 
   it('resolves through resolve() and the resolver called on their own', async () => {

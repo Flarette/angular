@@ -1232,7 +1232,7 @@ runInEachFileSystem(() => {
         env.write(
           'test.ts',
           `
-          import {BoundClassResolver, ClassCallback, Component, Directive, EventEmitter, Output, ResolvedClasses} from '@angular/core';
+          import {BoundClassResolver, ClassCallback, Component, Directive, EventEmitter, Input, Output, ResolvedClasses} from '@angular/core';
 
           ${preamble}
 
@@ -1297,6 +1297,16 @@ runInEachFileSystem(() => {
 
       it('should infer the parameter of an arrow function in the shorthand', () => {
         writeComponent(`<div (class)="(cn) => cn(42)"></div>`, '');
+
+        const diags = env.driveDiagnostics();
+        expect(diags.map(flatten)).toEqual([
+          `Argument of type '42' is not assignable to parameter of type 'ClassBindingValue'.`,
+        ]);
+        expect(getSourceCodeForDiagnostic(diags[0])).toBe('42');
+      });
+
+      it('should infer the parameter of an arrow function in the shorthand that is named $event', () => {
+        writeComponent(`<div (class)="($event) => $event(42)"></div>`, '');
 
         const diags = env.driveDiagnostics();
         expect(diags.map(flatten)).toEqual([
@@ -1421,6 +1431,18 @@ runInEachFileSystem(() => {
         expect(env.driveDiagnostics()).toEqual([]);
       });
 
+      it('should keep the narrowing of an @if block in a conditional in the shorthand', () => {
+        writeComponent(
+          `@if (callback) { <div (class)="active ? callback : classes"></div> }`,
+          `callback: ClassCallback | null = null;
+           active = true;
+           extra = 'extra';
+           readonly classes = (cn: BoundClassResolver) => cn(this.extra);`,
+        );
+
+        expect(env.driveDiagnostics()).toEqual([]);
+      });
+
       it('should check the earlier expressions of a shorthand chain as statements', () => {
         writeComponent(
           `<div (class)="count($event); (cn) => 'x'"></div>`,
@@ -1502,6 +1524,68 @@ runInEachFileSystem(() => {
           `Argument of type 'ClassResolveEvent' is not assignable to parameter of type 'number'.`,
         ]);
         expect(getSourceCodeForDiagnostic(diags[0])).toBe('$event');
+      });
+
+      it('should warn when a class resolver shadows a host directive output exposed as class or attr.class', () => {
+        writeComponent(
+          `<div dir (class)="(cn) => cn()"></div>
+           <div dir (attr.class)="$event.resolve($event.resolver())"></div>`,
+          '',
+          `@Directive()
+           class Events {
+             @Output() changed = new EventEmitter<number>();
+             @Output() resolved = new EventEmitter<number>();
+           }
+
+           @Directive({
+             selector: '[dir]',
+             hostDirectives: [{directive: Events, outputs: ['changed: class', 'resolved: attr.class']}],
+           })
+           class TestDir {}`,
+        );
+
+        const diags = env.driveDiagnostics();
+        expect(diags.map((diag) => [diag.code, diag.category])).toEqual([
+          [ngErrorCode(ErrorCode.OUTPUT_SHADOWED_BY_CLASS_RESOLVER), ts.DiagnosticCategory.Warning],
+          [ngErrorCode(ErrorCode.OUTPUT_SHADOWED_BY_CLASS_RESOLVER), ts.DiagnosticCategory.Warning],
+        ]);
+      });
+
+      it('should check an output named class that a host directive exposes under another name as an ordinary output', () => {
+        writeComponent(
+          `<div dir (changed)="accept($event)"></div>`,
+          `accept(value: number) {}`,
+          `@Directive()
+           class Events {
+             @Output('class') changed = new EventEmitter<string>();
+           }
+
+           @Directive({
+             selector: '[dir]',
+             hostDirectives: [{directive: Events, outputs: ['class: changed']}],
+           })
+           class TestDir {}`,
+        );
+
+        const diags = env.driveDiagnostics();
+        expect(diags.map(flatten)).toEqual([
+          `Argument of type 'string' is not assignable to parameter of type 'number'.`,
+        ]);
+        expect(getSourceCodeForDiagnostic(diags[0])).toBe('$event');
+      });
+
+      it('should not check a two-way binding to an input named class as a class resolver', () => {
+        writeComponent(
+          `<div dir [(class)]="classes"></div>`,
+          `classes = 'initial';`,
+          `@Directive({selector: '[dir]'})
+           class TestDir {
+             @Input('class') value = '';
+             @Output() classChange = new EventEmitter<string>();
+           }`,
+        );
+
+        expect(env.driveDiagnostics()).toEqual([]);
       });
 
       it('should check a (class) binding under a structural directive once, as a resolver', () => {

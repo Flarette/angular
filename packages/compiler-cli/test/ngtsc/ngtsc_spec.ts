@@ -3710,6 +3710,29 @@ runInEachFileSystem((os: string) => {
         expect(getDiagnosticSourceCode(diag)).toBe(`'class'`);
       });
 
+      it(`should accept @HostListener('window:class') next to a host (class)`, () => {
+        env.tsconfig({strictTemplates: true});
+        env.write(
+          'test.ts',
+          `
+          import {ClassCallback, Directive, HostListener} from '@angular/core';
+
+          @Directive({
+            selector: '[dir]',
+            host: {'(class)': 'resolve'},
+          })
+          export class Dir {
+            resolve: ClassCallback = (cn) => cn();
+
+            @HostListener('window:class', ['$event'])
+            onClass(event: Event) {}
+          }
+        `,
+        );
+
+        expect(env.driveDiagnostics()).toEqual([]);
+      });
+
       it('should report (class) and (attr.class) in one host', () => {
         env.write(
           'test.ts',

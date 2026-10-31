@@ -7,13 +7,17 @@
  */
 
 import {
+  ApplicationRef,
   BoundClassResolver,
   ClassResolver,
   Component,
+  createComponent,
   Directive,
+  EnvironmentInjector,
   inject,
   provideClassResolver,
   signal,
+  TemplateRef,
   ViewChild,
   ViewContainerRef,
   withAutoResolution,
@@ -235,6 +239,103 @@ describe('automatic resolution', () => {
     expect(classesOf(notResolved.location.nativeElement)).toEqual(['px-2', 'px-4']);
   });
 
+  it('resolves a component created with createComponent() and attached to the application, with its host directives', async () => {
+    const resolver = recordingResolver();
+
+    @Directive({host: {class: 'shadow-sm'}})
+    class Elevated {}
+
+    @Component({
+      template: '',
+      host: {class: 'px-2 px-4', '[class.active]': 'active()'},
+      hostDirectives: [Elevated],
+    })
+    class Badge {
+      readonly active = signal(false);
+    }
+
+    TestBed.configureTestingModule({
+      providers: [provideClassResolver(resolver, withAutoResolution())],
+    });
+    const appRef = TestBed.inject(ApplicationRef);
+    const badge = createComponent(Badge, {
+      environmentInjector: TestBed.inject(EnvironmentInjector),
+    });
+    appRef.attachView(badge.hostView);
+    await appRef.whenStable();
+
+    expect(resolver.calls.allArgs()).toEqual([['shadow-sm px-2 px-4', '', '']]);
+    expect(classesOf(badge.location.nativeElement)).toEqual(['px-4', 'shadow-sm']);
+
+    badge.instance.active.set(true);
+    await appRef.whenStable();
+
+    expect(resolver.calls.allArgs()).toEqual([
+      ['shadow-sm px-2 px-4', '', ''],
+      ['shadow-sm px-2 px-4 active', '', ''],
+    ]);
+    expect(classesOf(badge.location.nativeElement)).toEqual(['active', 'px-4', 'shadow-sm']);
+  });
+
+  it('resolves an embedded view with the setting where its template is declared, wherever it is inserted', async () => {
+    @Directive({selector: '[tone]', host: {class: 'px-2'}})
+    class Tone {}
+
+    @Component({
+      selector: 'legacy-panel',
+      imports: [Tone],
+      template: `
+        <ng-template #template><div id="legacy" tone [class]="classes()"></div></ng-template>
+        <ng-container #slot />
+      `,
+      providers: [provideClassResolver((...classes) => cn(...classes, 'by-legacy'))],
+    })
+    class LegacyPanel {
+      readonly classes = signal('px-4');
+      @ViewChild('template', {static: true}) template!: TemplateRef<unknown>;
+      @ViewChild('slot', {read: ViewContainerRef, static: true}) slot!: ViewContainerRef;
+    }
+
+    @Component({
+      imports: [Tone, LegacyPanel],
+      template: `
+        <ng-template #template><div id="modern" tone [class]="classes()"></div></ng-template>
+        <ng-container #slot />
+        <legacy-panel />
+      `,
+    })
+    class App {
+      readonly classes = signal('px-4');
+      @ViewChild('template', {static: true}) template!: TemplateRef<unknown>;
+      @ViewChild('slot', {read: ViewContainerRef, static: true}) slot!: ViewContainerRef;
+      @ViewChild(LegacyPanel, {static: true}) legacy!: LegacyPanel;
+    }
+
+    TestBed.configureTestingModule({
+      providers: [
+        provideClassResolver((...classes) => cn(...classes, 'by-root'), withAutoResolution()),
+      ],
+    });
+    const fixture = TestBed.createComponent(App);
+    await fixture.whenStable();
+    const app = fixture.componentInstance;
+    app.legacy.slot.createEmbeddedView(app.template);
+    app.slot.createEmbeddedView(app.legacy.template);
+    await fixture.whenStable();
+    const modern = fixture.nativeElement.querySelector('#modern');
+    const legacy = fixture.nativeElement.querySelector('#legacy');
+
+    expect(classesOf(modern)).toEqual(['by-root', 'px-4']);
+    expect(classesOf(legacy)).toEqual(['px-2', 'px-4']);
+
+    app.classes.set('px-6');
+    app.legacy.classes.set('px-6');
+    await fixture.whenStable();
+
+    expect(classesOf(modern)).toEqual(['by-root', 'px-6']);
+    expect(classesOf(legacy)).toEqual(['px-2', 'px-6']);
+  });
+
   it('reports NG0322 when a lazy route turns it on and the root providers do not', async () => {
     @Component({selector: 'app-page', template: ''})
     class Page {}
@@ -450,6 +551,40 @@ describe('automatic resolution', () => {
 
       expect(classesOf(fixture.nativeElement.querySelector('app-page'))).toEqual(['px-2', 'px-4']);
       expect(classesOf(fixture.nativeElement.querySelector('div'))).toEqual(['px-2', 'px-4']);
+    });
+
+    it('ignores a component that turns it on when the root providers have no class resolver', async () => {
+      _global.ngDevMode = false;
+      const resolver = recordingResolver();
+
+      @Directive({selector: '[tone]', host: {class: 'px-2'}})
+      class Tone {}
+
+      @Component({
+        selector: 'modern-card',
+        imports: [Tone],
+        template: `<div tone class="px-4" [class.active]="active()"></div>`,
+        providers: [provideClassResolver(resolver, withAutoResolution())],
+      })
+      class ModernCard {
+        readonly active = signal(false);
+      }
+
+      @Component({imports: [ModernCard], template: '<modern-card />'})
+      class App {
+        @ViewChild(ModernCard, {static: true}) card!: ModernCard;
+      }
+
+      const fixture = TestBed.createComponent(App);
+      await fixture.whenStable();
+      const div = fixture.nativeElement.querySelector('div');
+      expect(classesOf(div)).toEqual(['px-2', 'px-4']);
+
+      fixture.componentInstance.card.active.set(true);
+      await fixture.whenStable();
+
+      expect(classesOf(div)).toEqual(['active', 'px-2', 'px-4']);
+      expect(resolver).not.toHaveBeenCalled();
     });
   });
 
