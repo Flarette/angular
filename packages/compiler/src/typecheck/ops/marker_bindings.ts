@@ -6,7 +6,6 @@
  * found in the LICENSE file at https://angular.dev/license
  */
 
-import {NO_ERRORS_SCHEMA} from '../../core';
 import {CssSelector, SelectorMatcher} from '../../directive_matching';
 import {BindingType, ParsedEventType} from '../../expression_parser/ast';
 import {isNgContainer, isNgTemplate} from '../../ml_parser/tags';
@@ -134,10 +133,9 @@ export class TcbMarkerBindingsOp extends TcbOp {
     if (isProperty && (input.name === 'class' || input.name === 'style')) {
       return true;
     }
-    // Unknown properties of `<ng-container>` already get NG8002, unless a schema silences it. Those
-    // of `<ng-template>` do too when its unclaimed bindings are checked.
-    const getsSchemaCheck = isContainer || this.tcb.env.config.checkNgTemplateBindings;
-    return !getsSchemaCheck || this.tcb.schemas.some((s) => s.name === NO_ERRORS_SCHEMA.name);
+    // Unknown properties of `<ng-container>` already get NG8002, whatever the schemas. Those of
+    // `<ng-template>` do too when its unclaimed bindings are checked.
+    return !isContainer && !this.tcb.env.config.checkNgTemplateBindings;
   }
 
   private checkContent(node: Content): void {

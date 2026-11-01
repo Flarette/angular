@@ -195,13 +195,9 @@ runInEachFileSystem(() => {
         [
           `<ng-container [foo]="v"></ng-container>`,
           'schemas: [NO_ERRORS_SCHEMA],',
-          ['warning NG8031'],
+          ['error NG8002'],
         ],
-        [
-          `<ng-template [foo]="v"></ng-template>`,
-          'schemas: [NO_ERRORS_SCHEMA],',
-          ['warning NG8031'],
-        ],
+        [`<ng-template [foo]="v"></ng-template>`, 'schemas: [NO_ERRORS_SCHEMA],', ['error NG8002']],
       ];
 
       for (const [template, metadata, expected] of SURVIVAL) {
@@ -250,7 +246,12 @@ runInEachFileSystem(() => {
           {strictTemplates: false},
           [],
         ],
-        [`<ng-container [foo]="v"></ng-container>`, NO_ERRORS, {strictTemplates: false}, []],
+        [
+          `<ng-container [foo]="v"></ng-container>`,
+          NO_ERRORS,
+          {strictTemplates: false},
+          ['error NG8002'],
+        ],
         [`<ng-component [class.x]="v"></ng-component>`, '', {}, ['error NG8001']],
       ];
 

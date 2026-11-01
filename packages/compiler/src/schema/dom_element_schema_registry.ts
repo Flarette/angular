@@ -395,20 +395,17 @@ export class DomElementSchemaRegistry extends ElementSchemaRegistry {
   }
 
   override hasProperty(tagName: string, propName: string, schemaMetas: SchemaMetadata[]): boolean {
+    const normalizedTag = normalizeTagName(tagName);
+    // Angular's marker elements never render, so no schema can give them a property.
+    if (isNgContainer(normalizedTag) || isNgContent(normalizedTag) || isNgTemplate(normalizedTag)) {
+      return false;
+    }
+
     if (schemaMetas.some((schema) => schema.name === NO_ERRORS_SCHEMA.name)) {
       return true;
     }
 
-    const normalizedTag = normalizeTagName(tagName);
     if (normalizedTag.includes('-')) {
-      if (
-        isNgContainer(normalizedTag) ||
-        isNgContent(normalizedTag) ||
-        isNgTemplate(normalizedTag)
-      ) {
-        return false;
-      }
-
       if (schemaMetas.some((schema) => schema.name === CUSTOM_ELEMENTS_SCHEMA.name)) {
         // Can't tell now as we don't know which properties a custom element will get
         // once it is instantiated

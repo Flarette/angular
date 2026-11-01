@@ -84,7 +84,11 @@ export class RegistryDomSchemaChecker implements DomSchemaChecker<Diagnostic> {
       const decorator = hostIsStandalone ? '@Component' : '@NgModule';
       const schemasStr = `'${decorator}.schemas'`;
       let errorMsg = `Can't bind to '${name}' since it isn't a known property of '${tagName}'.`;
-      if (tagName.startsWith('ng-')) {
+      if (isMarkerTag(tagName)) {
+        errorMsg +=
+          `\n1. If '${name}' is an Angular directive, then add 'CommonModule' to the '${decorator}.imports' of this component.` +
+          `\n2. '${tagName}' doesn't render an element, so no schema allows properties on it.`;
+      } else if (tagName.startsWith('ng-')) {
         errorMsg +=
           `\n1. If '${name}' is an Angular directive, then add 'CommonModule' to the '${decorator}.imports' of this component.` +
           `\n2. To allow any property add 'NO_ERRORS_SCHEMA' to the ${schemasStr} of this component.`;
@@ -189,4 +193,10 @@ export class RegistryDomSchemaChecker implements DomSchemaChecker<Diagnostic> {
       end: span.end.offset,
     });
   }
+}
+
+/** Whether `tagName` is `ng-container`, `ng-template`, or `ng-content`, in any namespace. */
+function isMarkerTag(tagName: string): boolean {
+  const name = tagName.slice(tagName.lastIndexOf(':') + 1);
+  return name === 'ng-container' || name === 'ng-template' || name === 'ng-content';
 }
