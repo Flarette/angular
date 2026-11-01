@@ -183,13 +183,13 @@ describe('bindings on ng-container and ng-template', () => {
   const NO_OP_CASES: Array<[bindings: string, expected: [Partial<Probe>, Partial<Probe>]]> = [
     ['class="s"', [{}, {}]],
     ['style="color: red"', [{}, {}]],
-    ['[class.p]="v"', [{}, {logged: ['NG0303']}]],
-    [`[class]="'b'"`, [{}, {}]],
-    [`[style.color]="'red'"`, [{}, {logged: ['NG0303']}]],
-    [`[style]="'color: red'"`, [{}, {}]],
+    ['[class.p]="v"', [{logged: ['NG0319']}, {logged: ['NG0303']}]],
+    [`[class]="'b'"`, [{logged: ['NG0319']}, {logged: ['NG0319']}]],
+    [`[style.color]="'red'"`, [{logged: ['NG0319']}, {logged: ['NG0303']}]],
+    [`[style]="'color: red'"`, [{logged: ['NG0319']}, {logged: ['NG0319']}]],
     [`[title]="'t'"`, [{logged: ['NG0303']}, {logged: ['NG0303']}]],
     [`[attr.title]="'t'"`, [{thrown: 'JIT parse error'}, {logged: ['NG0303']}]],
-    ['(click)="h()"', [{}, {}]],
+    ['(click)="h()"', [{logged: ['NG0319']}, {logged: ['NG0319']}]],
   ];
 
   for (const [bindings, expected] of NO_OP_CASES) {
@@ -235,7 +235,7 @@ describe('bindings on ng-container and ng-template', () => {
   it(`doesn't feed a static class or [class.p] into a directive's class input`, async () => {
     expect(
       await probe(TAGS[0][1]('class-input-dir class="s" [class.p]="v"'), [ClassInputDir]),
-    ).toEqual(NOTHING);
+    ).toEqual({...NOTHING, logged: ['NG0319']});
     expect(ClassInputDir.last).toBeUndefined();
     expect(
       await probe(TAGS[1][1]('class-input-dir class="s" [class.p]="v"'), [ClassInputDir]),

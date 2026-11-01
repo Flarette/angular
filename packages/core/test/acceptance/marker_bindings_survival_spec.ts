@@ -138,7 +138,7 @@ describe('what survives on Angular marker elements', () => {
           `<proj><ng-container *ngIf="v" card-header [class.a]="v">C</ng-container></proj>`,
           [Proj],
         ),
-      ).toEqual({text: 'C|', classes: [], attrs: [], logged: [], thrown: null, hits: 0});
+      ).toEqual({text: 'C|', classes: [], attrs: [], logged: ['NG0319'], thrown: null, hits: 0});
     });
   });
 
@@ -227,11 +227,13 @@ describe('what survives on Angular marker elements', () => {
             tag === 'ng-container'
               ? `<ng-container ${binding}><i>c</i></ng-container>`
               : `<ng-template #t ${binding}><i>c</i></ng-template><ng-container [ngTemplateOutlet]="t" />`;
+          // Measured: the runtime reports `(animate.leave)` on ng-template, not on ng-container.
+          const reported = tag === 'ng-template' && binding.startsWith('(animate.leave)');
           expect(await render(template)).toEqual({
             text: 'c',
             classes: [],
             attrs: [],
-            logged: [],
+            logged: reported ? ['NG0319'] : [],
             thrown: null,
             hits: 0,
           });
@@ -251,7 +253,7 @@ describe('what survives on Angular marker elements', () => {
         text: '',
         classes: [],
         attrs: [],
-        logged: [],
+        logged: ['NG0319'],
         thrown: null,
         hits: 0,
       });

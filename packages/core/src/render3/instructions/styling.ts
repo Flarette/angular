@@ -59,6 +59,7 @@ import {
 import {NO_CHANGE} from '../tokens';
 import {getNativeByIndex} from '../util/view_utils';
 
+import {handleNoOpMarkerBinding} from './element_validation';
 import {setDirectiveInputsWhichShadowsStyling} from './property';
 
 /**
@@ -380,6 +381,15 @@ function stylingFirstUpdatePass(
       // we need to neutralize this binding since that directive is shadowing it.
       // We turn this into a noop by setting the key to `false`
       tStylingKey = false;
+    } else if (ngDevMode && !(tNode.type & TNodeType.AnyRNode) && !isHostBindings) {
+      // Containers have no element to style, see `updateStyling`. Host bindings of directives are
+      // left alone: directives are reusable across elements.
+      const kind = isClassBased ? 'class' : 'style';
+      handleNoOpMarkerBinding(
+        tStylingKey === null ? `[${kind}]` : `[${kind}.${tStylingKey}]`,
+        tNode,
+        getLView(),
+      );
     }
     tStylingKey = wrapInStaticStylingKey(tData, tNode, tStylingKey, isClassBased);
     insertTStylingBinding(tData, tNode, tStylingKey, bindingIndex, isHostBindings, isClassBased);

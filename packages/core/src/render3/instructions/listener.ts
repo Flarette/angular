@@ -15,6 +15,7 @@ import {getCurrentDirectiveDef, getCurrentTNode, getLView, getTView} from '../st
 
 import {listenToOutput} from '../view/directive_outputs';
 import {listenToDomEvent, wrapListener} from '../view/listeners';
+import {handleNoOpMarkerBinding} from './element_validation';
 import {loadComponentRenderer} from './shared';
 
 /**
@@ -114,6 +115,9 @@ export function ɵɵdomListener(
       listenerFn,
       wrapListener(tNode, lView, listenerFn),
     );
+  } else if (ngDevMode && tView.firstCreatePass && getCurrentDirectiveDef(tView.data) === null) {
+    // Host listeners of directives are left alone: directives are reusable across elements.
+    handleNoOpMarkerBinding(`(${eventName})`, tNode, lView);
   }
 
   return ɵɵdomListener;
@@ -174,6 +178,20 @@ export function listenerInternal(
         wrappedListener ??= wrapListener(tNode, lView, listenerFn);
         listenToOutput(tNode, lView, index, eventName, eventName, wrappedListener);
       }
+    }
+
+    // Containers have no element to listen on, so only outputs and global targets can fire. Host
+    // listeners of directives are left alone: directives are reusable across elements.
+    if (
+      ngDevMode &&
+      tView.firstCreatePass &&
+      !(tNode.type & TNodeType.AnyRNode) &&
+      !eventTargetResolver &&
+      !outputConfig?.length &&
+      !hostDirectiveOutputConfig?.length &&
+      getCurrentDirectiveDef(tView.data) === null
+    ) {
+      handleNoOpMarkerBinding(`(${eventName})`, tNode, lView);
     }
   }
 }
