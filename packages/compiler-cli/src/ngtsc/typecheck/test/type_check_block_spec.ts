@@ -1202,6 +1202,7 @@ describe('type check blocks', () => {
       useInlineTypeConstructors: true,
       controlFlowPreventingContentProjection: 'warning',
       noOpMarkerBinding: 'warning',
+      checkNgTemplateBindings: true,
       unusedStandaloneImports: 'warning',
       allowSignalsInTwoWayBindings: true,
       allowDomEventAssertion: true,

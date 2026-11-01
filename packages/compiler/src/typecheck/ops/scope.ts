@@ -550,6 +550,18 @@ export class Scope {
   }
 
   /**
+   * Whether `node` is an explicit `<ng-template>` whose unclaimed bindings are checked like those
+   * of an element. Templates created by `*` syntax only carry copies of their element's bindings.
+   */
+  private checksUnclaimedBindingsOfTemplate(
+    node: Element | Template | HostElement,
+  ): node is Template {
+    return (
+      node instanceof Template && isMarkerNode(node) && this.tcb.env.config.checkNgTemplateBindings
+    );
+  }
+
+  /**
    * Records the content of a component that its specific projection slots select, so that
    * `TcbMarkerBindingsOp` leaves their static attributes alone.
    */
@@ -611,7 +623,12 @@ export class Scope {
     if (directives === null || directives.length === 0) {
       // If there are no directives, then all inputs are unclaimed inputs, so queue an operation
       // to add them if needed.
-      if (node instanceof Element) {
+      if (this.checksUnclaimedBindingsOfTemplate(node)) {
+        this.opQueue.push(
+          new TcbUnclaimedInputsOp(this.tcb, this, node.inputs, node, claimedInputs),
+          new TcbDomSchemaCheckerOp(this.tcb, node, /* checkElement */ false, claimedInputs),
+        );
+      } else if (node instanceof Element) {
         this.opQueue.push(
           new TcbUnclaimedInputsOp(this.tcb, this, node.inputs, node, claimedInputs),
         );
@@ -701,6 +718,17 @@ export class Scope {
       const checkElement = this.requiresUnknownElementCheck(node, directives);
       this.opQueue.push(new TcbDomSchemaCheckerOp(this.tcb, node, checkElement, claimedInputs));
     }
+    if (this.checksUnclaimedBindingsOfTemplate(node)) {
+      for (const dir of directives) {
+        for (const propertyName of dir.inputs.propertyNames) {
+          claimedInputs.add(propertyName);
+        }
+      }
+      this.opQueue.push(
+        new TcbUnclaimedInputsOp(this.tcb, this, node.inputs, node, claimedInputs),
+        new TcbDomSchemaCheckerOp(this.tcb, node, /* checkElement */ false, claimedInputs),
+      );
+    }
   }
 
   private appendOutputsOfElementLikeNode(
@@ -719,7 +747,7 @@ export class Scope {
     if (directives === null || directives.length === 0) {
       // If there are no directives, then all outputs are unclaimed outputs, so queue an operation
       // to add them if needed.
-      if (node instanceof Element) {
+      if (node instanceof Element || this.checksUnclaimedBindingsOfTemplate(node)) {
         this.opQueue.push(
           new TcbUnclaimedOutputsOp(this.tcb, this, node, events, bindings, claimedOutputs),
         );
@@ -734,7 +762,11 @@ export class Scope {
 
     // After expanding the directives, we might need to queue an operation to check any unclaimed
     // outputs.
-    if (node instanceof Element || node instanceof HostElement) {
+    if (
+      node instanceof Element ||
+      node instanceof HostElement ||
+      this.checksUnclaimedBindingsOfTemplate(node)
+    ) {
       // Go through the directives and register any outputs that it claims in `claimedOutputs`.
       for (const dir of directives) {
         for (const outputProperty of dir.outputs.propertyNames) {

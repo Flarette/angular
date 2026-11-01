@@ -196,6 +196,7 @@ export function tcb(
     alwaysCheckSchemaInTemplateBodies: true,
     controlFlowPreventingContentProjection: 'warning',
     noOpMarkerBinding: 'warning',
+    checkNgTemplateBindings: true,
     unusedStandaloneImports: 'warning',
     strictSafeNavigationTypes: true,
     useContextGenericType: true,

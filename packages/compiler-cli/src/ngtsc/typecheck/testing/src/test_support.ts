@@ -219,6 +219,7 @@ export const ALL_ENABLED_CONFIG: Readonly<TypeCheckingConfig> = {
   useInlineTypeConstructors: true,
   controlFlowPreventingContentProjection: 'warning',
   noOpMarkerBinding: 'warning',
+  checkNgTemplateBindings: true,
   unusedStandaloneImports: 'warning',
   allowSignalsInTwoWayBindings: true,
   allowDomEventAssertion: true,

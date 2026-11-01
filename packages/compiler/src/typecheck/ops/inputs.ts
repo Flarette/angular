@@ -275,7 +275,12 @@ export class TcbUnclaimedInputsOp extends TcbOp {
         binding.value,
       );
 
-      if (this.tcb.env.config.checkTypeOfDomBindings && isPropertyBinding) {
+      // An `<ng-template>` has no DOM node to assign properties to.
+      if (
+        this.tcb.env.config.checkTypeOfDomBindings &&
+        isPropertyBinding &&
+        !(this.target instanceof Template)
+      ) {
         if (binding.name !== 'style' && binding.name !== 'class') {
           if (elId === null) {
             elId = this.scope.resolve(this.target);

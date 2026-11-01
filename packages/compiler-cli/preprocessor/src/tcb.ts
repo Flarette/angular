@@ -166,6 +166,7 @@ export function buildTypeCheckingConfig(
     typeCheckingConfig = {
       applyTemplateContextGuards: true,
       checkTemplateBodies: true,
+      checkNgTemplateBindings: true,
       alwaysCheckSchemaInTemplateBodies: true,
       checkTypeOfInputBindings: true,
       honorAccessModifiersForInputBindings: false,
@@ -207,6 +208,7 @@ export function buildTypeCheckingConfig(
     typeCheckingConfig = {
       applyTemplateContextGuards: false,
       checkTemplateBodies: false,
+      checkNgTemplateBindings: false,
       checkControlFlowBodies: false,
       alwaysCheckSchemaInTemplateBodies: !!options.annotateForClosureCompiler,
       checkTypeOfInputBindings: false,

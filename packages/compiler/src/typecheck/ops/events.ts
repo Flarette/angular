@@ -7,7 +7,7 @@
  */
 
 import {AST, ImplicitReceiver, ParsedEventType, PropertyRead} from '../../expression_parser/ast';
-import {BoundAttribute, BoundEvent, Element} from '../../render3/r3_ast';
+import {BoundAttribute, BoundEvent, Element, Template} from '../../render3/r3_ast';
 import {DirectiveOwner} from '../../render3/view/t2_api';
 import {TcbOp} from './base';
 import {getStatementsBlock, TcbExpr} from './codegen';
@@ -167,11 +167,11 @@ export class TcbUnclaimedOutputsOp extends TcbOp {
         this.hasDirectives &&
         output.type === ParsedEventType.Regular &&
         output.target === null &&
-        this.target instanceof Element
+        (this.target instanceof Element || this.target instanceof Template)
       ) {
         this.tcb.domSchemaChecker.checkTemplateElementEvent(
           this.tcb.id,
-          this.target.name,
+          this.target instanceof Element ? this.target.name : 'ng-template',
           output.name,
           output.keySpan,
           this.tcb.schemas,
@@ -195,7 +195,8 @@ export class TcbUnclaimedOutputsOp extends TcbOp {
 
         const handler = tcbCreateEventHandler(output, this.tcb, this.scope, eventType.print());
         this.scope.addStatement(handler);
-      } else if (this.tcb.env.config.checkTypeOfDomEvents) {
+      } else if (this.tcb.env.config.checkTypeOfDomEvents && !(this.target instanceof Template)) {
+        // An `<ng-template>` has no DOM node to listen on, so its handlers get an `any` event below.
         // If strict checking of DOM events is enabled, generate a call to `addEventListener` on
         // the element instance so that TypeScript's type inference for
         // `HTMLElement.addEventListener` using `HTMLElementEventMap` to infer an accurate type for

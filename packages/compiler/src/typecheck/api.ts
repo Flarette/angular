@@ -258,6 +258,12 @@ export interface TypeCheckingConfig {
   controlFlowPreventingContentProjection: 'error' | 'warning' | 'suppress';
 
   /**
+   * Whether to type-check bindings on an explicit `<ng-template>` that no directive claims, and
+   * to check its properties against the DOM schema, as for other elements.
+   */
+  checkNgTemplateBindings: boolean;
+
+  /**
    * Whether to report bindings and attributes that `<ng-container>`, `<ng-template>`, and
    * `<ng-content>` drop because they don't render an element.
    */

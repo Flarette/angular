@@ -134,8 +134,10 @@ export class TcbMarkerBindingsOp extends TcbOp {
     if (isProperty && (input.name === 'class' || input.name === 'style')) {
       return true;
     }
-    // Unknown properties of `<ng-container>` already get NG8002, unless a schema silences it.
-    return !isContainer || this.tcb.schemas.some((s) => s.name === NO_ERRORS_SCHEMA.name);
+    // Unknown properties of `<ng-container>` already get NG8002, unless a schema silences it. Those
+    // of `<ng-template>` do too when its unclaimed bindings are checked.
+    const getsSchemaCheck = isContainer || this.tcb.env.config.checkNgTemplateBindings;
+    return !getsSchemaCheck || this.tcb.schemas.some((s) => s.name === NO_ERRORS_SCHEMA.name);
   }
 
   private checkContent(node: Content): void {

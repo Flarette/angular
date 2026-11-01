@@ -114,12 +114,30 @@ runInEachFileSystem(() => {
       [`[class]="'b'"`, [['warning NG8031'], ['warning NG8031']]],
       [`[style.color]="'red'"`, [['warning NG8031'], ['warning NG8031']]],
       [`[style]="'color: red'"`, [['warning NG8031'], ['warning NG8031']]],
-      [`[title]="'t'"`, [['error NG8002'], ['warning NG8031']]],
+      [`[title]="'t'"`, [['error NG8002'], ['error NG8002']]],
       [`[attr.title]="'t'"`, [['error NG5002'], ['warning NG8031']]],
       ['(click)="h()"', [['warning NG8031'], ['warning NG8031']]],
-      ['(click)="h"', [['warning NG8031', 'warning NG8111'], ['warning NG8031']]],
-      ['(click)="missing()"', [['error 2339', 'warning NG8031'], ['warning NG8031']]],
-      ['[title]="missing"', [['error 2339', 'error NG8002'], ['warning NG8031']]],
+      [
+        '(click)="h"',
+        [
+          ['warning NG8031', 'warning NG8111'],
+          ['warning NG8031', 'warning NG8111'],
+        ],
+      ],
+      [
+        '(click)="missing()"',
+        [
+          ['error 2339', 'warning NG8031'],
+          ['error 2339', 'warning NG8031'],
+        ],
+      ],
+      [
+        '[title]="missing"',
+        [
+          ['error 2339', 'error NG8002'],
+          ['error 2339', 'error NG8002'],
+        ],
+      ],
       ['animate.enter="fade"', [['warning NG8031'], ['warning NG8031']]],
       ['host-dir', [[], []]],
       ['cmp', [['warning NG8031'], ['warning NG8031']]],
@@ -139,7 +157,10 @@ runInEachFileSystem(() => {
         'error NG8030',
         'warning NG8031',
       ]);
-      expect(diagnose(TAGS[1][1]('out-dir (fooBar)="h()"'), options)).toEqual(['warning NG8031']);
+      expect(diagnose(TAGS[1][1]('out-dir (fooBar)="h()"'), options)).toEqual([
+        'error NG8030',
+        'warning NG8031',
+      ]);
     });
 
     describe('what survives on Angular marker elements', () => {
@@ -221,7 +242,7 @@ runInEachFileSystem(() => {
           `<ng-template [foo]="v"></ng-template>`,
           'schemas: [CUSTOM_ELEMENTS_SCHEMA],',
           {},
-          ['warning NG8031'],
+          ['error NG8002'],
         ],
         [
           `<ng-template [title]="v" (click)="missing()"></ng-template>`,
