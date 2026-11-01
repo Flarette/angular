@@ -274,6 +274,10 @@ export * from './typecheck/host_bindings';
 export {CommentTriviaType, ExpressionIdentifier} from './typecheck/comments';
 export {OutOfBandDiagnosticRecorder, OutOfBandDiagnosticCategory} from './typecheck/oob';
 export {DomSchemaChecker} from './typecheck/schema';
+export {
+  getComponentOnMarkerMessage,
+  getNoOpMarkerBindingMessage,
+} from './typecheck/ops/marker_bindings';
 export {generateTypeCheckBlock} from './typecheck/type_check_block';
 export {TcbExpr} from './typecheck/ops/codegen';
 export {TcbGenericContextBehavior} from './typecheck/ops/context';

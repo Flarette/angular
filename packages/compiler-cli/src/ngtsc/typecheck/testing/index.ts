@@ -195,6 +195,7 @@ export function tcb(
     checkControlFlowBodies: true,
     alwaysCheckSchemaInTemplateBodies: true,
     controlFlowPreventingContentProjection: 'warning',
+    noOpMarkerBinding: 'warning',
     unusedStandaloneImports: 'warning',
     strictSafeNavigationTypes: true,
     useContextGenericType: true,
@@ -857,6 +858,8 @@ export class NoopOobRecorder implements OutOfBandDiagnosticRecorder<TemplateDiag
     element: TmplAstElement,
     componentNames: string[],
   ): void {}
+  noOpMarkerBinding(): void {}
+  componentOnMarker(): void {}
   missingNamedTemplateDependency(
     id: TypeCheckId,
     node: TmplAstComponent | TmplAstDirective,

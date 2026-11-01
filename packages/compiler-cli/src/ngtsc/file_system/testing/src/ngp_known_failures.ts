@@ -272,6 +272,8 @@ export const NGP_KNOWN_NGTSC_FAILURES: ReadonlySet<string> = new Set([
   'authoring API diagnostics should report when an initializer function is used outside of an initializer in a file that does not have any decorated classes',
   'bindings on ng-container and ng-template checks unclaimed camelCase event names',
   'bindings on ng-container and ng-template ng-container (click)="h"',
+  'bindings on ng-container and ng-template what survives on Angular marker elements <proj><ng-container foo>H</ng-container></proj>',
+  'bindings on ng-container and ng-template what survives on Angular marker elements <proj><ng-container ngProjectAs="[card-header]" foo>H</ng-container></proj>',
   'bindings on ng-container and ng-template what survives on Angular marker elements <proj>@if (v) {<b card-header></b><b></b>}</proj>',
   'declaration-only emission fails with config diagnostic if experimental flag is disabled',
   'declaration-only emission fails with config diagnostic if experimental flag is not provided',

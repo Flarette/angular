@@ -7,6 +7,7 @@
  */
 
 import {SchemaMetadata} from '../../core';
+import {Node} from '../../render3/r3_ast';
 import {BoundTarget} from '../../render3/view/t2_api';
 import {TypeCheckId, TcbDirectiveMetadata, TcbPipeMetadata, TcbEnvironment} from '../api';
 import {OutOfBandDiagnosticRecorder} from '../oob';
@@ -49,6 +50,12 @@ export enum TcbGenericContextBehavior {
  */
 export class Context {
   private nextId = 1;
+
+  /**
+   * Nodes that a specific content projection slot selects. Their static attributes take part in
+   * projection, see `getNodesInProjectionSlots`.
+   */
+  readonly nodesInProjectionSlots = new Set<Node>();
 
   constructor(
     readonly env: TcbEnvironment,

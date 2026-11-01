@@ -20,6 +20,7 @@ export interface ExtendedDiagnosticsOptions {
   defaultCategory?: DiagnosticCategoryLabel;
   checks?: {
     controlFlowPreventingContentProjection?: DiagnosticCategoryLabel;
+    noOpMarkerBinding?: DiagnosticCategoryLabel;
     unusedStandaloneImports?: DiagnosticCategoryLabel;
     readonly [name: string]: DiagnosticCategoryLabel | undefined;
   };

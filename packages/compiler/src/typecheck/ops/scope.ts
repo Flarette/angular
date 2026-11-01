@@ -60,6 +60,7 @@ import {TcbIntersectionObserverOp} from './intersection_observer';
 import {TcbLetDeclarationOp} from './let';
 import {LocalSymbol, TcbInvalidReferenceOp, TcbReferenceOp} from './references';
 import {TcbDomSchemaCheckerOp} from './schema';
+import {getNodesInProjectionSlots, isMarkerNode, TcbMarkerBindingsOp} from './marker_bindings';
 import {TcbComponentNodeOp} from './selectorless';
 import {
   CustomFormControlType,
@@ -495,8 +496,10 @@ export class Scope {
       if (this.tcb.env.config.controlFlowPreventingContentProjection !== 'suppress') {
         this.appendContentProjectionCheckOp(node);
       }
+      this.recordNodesInProjectionSlots(node);
       this.appendDirectivesAndInputsOfElementLikeNode(node);
       this.appendOutputsOfElementLikeNode(node, node.inputs, node.outputs);
+      this.appendMarkerBindingsCheckOp(node);
       this.appendSelectorlessDirectives(node);
       this.appendChildren(node);
       this.checkAndAppendReferencesOfNode(node);
@@ -504,6 +507,7 @@ export class Scope {
       // Template children are rendered in a child scope.
       this.appendDirectivesAndInputsOfElementLikeNode(node);
       this.appendOutputsOfElementLikeNode(node, node.inputs, node.outputs);
+      this.appendMarkerBindingsCheckOp(node);
       this.appendSelectorlessDirectives(node);
       const ctxIndex = this.opQueue.push(new TcbTemplateContextOp(this.tcb, this)) - 1;
       this.templateCtxOpMap.set(node, ctxIndex);
@@ -531,6 +535,7 @@ export class Scope {
     } else if (node instanceof Icu) {
       this.appendIcuExpressions(node);
     } else if (node instanceof Content) {
+      this.appendMarkerBindingsCheckOp(node);
       this.appendChildren(node);
     } else if (node instanceof LetDeclaration) {
       const opIndex = this.opQueue.push(new TcbLetDeclarationOp(this.tcb, this, node)) - 1;
@@ -541,6 +546,30 @@ export class Scope {
       }
     } else if (node instanceof HostElement) {
       this.appendHostElement(node);
+    }
+  }
+
+  /**
+   * Records the content of a component that its specific projection slots select, so that
+   * `TcbMarkerBindingsOp` leaves their static attributes alone.
+   */
+  private recordNodesInProjectionSlots(root: Element | Component): void {
+    if (this.tcb.env.config.noOpMarkerBinding === 'suppress') {
+      return;
+    }
+    const meta = this.tcb.boundTarget.getDirectivesOfNode(root)?.find((dir) => dir.isComponent);
+    if (meta !== undefined) {
+      for (const node of getNodesInProjectionSlots(root.children, meta.ngContentSelectors)) {
+        this.tcb.nodesInProjectionSlots.add(node);
+      }
+    }
+  }
+
+  private appendMarkerBindingsCheckOp(node: Element | Template | Content): void {
+    if (this.tcb.env.config.noOpMarkerBinding !== 'suppress' && isMarkerNode(node)) {
+      const directives =
+        node instanceof Content ? [] : this.tcb.boundTarget.getDirectivesOfNode(node);
+      this.opQueue.push(new TcbMarkerBindingsOp(this.tcb, node, directives ?? []));
     }
   }
 
@@ -968,6 +997,7 @@ export class Scope {
     if (this.tcb.env.config.controlFlowPreventingContentProjection !== 'suppress') {
       this.appendContentProjectionCheckOp(node);
     }
+    this.recordNodesInProjectionSlots(node);
     this.appendInputsOfSelectorlessNode(node);
     this.appendOutputsOfSelectorlessNode(node);
     this.appendSelectorlessDirectives(node);

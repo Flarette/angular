@@ -35,6 +35,9 @@ import {
   OutOfBandDiagnosticRecorder,
   type TcbDirectiveMetadata,
   type TypeCheckId,
+  type TmplAstContent,
+  getComponentOnMarkerMessage,
+  getNoOpMarkerBindingMessage,
 } from '@angular/compiler';
 import {Diagnostic} from './diagnostic.js';
 
@@ -447,6 +450,36 @@ export class OutOfBandDiagnosticRecorderImpl implements OutOfBandDiagnosticRecor
       element.startSourceSpan,
       OutOfBandDiagnosticCategory.Error,
       8023, // MULTIPLE_MATCHING_COMPONENTS
+    );
+  }
+
+  noOpMarkerBinding(
+    id: TypeCheckId,
+    category: OutOfBandDiagnosticCategory,
+    node: TmplAstElement | TmplAstTemplate | TmplAstContent,
+    binding: TmplAstBoundAttribute | TmplAstBoundEvent | TmplAstTextAttribute,
+  ): void {
+    this.pushDiagnostic(
+      id,
+      getNoOpMarkerBindingMessage(node, binding),
+      binding.sourceSpan,
+      category,
+      8031, // NO_OP_MARKER_BINDING
+    );
+  }
+
+  componentOnMarker(
+    id: TypeCheckId,
+    category: OutOfBandDiagnosticCategory,
+    node: TmplAstElement | TmplAstTemplate,
+    componentName: string,
+  ): void {
+    this.pushDiagnostic(
+      id,
+      getComponentOnMarkerMessage(node, componentName),
+      node.startSourceSpan,
+      category,
+      8031, // NO_OP_MARKER_BINDING
     );
   }
 
