@@ -35,7 +35,8 @@ runInEachFileSystem(() => {
 
     /**
      * Compiles `template` and returns its diagnostics as `error NG8002` or `warning NG8111`,
-     * leaving out unused imports. `metadata` adds fields to the test component's decorator.
+     * leaving out unused imports. `metadata` adds fields to the test component's decorator. The
+     * result is sorted, because compiler backends report diagnostics in different orders.
      */
     function diagnose(
       template: string,
@@ -101,7 +102,8 @@ runInEachFileSystem(() => {
             `${diag.category === ts.DiagnosticCategory.Error ? 'error' : 'warning'} ${String(
               diag.code,
             ).replace(/^-99/, 'NG')}`,
-        );
+        )
+        .sort();
     }
 
     /** Per binding: diagnostics today, `[ng-container, ng-template]`. */
