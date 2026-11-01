@@ -146,7 +146,7 @@ export const enum RuntimeErrorCode {
     // (undocumented)
     NO_BINDING_TARGET = 315,
     // (undocumented)
-    NO_OP_MARKER_BINDING = 319,
+    NO_OP_MARKER_BINDING = -319,
     // (undocumented)
     NO_SUPPORTING_DIFFER_FACTORY = 901,
     // (undocumented)

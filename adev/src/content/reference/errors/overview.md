@@ -16,6 +16,7 @@
 | `NG0301`  | [Export Not Found](errors/NG0301)                                                    |
 | `NG0302`  | [Pipe Not Found](errors/NG0302)                                                      |
 | `NG0318`  | [Invalid style property binding value](errors/NG0318)                                |
+| `NG0319`  | [No-op binding on a marker element](errors/NG0319)                                   |
 | `NG0401`  | [Missing platform](errors/NG0401)                                                    |
 | `NG0403`  | [Bootstrapped NgModule doesn't specify which component to initialize](errors/NG0403) |
 | `NG0500`  | [Hydration Node Mismatch](errors/NG0500)                                             |
@@ -69,3 +70,4 @@
 | `NG8011` | [Control Flow Preventing Content Projection](errors/NG8011) |
 | `NG8023` | [Multiple Components Match Same Element](errors/NG8023)     |
 | `NG8024` | [Conflicting Host Directive Binding](errors/NG8024)         |
+| `NG8031` | [No-op Binding on a Marker Element](errors/NG8031)          |

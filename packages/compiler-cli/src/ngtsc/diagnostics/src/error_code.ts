@@ -508,7 +508,7 @@ export enum ErrorCode {
    * Also raised when a component matches `<ng-container>` or `<ng-template>`, since neither can
    * host a component.
    */
-  NO_OP_MARKER_BINDING = 8031,
+  NO_OP_MARKER_BINDING = -8031,
 
   /**
    * A two way binding in a template has an incorrect syntax,
