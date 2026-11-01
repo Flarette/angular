@@ -108,27 +108,27 @@ runInEachFileSystem(() => {
 
     /** Per binding: diagnostics today, `[ng-container, ng-template]`. */
     const CASES: Array<[bindings: string, expected: [string[], string[]]]> = [
-      ['class="s"', [['warning NG8031'], ['warning NG8031']]],
-      ['style="color: red"', [['warning NG8031'], ['warning NG8031']]],
-      ['[class.p]="v"', [['warning NG8031'], ['warning NG8031']]],
-      [`[class]="'b'"`, [['warning NG8031'], ['warning NG8031']]],
-      [`[style.color]="'red'"`, [['warning NG8031'], ['warning NG8031']]],
-      [`[style]="'color: red'"`, [['warning NG8031'], ['warning NG8031']]],
+      ['class="s"', [['error NG8031'], ['error NG8031']]],
+      ['style="color: red"', [['error NG8031'], ['error NG8031']]],
+      ['[class.p]="v"', [['error NG8031'], ['error NG8031']]],
+      [`[class]="'b'"`, [['error NG8031'], ['error NG8031']]],
+      [`[style.color]="'red'"`, [['error NG8031'], ['error NG8031']]],
+      [`[style]="'color: red'"`, [['error NG8031'], ['error NG8031']]],
       [`[title]="'t'"`, [['error NG8002'], ['error NG8002']]],
-      [`[attr.title]="'t'"`, [['error NG5002'], ['warning NG8031']]],
-      ['(click)="h()"', [['warning NG8031'], ['warning NG8031']]],
+      [`[attr.title]="'t'"`, [['error NG5002'], ['error NG8031']]],
+      ['(click)="h()"', [['error NG8031'], ['error NG8031']]],
       [
         '(click)="h"',
         [
-          ['warning NG8031', 'warning NG8111'],
-          ['warning NG8031', 'warning NG8111'],
+          ['error NG8031', 'warning NG8111'],
+          ['error NG8031', 'warning NG8111'],
         ],
       ],
       [
         '(click)="missing()"',
         [
-          ['error 2339', 'warning NG8031'],
-          ['error 2339', 'warning NG8031'],
+          ['error 2339', 'error NG8031'],
+          ['error 2339', 'error NG8031'],
         ],
       ],
       [
@@ -138,9 +138,9 @@ runInEachFileSystem(() => {
           ['error 2339', 'error NG8002'],
         ],
       ],
-      ['animate.enter="fade"', [['warning NG8031'], ['warning NG8031']]],
+      ['animate.enter="fade"', [['error NG8031'], ['error NG8031']]],
       ['host-dir', [[], []]],
-      ['cmp', [['warning NG8031'], ['warning NG8031']]],
+      ['cmp', [['error NG8031'], ['error NG8031']]],
     ];
 
     for (const [bindings, expected] of CASES) {
@@ -153,45 +153,48 @@ runInEachFileSystem(() => {
 
     it('checks unclaimed camelCase event names', () => {
       const options = {strictUnclaimedEventNames: true};
-      expect(diagnose(TAGS[0][1]('out-dir (fooBar)="h()"'), options)).toEqual([
-        'error NG8030',
-        'warning NG8031',
-      ]);
-      expect(diagnose(TAGS[1][1]('out-dir (fooBar)="h()"'), options)).toEqual([
-        'error NG8030',
-        'warning NG8031',
-      ]);
+      expect(diagnose(TAGS[0][1]('out-dir (fooBar)="h()"'), options)).toEqual(['error NG8031']);
+      expect(diagnose(TAGS[1][1]('out-dir (fooBar)="h()"'), options)).toEqual(['error NG8031']);
+    });
+
+    it('checks unclaimed camelCase event names with NG8031 suppressed', () => {
+      const options = {
+        strictUnclaimedEventNames: true,
+        extendedDiagnostics: {checks: {noOpMarkerBinding: 'suppress'}},
+      };
+      expect(diagnose(TAGS[0][1]('out-dir (fooBar)="h()"'), options)).toEqual(['error NG8030']);
+      expect(diagnose(TAGS[1][1]('out-dir (fooBar)="h()"'), options)).toEqual(['error NG8030']);
     });
 
     describe('what survives on Angular marker elements', () => {
       const SURVIVAL: Array<[template: string, metadata: string, expected: string[]]> = [
         [`<div *ngIf="v" [class.a]="v" (click)="h()" title="t">D</div>`, '', []],
-        [`<ng-container *ngIf="v" [class.a]="v">C</ng-container>`, '', ['warning NG8031']],
+        [`<ng-container *ngIf="v" [class.a]="v">C</ng-container>`, '', ['error NG8031']],
         [`<proj><ng-container card-header>H</ng-container></proj>`, '', []],
         [`<proj>@if (v) {<ng-container card-header>H</ng-container>}</proj>`, '', []],
         [`<proj><ng-container *ngIf="v" card-header>H</ng-container></proj>`, '', []],
-        [`<proj><ng-container foo>H</ng-container></proj>`, '', ['warning NG8031']],
+        [`<proj><ng-container foo>H</ng-container></proj>`, '', ['error NG8031']],
         [`<proj>@if (v) {<b card-header></b><b></b>}</proj>`, '', ['warning NG8011']],
         [
           `<proj><ng-container ngProjectAs="[card-header]" foo>H</ng-container></proj>`,
           '',
-          ['warning NG8031'],
+          ['error NG8031'],
         ],
         [`<ng-container static-input-dir foo="bar"></ng-container>`, '', []],
         [`<ng-template static-input-dir foo="bar"></ng-template>`, '', []],
         [`<ng-container ngNonBindable>{{ v }}</ng-container>`, '', []],
-        [`<ng-content [foo]="v" />`, '', ['warning NG8031']],
-        [`<ng-content (click)="h()" />`, '', ['warning NG8031']],
-        [`<ng-content class="c" title="t" />`, '', ['warning NG8031', 'warning NG8031']],
+        [`<ng-content [foo]="v" />`, '', ['error NG8031']],
+        [`<ng-content (click)="h()" />`, '', ['error NG8031']],
+        [`<ng-content class="c" title="t" />`, '', ['error NG8031', 'error NG8031']],
         [`<ng-content select="[a]" ngProjectAs="b" />`, '', []],
         [`<ng-content SELECT="[a]" />`, '', []],
         [`<ng-content *ngIf="v" />`, '', []],
-        [`<ng-container [animate.enter]="'fade'"></ng-container>`, '', ['warning NG8031']],
-        [`<ng-template [animate.enter]="'fade'"></ng-template>`, '', ['warning NG8031']],
-        [`<ng-container (animate.leave)="h()"></ng-container>`, '', ['warning NG8031']],
-        [`<ng-template (animate.enter)="h()"></ng-template>`, '', ['warning NG8031']],
+        [`<ng-container [animate.enter]="'fade'"></ng-container>`, '', ['error NG8031']],
+        [`<ng-template [animate.enter]="'fade'"></ng-template>`, '', ['error NG8031']],
+        [`<ng-container (animate.leave)="h()"></ng-container>`, '', ['error NG8031']],
+        [`<ng-template (animate.enter)="h()"></ng-template>`, '', ['error NG8031']],
         [`<svg><ng-container [attr.x]="'1'"></ng-container></svg>`, '', ['error NG5002']],
-        [`<svg><ng-container [class.a]="v"></ng-container></svg>`, '', ['warning NG8031']],
+        [`<svg><ng-container [class.a]="v"></ng-container></svg>`, '', ['error NG8031']],
         [
           `<ng-container [foo]="v"></ng-container>`,
           'schemas: [NO_ERRORS_SCHEMA],',
@@ -208,9 +211,9 @@ runInEachFileSystem(() => {
     });
 
     describe('configuration', () => {
-      it('reports errors when configured to', () => {
-        const options = {extendedDiagnostics: {checks: {noOpMarkerBinding: 'error'}}};
-        expect(diagnose(TAGS[0][1]('[class.p]="v"'), options)).toEqual(['error NG8031']);
+      it('reports warnings when configured to', () => {
+        const options = {extendedDiagnostics: {checks: {noOpMarkerBinding: 'warning'}}};
+        expect(diagnose(TAGS[0][1]('[class.p]="v"'), options)).toEqual(['warning NG8031']);
       });
 
       it('reports nothing when suppressed', () => {
@@ -228,12 +231,12 @@ runInEachFileSystem(() => {
       const CASES: Array<
         [template: string, metadata: string, options: object, expected: string[]]
       > = [
-        [`<ng-container [class.p]="v"></ng-container>`, NO_ERRORS, {}, ['warning NG8031']],
-        [`<ng-template [class.p]="v"></ng-template>`, NO_ERRORS, {}, ['warning NG8031']],
-        [`<ng-container (click)="h()"></ng-container>`, NO_ERRORS, {}, ['warning NG8031']],
-        [`<ng-template (click)="h()"></ng-template>`, NO_ERRORS, {}, ['warning NG8031']],
-        [`<ng-container title="t"></ng-container>`, NO_ERRORS, {}, ['warning NG8031']],
-        [`<ng-template title="t"></ng-template>`, NO_ERRORS, {}, ['warning NG8031']],
+        [`<ng-container [class.p]="v"></ng-container>`, NO_ERRORS, {}, ['error NG8031']],
+        [`<ng-template [class.p]="v"></ng-template>`, NO_ERRORS, {}, ['error NG8031']],
+        [`<ng-container (click)="h()"></ng-container>`, NO_ERRORS, {}, ['error NG8031']],
+        [`<ng-template (click)="h()"></ng-template>`, NO_ERRORS, {}, ['error NG8031']],
+        [`<ng-container title="t"></ng-container>`, NO_ERRORS, {}, ['error NG8031']],
+        [`<ng-template title="t"></ng-template>`, NO_ERRORS, {}, ['error NG8031']],
         [
           `<ng-template [foo]="v"></ng-template>`,
           'schemas: [CUSTOM_ELEMENTS_SCHEMA],',

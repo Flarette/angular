@@ -1201,7 +1201,7 @@ describe('type check blocks', () => {
       enableTemplateTypeChecker: false,
       useInlineTypeConstructors: true,
       controlFlowPreventingContentProjection: 'warning',
-      noOpMarkerBinding: 'warning',
+      noOpMarkerBinding: 'error',
       checkNgTemplateBindings: true,
       unusedStandaloneImports: 'warning',
       allowSignalsInTwoWayBindings: true,

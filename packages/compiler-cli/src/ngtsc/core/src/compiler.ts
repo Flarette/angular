@@ -1132,7 +1132,7 @@ export class NgCompiler {
         controlFlowPreventingContentProjection:
           this.options.extendedDiagnostics?.defaultCategory || DiagnosticCategoryLabel.Warning,
         noOpMarkerBinding:
-          this.options.extendedDiagnostics?.defaultCategory || DiagnosticCategoryLabel.Warning,
+          this.options.extendedDiagnostics?.defaultCategory || DiagnosticCategoryLabel.Error,
         unusedStandaloneImports:
           this.options.extendedDiagnostics?.defaultCategory || DiagnosticCategoryLabel.Warning,
         allowSignalsInTwoWayBindings,

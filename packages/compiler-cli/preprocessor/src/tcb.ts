@@ -192,7 +192,7 @@ export function buildTypeCheckingConfig(
       noOpMarkerBinding:
         options.extendedDiagnostics?.checks?.noOpMarkerBinding ??
         options.extendedDiagnostics?.defaultCategory ??
-        'warning',
+        'error',
       unusedStandaloneImports:
         options.extendedDiagnostics?.checks?.unusedStandaloneImports ??
         options.extendedDiagnostics?.defaultCategory ??
