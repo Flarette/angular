@@ -241,9 +241,9 @@ describe('what survives on Angular marker elements', () => {
   });
 
   describe('svg', () => {
-    it('skips the [attr.x] parse error for ng-container inside svg', async () => {
+    it('reports [attr.x] on ng-container inside svg as a parse error', async () => {
       const outcome = await render(`<svg><ng-container [attr.x]="'1'"></ng-container></svg>`);
-      expect(outcome.thrown).toContain('Attempted to set attribute `x` on a container node');
+      expect(outcome.thrown).toBe('JIT parse error');
     });
 
     it('drops [class.a] on ng-container inside svg', async () => {

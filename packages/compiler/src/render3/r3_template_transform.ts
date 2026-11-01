@@ -16,7 +16,7 @@ import {
 import * as i18n from '../i18n/i18n_ast';
 import * as html from '../ml_parser/ast';
 import {replaceNgsp} from '../ml_parser/html_whitespaces';
-import {isNgTemplate} from '../ml_parser/tags';
+import {isNgContainer, isNgTemplate} from '../ml_parser/tags';
 import {InterpolatedAttributeToken, InterpolatedTextToken} from '../ml_parser/tokens';
 import {ParseError, ParseErrorLevel, ParseSourceSpan} from '../parse_util';
 import {isStyleUrlResolvable} from '../style_url_resolver';
@@ -235,7 +235,7 @@ class HtmlAstToIvyAst implements html.Visitor {
         i18nAttrsMeta,
       );
 
-      if (element.name === 'ng-container') {
+      if (isNgContainer(element.name)) {
         for (const bound of attrs.bound) {
           if (bound.type === BindingType.Attribute) {
             this.reportError(
