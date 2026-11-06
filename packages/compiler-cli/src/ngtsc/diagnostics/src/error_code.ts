@@ -736,6 +736,17 @@ export enum ErrorCode {
   NUMERIC_CSS_PROPERTY_REQUIRES_UNIT = 8119,
 
   /**
+   * A `(class)` or `(attr.class)` binding is declared on a container, which has no classes to
+   * resolve.
+   *
+   * For example:
+   * ```html
+   * <ng-container (class)="(cn) => cn('px-2')"></ng-container>
+   * ```
+   */
+  CLASS_RESOLVER_ON_CONTAINER = 8121,
+
+  /**
    * The template type-checking engine would need to generate an inline type check block for a
    * component, but the current type-checking environment doesn't support it.
    */

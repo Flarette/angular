@@ -736,6 +736,23 @@ export class OutOfBandDiagnosticRecorderImpl implements OutOfBandDiagnosticRecor
     );
   }
 
+  classResolverOnContainer(id: TypeCheckId, event: TmplAstBoundEvent): void {
+    const message =
+      `The '(${event.name})' binding can't resolve classes on '<ng-container>' or ` +
+      `'<ng-template>', because neither is rendered as an element. Bind it on an element instead.`;
+
+    this._diagnostics.push(
+      makeTemplateDiagnostic(
+        id,
+        this.resolver.getTemplateSourceMapping(id),
+        event.keySpan,
+        ts.DiagnosticCategory.Error,
+        ngErrorCode(ErrorCode.CLASS_RESOLVER_ON_CONTAINER),
+        message,
+      ),
+    );
+  }
+
   private getTagNameSpan(
     node: TmplAstElement | TmplAstTemplate | TmplAstComponent | TmplAstDirective,
   ) {

@@ -3808,6 +3808,102 @@ runInEachFileSystem((os: string) => {
         expect(getDiagnosticSourceCode(diag)).toBe(`'count(); resolve'`);
       });
 
+      it('should report a second class resolver on one element', () => {
+        env.write(
+          'test.ts',
+          `
+          import {ClassCallback, ClassResolveEvent, Component} from '@angular/core';
+
+          @Component({
+            selector: 'test',
+            template: '<div (class)="resolve" (attr.class)="capture($event)"></div>',
+          })
+          export class TestCmp {
+            resolve: ClassCallback = (cn) => cn();
+            capture(event: ClassResolveEvent) {}
+          }
+        `,
+        );
+
+        const diag = getSingleDiagnostic();
+        expect(diag.code).toBe(ngErrorCode(ErrorCode.TEMPLATE_PARSE_ERROR));
+        expect(diag.messageText).toBe(
+          `Can't have multiple class resolvers on one element. Use only one '(class)' or ` +
+            `'(attr.class)' binding.`,
+        );
+        expect(getDiagnosticSourceCode(diag)).toBe(`(attr.class)="capture($event)"`);
+      });
+
+      it('should report a second (class) on one element', () => {
+        env.write(
+          'test.ts',
+          `
+          import {ClassCallback, Component} from '@angular/core';
+
+          @Component({
+            selector: 'test',
+            template: '<div (class)="resolve" (class)="other"></div>',
+          })
+          export class TestCmp {
+            resolve: ClassCallback = (cn) => cn();
+            other: ClassCallback = (cn) => cn();
+          }
+        `,
+        );
+
+        const diag = getSingleDiagnostic();
+        expect(diag.code).toBe(ngErrorCode(ErrorCode.TEMPLATE_PARSE_ERROR));
+        expect(diag.messageText).toBe(
+          `Can't have multiple class resolvers on one element. Use only one '(class)' or ` +
+            `'(attr.class)' binding.`,
+        );
+        expect(getDiagnosticSourceCode(diag)).toBe(`(class)="other"`);
+      });
+
+      it('should report a chain in a (class) shorthand', () => {
+        env.write(
+          'test.ts',
+          `
+          import {ClassCallback, Component} from '@angular/core';
+
+          @Component({
+            selector: 'test',
+            template: '<div (class)="count(); resolve"></div>',
+          })
+          export class TestCmp {
+            resolve: ClassCallback = (cn) => cn();
+            count() {}
+          }
+        `,
+        );
+
+        const diag = getSingleDiagnostic();
+        expect(diag.code).toBe(ngErrorCode(ErrorCode.TEMPLATE_PARSE_ERROR));
+        expect(diag.messageText).toBe(chainMessage);
+        expect(getDiagnosticSourceCode(diag)).toBe('count(); resolve');
+      });
+
+      it('should accept a chain in an (attr.class) binding', () => {
+        env.write(
+          'test.ts',
+          `
+          import {ClassResolveEvent, Component} from '@angular/core';
+
+          @Component({
+            selector: 'test',
+            template: '<div (attr.class)="count(); capture($event)"></div>',
+            host: {'(attr.class)': 'count(); capture($event)'},
+          })
+          export class TestCmp {
+            capture(event: ClassResolveEvent) {}
+            count() {}
+          }
+        `,
+        );
+
+        expect(env.driveDiagnostics()).toEqual([]);
+      });
+
       for (const [form, binding] of [
         ['(class)', '(class)="resolve"'],
         ['(attr.class)', '(attr.class)="capture($event)"'],

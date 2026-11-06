@@ -12,13 +12,18 @@ import {
   Call,
   Chain,
   Conditional,
+  getClassResolverForm,
+  isNgContainer,
+  isNgTemplate,
   ParsedEventType,
   PropertyRead,
   ArrowFunction,
   SafeCall,
   SafePropertyRead,
   TmplAstBoundEvent,
+  TmplAstElement,
   TmplAstNode,
+  TmplAstTemplate,
 } from '@angular/compiler';
 import ts from 'typescript';
 
@@ -39,16 +44,38 @@ import {
 class UninvokedFunctionInEventBindingSpec extends TemplateCheckWithVisitor<ErrorCode.UNINVOKED_FUNCTION_IN_EVENT_BINDING> {
   override code = ErrorCode.UNINVOKED_FUNCTION_IN_EVENT_BINDING as const;
 
+  private readonly containerBindings = new WeakSet<TmplAstBoundEvent>();
+
   override visitNode(
     ctx: TemplateContext<ErrorCode.UNINVOKED_FUNCTION_IN_EVENT_BINDING>,
     component: ts.ClassDeclaration,
     node: TmplAstNode | AST,
   ): NgTemplateDiagnostic<ErrorCode.UNINVOKED_FUNCTION_IN_EVENT_BINDING>[] {
+    // Type checking reports a class resolver on a container. The visitor reaches a node before its
+    // event bindings, so the container's bindings are recorded here.
+    if (
+      (node instanceof TmplAstElement && isNgContainer(node.name)) ||
+      (node instanceof TmplAstTemplate && node.tagName !== null && isNgTemplate(node.tagName))
+    ) {
+      for (const output of node.outputs) {
+        this.containerBindings.add(output);
+      }
+    }
+
     // If the node is not a bound event, skip it.
     if (!(node instanceof TmplAstBoundEvent)) return [];
 
     // If the node is not a regular or animation event, skip it.
     if (node.type !== ParsedEventType.Regular && node.type !== ParsedEventType.LegacyAnimation)
+      return [];
+
+    // A `(class)` shorthand calls the function its expression returns, so `(class)="resolve"` and
+    // `(class)="(cn) => cn()"` are intended.
+    const classResolverForm = getClassResolverForm(node.name, node.type, node.target);
+    if (
+      classResolverForm === 'shorthand' ||
+      (classResolverForm !== null && this.containerBindings.has(node))
+    )
       return [];
 
     if (!(node.handler instanceof ASTWithSource)) return [];
