@@ -1468,7 +1468,10 @@ runInEachFileSystem(() => {
       });
 
       it('should not let a directive output named class claim a (class) binding', () => {
-        env.tsconfig({strictTemplates: true});
+        env.tsconfig({
+          strictTemplates: true,
+          extendedDiagnostics: {checks: {outputShadowedByClassResolver: 'suppress'}},
+        });
         writeComponent(
           `<div dir (class)="h"></div>`,
           `h(e: number) {}`,
@@ -1495,7 +1498,10 @@ runInEachFileSystem(() => {
       });
 
       it('should not let a directive output named attr.class claim an (attr.class) binding', () => {
-        env.tsconfig({strictTemplates: true});
+        env.tsconfig({
+          strictTemplates: true,
+          extendedDiagnostics: {checks: {outputShadowedByClassResolver: 'suppress'}},
+        });
         writeComponent(
           `<div dir (attr.class)="h($event)"></div>`,
           `h(e: number) {}`,
@@ -1510,6 +1516,31 @@ runInEachFileSystem(() => {
           `Argument of type 'ClassResolveEvent' is not assignable to parameter of type 'number'.`,
         ]);
         expect(getSourceCodeForDiagnostic(diags[0])).toBe('$event');
+      });
+
+      it('should warn when a class resolver shadows a host directive output exposed as class or attr.class', () => {
+        writeComponent(
+          `<div dir (class)="(cn) => cn()"></div>
+           <div dir (attr.class)="$event.resolve($event.resolver())"></div>`,
+          '',
+          `@Directive()
+           class Events {
+             @Output() changed = new EventEmitter<number>();
+             @Output() resolved = new EventEmitter<number>();
+           }
+
+           @Directive({
+             selector: '[dir]',
+             hostDirectives: [{directive: Events, outputs: ['changed: class', 'resolved: attr.class']}],
+           })
+           class TestDir {}`,
+        );
+
+        const diags = env.driveDiagnostics();
+        expect(diags.map((diag) => [diag.code, diag.category])).toEqual([
+          [ngErrorCode(ErrorCode.OUTPUT_SHADOWED_BY_CLASS_RESOLVER), ts.DiagnosticCategory.Warning],
+          [ngErrorCode(ErrorCode.OUTPUT_SHADOWED_BY_CLASS_RESOLVER), ts.DiagnosticCategory.Warning],
+        ]);
       });
 
       it('should check an output named class that a host directive exposes under another name as an ordinary output', () => {

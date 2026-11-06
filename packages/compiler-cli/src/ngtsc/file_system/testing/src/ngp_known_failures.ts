@@ -266,6 +266,15 @@ const NGP_KNOWN_NGTSC_FAILURES: ReadonlySet<string> = new Set([
   'ngtsc type checking strictOutputEventTypes and class resolver bindings should infer the type of $event as ClassResolveEvent and check the shorthand when enabled',
   'ngtsc type checking strictOutputEventTypes and class resolver bindings should not infer the type of $event or check the shorthand when not enabled',
 
+  // NGP doesn't run the `outputShadowedByClassResolver` check and rejects its name in
+  // `extendedDiagnostics.checks`.
+  'OutputShadowedByClassResolverCheck should produce a diagnostic on an element inside <svg>',
+  'OutputShadowedByClassResolverCheck should produce a diagnostic when a (class) binding shadows a directive output named class',
+  'OutputShadowedByClassResolverCheck should produce a diagnostic when an (attr.class) binding shadows a directive output named attr.class',
+  'ngtsc type checking class resolver bindings should not let a directive output named attr.class claim an (attr.class) binding',
+  'ngtsc type checking class resolver bindings should not let a directive output named class claim a (class) binding',
+  'ngtsc type checking class resolver bindings should warn when a class resolver shadows a host directive output exposed as class or attr.class',
+
   // NGP doesn't check the class resolvers of host metadata.
   'ngtsc behavioral tests class resolver declarations should report (class) and (attr.class) in one host',
   "ngtsc behavioral tests class resolver declarations should report @HostListener('attr.class')",

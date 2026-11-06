@@ -736,6 +736,18 @@ export enum ErrorCode {
   NUMERIC_CSS_PROPERTY_REQUIRES_UNIT = 8119,
 
   /**
+   * A `(class)` or `(attr.class)` binding on an element resolves the element's classes, so it
+   * doesn't listen to a directive output of the same name.
+   *
+   * For example:
+   * ```html
+   * <!-- `withClassOutput` declares an output named `class`. -->
+   * <div withClassOutput (class)="(cn) => cn('px-2')"></div>
+   * ```
+   */
+  OUTPUT_SHADOWED_BY_CLASS_RESOLVER = 8120,
+
+  /**
    * A `(class)` or `(attr.class)` binding is declared on a container, which has no classes to
    * resolve.
    *
