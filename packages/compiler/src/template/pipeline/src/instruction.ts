@@ -6,6 +6,7 @@
  * found in the LICENSE file at https://angular.dev/license
  */
 
+import {ClassResolverFlags} from '../../../core';
 import * as o from '../../../output/output_ast';
 import {ParseSourceSpan} from '../../../parse_util';
 import {Identifiers} from '../../../render3/r3_identifiers';
@@ -233,6 +234,14 @@ export function listener(
     args,
     sourceSpan,
   );
+}
+
+export function classResolver(
+  handlerFn: o.Expression,
+  flags: ClassResolverFlags,
+  sourceSpan: ParseSourceSpan,
+): ir.CreateOp {
+  return call(Identifiers.classResolver, [handlerFn, o.literal(flags)], sourceSpan);
 }
 
 export function twoWayBindingSet(target: o.Expression, value: o.Expression): o.Expression {

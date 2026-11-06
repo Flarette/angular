@@ -204,6 +204,7 @@ export {
   R3ClassMetadata,
   R3ClassMetadataCtorParameter,
 } from './render3/r3_class_metadata_compiler';
+export {ClassResolverForm, getClassResolverForm} from './render3/r3_class_resolver';
 export {
   compileFactoryFunction,
   R3DependencyMetadata,
