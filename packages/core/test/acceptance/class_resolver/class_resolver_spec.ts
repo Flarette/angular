@@ -1335,9 +1335,67 @@ describe('provideClassResolver', () => {
 });
 
 describe('class resolver declarations', () => {
+  const chainMessage =
+    `A '(class)' shorthand must be a single expression, a function that receives the ` +
+    `resolver. Bind '(attr.class)' to run more than one statement.`;
+
   function containing(text: string): RegExp {
     return new RegExp(text.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'));
   }
+
+  for (const name of ['class', 'attr.class']) {
+    it(`rejects @HostListener('${name}')`, () => {
+      @Directive({selector: '[dir]'})
+      class Dir {
+        @HostListener(name, ['$event'])
+        onClass(event: unknown) {}
+      }
+
+      @Component({imports: [Dir], template: `<div dir></div>`})
+      class App {}
+
+      expect(() => TestBed.createComponent(App)).toThrowError(
+        containing(
+          `@HostListener('${name}') can't declare a class resolver. Bind it in the host ` +
+            `metadata instead: host: {'(${name})': 'onClass($event)'}.`,
+        ),
+      );
+    });
+  }
+
+  it('rejects (class) and (attr.class) in one host', () => {
+    @Directive({
+      selector: '[dir]',
+      host: {'(class)': 'resolve', '(attr.class)': 'capture($event)'},
+    })
+    class Dir {
+      protected readonly resolve = (cn: BoundClassResolver) => cn();
+      protected capture(event: ClassResolveEvent) {}
+    }
+
+    @Component({imports: [Dir], template: `<div dir></div>`})
+    class App {}
+
+    expect(() => TestBed.createComponent(App)).toThrowError(
+      containing(
+        `Can't have multiple class resolvers in one host. Use only one '(class)' or ` +
+          `'(attr.class)' binding.`,
+      ),
+    );
+  });
+
+  it('rejects a chain in a host (class) shorthand', () => {
+    @Directive({selector: '[dir]', host: {'(class)': 'count(); resolve'}})
+    class Dir {
+      protected readonly resolve = (cn: BoundClassResolver) => cn();
+      protected count() {}
+    }
+
+    @Component({imports: [Dir], template: `<div dir></div>`})
+    class App {}
+
+    expect(() => TestBed.createComponent(App)).toThrowError(containing(chainMessage));
+  });
 
   for (const tag of ['ng-container', 'ng-template']) {
     it(`rejects a second class resolver on <${tag}>`, () => {
