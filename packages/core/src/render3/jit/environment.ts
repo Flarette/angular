@@ -177,6 +177,7 @@ export const angularCoreEnv: {[name: string]: unknown} = (() => ({
   'ɵɵdeclareLet': r3.ɵɵdeclareLet,
   'ɵɵstoreLet': r3.ɵɵstoreLet,
   'ɵɵarrowFunction': r3.ɵɵarrowFunction,
+  'ɵɵclassResolver': r3.ɵɵclassResolver,
   'ɵɵreadContextLet': r3.ɵɵreadContextLet,
   'ɵɵattachSourceLocations': r3.ɵɵattachSourceLocations,
   'ɵɵinterpolate': r3.ɵɵinterpolate,

@@ -98,6 +98,7 @@ export {
   ɵɵboundaryUpdate,
   ɵɵclassMap,
   ɵɵclassProp,
+  ɵɵclassResolver,
   ɵɵComponentDeclaration,
   ɵɵcomponentInstance,
   ɵɵconditional,

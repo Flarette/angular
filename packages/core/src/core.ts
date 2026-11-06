@@ -27,6 +27,17 @@ export {
 } from './animation/interfaces';
 export {ApplicationConfig, mergeApplicationConfig} from './application/application_config';
 export {
+  BoundClassResolver,
+  ClassBindingValue,
+  ClassCallback,
+  ClassResolveEvent,
+  ClassResolver,
+  ClassSources,
+  ResolvedClasses,
+  ɵRESOLVED_CLASSES_BRAND,
+} from './render3/interfaces/class_resolver';
+export {provideClassResolver} from './render3/class_resolver_provider';
+export {
   APP_INITIALIZER,
   ApplicationInitStatus,
   provideAppInitializer,

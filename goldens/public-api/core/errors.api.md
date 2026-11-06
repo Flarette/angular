@@ -30,6 +30,8 @@ export const enum RuntimeErrorCode {
     // (undocumented)
     BOOTSTRAP_COMPONENTS_NOT_FOUND = -403,
     // (undocumented)
+    CLASS_RESOLVER_ON_CONTAINER = 321,
+    // (undocumented)
     COMPONENT_ID_COLLISION = -912,
     // (undocumented)
     CYCLIC_DI_DEPENDENCY = -200,
@@ -84,6 +86,8 @@ export const enum RuntimeErrorCode {
     // (undocumented)
     INVALID_BINDING_TARGET = 316,
     // (undocumented)
+    INVALID_CLASS_RESOLUTION = 320,
+    // (undocumented)
     INVALID_DIFFER_INPUT = 900,
     // (undocumented)
     INVALID_EVENT_BINDING = 306,
@@ -133,6 +137,8 @@ export const enum RuntimeErrorCode {
     MISSING_SSR_CONTENT_INTEGRITY_MARKER = -507,
     // (undocumented)
     MISSING_ZONEJS = 908,
+    // (undocumented)
+    MULTIPLE_CLASS_RESOLVERS = 323,
     // (undocumented)
     MULTIPLE_COMPONENTS_MATCH = -300,
     // (undocumented)

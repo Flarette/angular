@@ -392,6 +392,7 @@
       "_ngOnChangesFeatureImpl",
       "_platformInjector",
       "_processI18nInsertBefore",
+      "_refreshClassResolvers",
       "_retrieveHydrationInfoImpl",
       "_sanitizeUrl",
       "_stashEventListenerImpl",

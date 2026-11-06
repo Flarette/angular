@@ -340,6 +340,7 @@
       "_platformInjector",
       "_populateDehydratedViewsInLContainer",
       "_processI18nInsertBefore",
+      "_refreshClassResolvers",
       "_retrieveHydrationInfoImpl",
       "_runIncrementalHydrationBootstrap",
       "_stashEventListenerImpl",
