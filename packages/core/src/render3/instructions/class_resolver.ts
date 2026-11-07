@@ -93,7 +93,7 @@ export function ɵɵclassResolver(
  * Records the classes of an element that hydration claimed as the classes that the previous
  * resolution applied. Call it when the element is created.
  */
-function seedHydratedClasses(tNode: TNode, lView: LView): void {
+export function seedHydratedClasses(tNode: TNode, lView: LView): void {
   const appliedIndex = tNode.classResolver!.index + ClassResolverSlot.AppliedClasses;
   if (!wasLastNodeCreated() && tNode.classes === null && lView[appliedIndex] === null) {
     // Hydration claimed the element. With static classes, the `class` attribute was rewritten to
@@ -144,7 +144,7 @@ function injectClassResolver(tNode: TNode, lView: LView, owner: number): ClassRe
  * @param includeViewProviders Whether the lookup sees the `viewProviders` of the component on the
  *     element.
  */
-function injectClassResolverConfig(
+export function injectClassResolverConfig(
   tNode: TDirectiveHostNode,
   lView: LView,
   includeViewProviders: boolean,
@@ -186,7 +186,7 @@ function classResolverFirstCreatePass(
     return;
   }
 
-  enableClassResolverHooks(refreshClassResolvers, registerClassResolverBinding);
+  enableClassResolverHooks(refreshClassResolvers, registerClassResolverBinding, null);
   const tClassResolver = createTClassResolver(tView, lView, tNode, ClassResolverSlot.Resolvers + 1);
   tClassResolver.owners.push(owner);
   tClassResolver.flags.push(flags);
@@ -197,7 +197,7 @@ function classResolverFirstCreatePass(
  *
  * @param slotCount Number of `ClassResolverSlot`s to allocate in each instance.
  */
-function createTClassResolver(
+export function createTClassResolver(
   tView: TView,
   lView: LView,
   tNode: TNode,
@@ -231,7 +231,7 @@ function createTClassResolver(
 }
 
 /** Records a class binding with the source that owns it. */
-function registerClassResolverBinding(
+export function registerClassResolverBinding(
   tClassResolver: TClassResolver,
   directiveIndex: number,
   bindingIndex: number,
@@ -279,13 +279,24 @@ function readStaticClasses(attrs: TAttributes | null): string[] {
  *
  * Runs after the view's host bindings so the resolvers see the latest values from all sources.
  * The resolvers run on every refresh because they may read state other than their argument.
+ *
+ * @param refreshAutomatic Resolves an element that automatic resolution set up without a
+ *     registration. Only automatic resolution creates such elements, and it passes this function.
  */
-function refreshClassResolvers(tView: TView, lView: LView): void {
+export function refreshClassResolvers(
+  tView: TView,
+  lView: LView,
+  refreshAutomatic?: (tView: TView, lView: LView, tNode: TNode) => void,
+): void {
   const resolverNodes = tView.classResolvers!;
   try {
     for (let i = 0; i < resolverNodes.length; i++) {
       const tNode = tView.data[resolverNodes[i]] as TNode;
       const tClassResolver = tNode.classResolver!;
+      if (tClassResolver.owners.length === 0) {
+        refreshAutomatic!(tView, lView, tNode);
+        continue;
+      }
       const index = tClassResolver.index;
       const resolverFns = lView[index + ClassResolverSlot.ResolverFns] as ClassResolverFn[];
       const classResolvers = lView[index + ClassResolverSlot.Resolvers] as (ClassResolver | null)[];
@@ -403,7 +414,7 @@ function mergeClassSources(
 }
 
 /** Reads classes the way a `[class]` binding reads them, but without names that contain a space. */
-function readClassNames(value: unknown): string[] {
+export function readClassNames(value: unknown): string[] {
   if (value instanceof ResolvedClassNames) {
     return value.classNames;
   }
@@ -460,7 +471,7 @@ function foldClassNames(
  * priorities. A class is reported under the source that decided its value, at that binding's
  * position, so tools like `tailwind-merge` that let later classes win see the right order.
  */
-function collectClassSources(
+export function collectClassSources(
   tData: TData,
   lView: LView,
   tClassResolver: TClassResolver,
@@ -522,7 +533,7 @@ function decideClass(
  * Only classes managed by the resolver are touched, so classes added by other means (for example
  * `Renderer2.addClass` or animations) stay on the element.
  */
-function applyResolvedClasses(tNode: TNode, lView: LView, resolved: string[]): void {
+export function applyResolvedClasses(tNode: TNode, lView: LView, resolved: string[]): void {
   const renderer = lView[RENDERER];
   const element = getNativeByTNode(tNode, lView) as RElement;
   const appliedIndex = tNode.classResolver!.index + ClassResolverSlot.AppliedClasses;

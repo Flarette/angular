@@ -238,6 +238,7 @@
       "_processI18nInsertBefore",
       "_refreshClassResolvers",
       "_retrieveHydrationInfoImpl",
+      "_setUpClassResolution",
       "_wasLastNodeCreated",
       "activeConsumer",
       "addAfterRenderSequencesForView",

@@ -395,6 +395,7 @@
       "_refreshClassResolvers",
       "_retrieveHydrationInfoImpl",
       "_sanitizeUrl",
+      "_setUpClassResolution",
       "_stashEventListenerImpl",
       "_stripBasePath",
       "_stripIndexHtml",

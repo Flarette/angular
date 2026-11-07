@@ -26,6 +26,7 @@ import {concatStringsWithSpace, stringify} from '../../util/stringify';
 import {assertFirstUpdatePass} from '../assert';
 import {bindingUpdated} from '../bindings';
 import {AttributeMarker} from '../interfaces/attribute_marker';
+import {ClassResolverSlot} from '../interfaces/class_resolver';
 import {DirectiveDef} from '../interfaces/definition';
 import {TAttributes, TNode, TNodeFlags, TNodeType} from '../interfaces/node';
 import {Renderer} from '../interfaces/renderer';
@@ -902,7 +903,15 @@ function updateStyling(
     // This is rare, but it does happen. In such a case, just ignore the binding.
     return;
   }
-  if (isClassBased && tNode.classResolver !== null) {
+  const tClassResolver = tNode.classResolver;
+  if (
+    isClassBased &&
+    tClassResolver !== null &&
+    // An element without a `(class)` binding is resolved only in the instances where automatic
+    // resolution is on. Elsewhere, its classes apply like on any other element.
+    (tClassResolver.owners.length > 0 ||
+      lView[tClassResolver.index + ClassResolverSlot.AutoResolver] !== null)
+  ) {
     // The element's class resolver applies the classes once all bindings have run.
     return;
   }

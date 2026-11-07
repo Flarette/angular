@@ -32,11 +32,13 @@ export {
   ClassCallback,
   ClassResolveEvent,
   ClassResolver,
+  ClassResolverFeature,
   ClassSources,
   ResolvedClasses,
   ɵRESOLVED_CLASSES_BRAND,
 } from './render3/interfaces/class_resolver';
 export {provideClassResolver} from './render3/class_resolver_provider';
+export {withAutoResolution} from './render3/class_resolver_auto';
 export {
   APP_INITIALIZER,
   ApplicationInitStatus,

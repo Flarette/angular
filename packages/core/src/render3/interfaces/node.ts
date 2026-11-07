@@ -724,9 +724,9 @@ export interface TNode {
   styleBindings: TStylingRange;
 
   /**
-   * Set when a `(class)` binding computes the element's classes. Class bindings on such an element
-   * record their values instead of writing to the DOM, and the resolver applies the result once the
-   * element's host bindings have run.
+   * Set when a `(class)` binding or automatic resolution computes the element's classes. Where the
+   * resolver is on, class bindings on such an element record their values instead of writing to
+   * the DOM, and the resolver applies the result once the element's host bindings have run.
    */
   classResolver: TClassResolver | null;
 }

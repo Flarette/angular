@@ -262,6 +262,14 @@ export interface ClassResolveEvent {
 export type ClassResolver = (...classes: string[]) => string;
 
 // @public
+export interface ClassResolverFeature {
+    // (undocumented)
+    readonly ɵkind: ClassResolverFeatureKind;
+    // (undocumented)
+    readonly ɵproviders: Provider[];
+}
+
+// @public
 export interface ClassSansProvider {
     useClass: Type<any>;
 }
@@ -1545,7 +1553,7 @@ export function provideCheckNoChangesConfig(options: {
 }): EnvironmentProviders;
 
 // @public
-export function provideClassResolver(resolver: ClassResolver): Provider;
+export function provideClassResolver(resolver: ClassResolver, ...features: ClassResolverFeature[]): Provider;
 
 // @public
 export function provideEnvironmentInitializer(initializerFn: () => void): EnvironmentProviders;
@@ -2201,6 +2209,9 @@ export interface WebMcpToolDescriptor<InputSchema extends object = object> exten
 
 // @public
 export type WebMcpToolExecute<InputSchema extends object = object> = ModelContextToolFromSchema<InputSchema>['execute'];
+
+// @public
+export function withAutoResolution(): ClassResolverFeature;
 
 // @public
 export interface WritableResource<T> extends Resource<T> {

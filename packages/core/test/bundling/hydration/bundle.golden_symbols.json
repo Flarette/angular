@@ -343,6 +343,7 @@
       "_refreshClassResolvers",
       "_retrieveHydrationInfoImpl",
       "_runIncrementalHydrationBootstrap",
+      "_setUpClassResolution",
       "_stashEventListenerImpl",
       "_wasLastNodeCreated",
       "activeConsumer",

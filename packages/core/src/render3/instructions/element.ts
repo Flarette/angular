@@ -65,6 +65,7 @@ import {
   domOnlyFirstCreatePass,
 } from '../view/elements';
 
+import {_setUpClassResolution} from './class_resolver_hook';
 import {validateElementIsKnown} from './element_validation';
 import {setDirectiveInputsWhichShadowsStyling} from './property';
 import {
@@ -145,6 +146,9 @@ function initializeElement(
   if (isDirectiveHost(tNode)) {
     const tView = lView[TVIEW];
     createDirectivesInstances(tView, lView, tNode);
+    if (_setUpClassResolution !== null) {
+      _setUpClassResolution(tView, lView, tNode);
+    }
     executeContentQueries(tView, tNode, lView);
   }
 

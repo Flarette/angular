@@ -302,7 +302,8 @@ export function refreshView<T>(
 
     processHostBindingOpCodes(tView, lView);
 
-    // Classes computed by `(class)` bindings depend on both template and host bindings.
+    // Classes computed by `(class)` bindings or automatic resolution depend on both template and
+    // host bindings.
     if (tView.classResolvers !== null && !isInCheckNoChangesPass) {
       _refreshClassResolvers!(tView, lView);
     }
