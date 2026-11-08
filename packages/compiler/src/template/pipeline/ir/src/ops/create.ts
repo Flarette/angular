@@ -11,6 +11,7 @@ import * as i18n from '../../../../../i18n/i18n_ast';
 import * as o from '../../../../../output/output_ast';
 import {ParseSourceSpan} from '../../../../../parse_util';
 import * as t from '../../../../../render3/r3_ast';
+import type {ClassResolverForm} from '../../../../../render3/r3_class_resolver';
 import {
   AnimationKind,
   BindingKind,
@@ -1120,6 +1121,12 @@ export interface ListenerOp extends Op<CreateOp> {
    */
   eventTarget: string | null;
 
+  /**
+   * The form of a `(class)` or `(attr.class)` binding, whose handler computes the element's classes
+   * instead of reacting to an event, or `null` for an ordinary listener.
+   */
+  classResolverForm: ClassResolverForm | null;
+
   sourceSpan: ParseSourceSpan;
 }
 
@@ -1152,6 +1159,7 @@ export function createListenerOp(
     isLegacyAnimationListener: legacyAnimationPhase !== null,
     legacyAnimationPhase: legacyAnimationPhase,
     eventTarget,
+    classResolverForm: null,
     sourceSpan,
     ...NEW_OP,
   };

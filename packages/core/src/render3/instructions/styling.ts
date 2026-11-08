@@ -26,6 +26,7 @@ import {concatStringsWithSpace, stringify} from '../../util/stringify';
 import {assertFirstUpdatePass} from '../assert';
 import {bindingUpdated} from '../bindings';
 import {AttributeMarker} from '../interfaces/attribute_marker';
+import {ClassResolverSlot} from '../interfaces/class_resolver';
 import {DirectiveDef} from '../interfaces/definition';
 import {TAttributes, TNode, TNodeFlags, TNodeType} from '../interfaces/node';
 import {Renderer} from '../interfaces/renderer';
@@ -42,6 +43,7 @@ import {LView, RENDERER, TData, TView} from '../interfaces/view';
 import {applyStyling} from '../node_manipulation';
 import {
   getCurrentDirectiveDef,
+  getCurrentDirectiveIndex,
   getLView,
   getSelectedIndex,
   getTView,
@@ -59,6 +61,7 @@ import {
 import {NO_CHANGE} from '../tokens';
 import {getNativeByIndex} from '../util/view_utils';
 
+import {_registerClassResolverBinding} from './class_resolver_hook';
 import {setDirectiveInputsWhichShadowsStyling} from './property';
 
 /**
@@ -380,6 +383,13 @@ function stylingFirstUpdatePass(
       // we need to neutralize this binding since that directive is shadowing it.
       // We turn this into a noop by setting the key to `false`
       tStylingKey = false;
+    }
+    if (isClassBased && tNode.classResolver !== null && tStylingKey !== false) {
+      _registerClassResolverBinding!(
+        tNode.classResolver,
+        isHostBindings ? getCurrentDirectiveIndex() : -1,
+        bindingIndex,
+      );
     }
     tStylingKey = wrapInStaticStylingKey(tData, tNode, tStylingKey, isClassBased);
     insertTStylingBinding(tData, tNode, tStylingKey, bindingIndex, isHostBindings, isClassBased);
@@ -891,6 +901,18 @@ function updateStyling(
   if (!(tNode.type & TNodeType.AnyRNode)) {
     // It is possible to have styling on non-elements (such as ng-container).
     // This is rare, but it does happen. In such a case, just ignore the binding.
+    return;
+  }
+  const tClassResolver = tNode.classResolver;
+  if (
+    isClassBased &&
+    tClassResolver !== null &&
+    // An element without a `(class)` binding is resolved only in the instances where automatic
+    // resolution is on. Elsewhere, its classes apply like on any other element.
+    (tClassResolver.owners.length > 0 ||
+      lView[tClassResolver.index + ClassResolverSlot.AutoResolver] !== null)
+  ) {
+    // The element's class resolver applies the classes once all bindings have run.
     return;
   }
   const tData = tView.data;

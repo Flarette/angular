@@ -67,6 +67,9 @@ const NGP_INTENTIONAL_BEHAVIOR_DIFFERENCES: ReadonlySet<string> = new Set([
   'ngtsc behavioral tests input transforms should compile an input with using an ambient type in the transform function',
 
   // Partial compilation isn't implemented in ngp.
+  'ngtsc behavioral tests class resolver declarations should not require 22.3.0 in the partial declaration of a host (window:class) listener',
+  'ngtsc behavioral tests class resolver declarations should require 22.3.0 in the partial declaration of (attr.class) on an ng-container',
+  'ngtsc behavioral tests class resolver declarations should require 22.3.0 in the partial declaration of (class) on an ng-container',
   'ngtsc behavioral tests cycle detection should detect a simple cycle and fatally error if doing partial-compilation',
 
   // Design difference, not a bug: on an `@Inject` parameter whose type is imported from another
@@ -185,6 +188,43 @@ const NGP_INTENTIONAL_BEHAVIOR_DIFFERENCES: ReadonlySet<string> = new Set([
 const NGP_KNOWN_NGTSC_FAILURES: ReadonlySet<string> = new Set([
   'import generation should report an error when a library entry-point does not export the symbol',
   'import generation should report an error when using a directive outside of rootDirs',
+
+  // NGP doesn't check class resolver bindings the way ngtsc does: it reports the arrow function of
+  // a `(class)` shorthand as never invoked, and its diagnostics for class resolvers differ.
+  'UninvokedFunctionInEventBindingFactoryCheck should not produce a diagnostic for a callback in a (class) binding',
+  'UninvokedFunctionInEventBindingFactoryCheck should not produce a diagnostic for a class resolver on a container',
+  'UninvokedFunctionInEventBindingFactoryCheck should produce a diagnostic for a function in an (attr.class) binding',
+  'ngtsc type checking class resolver bindings should accept a ClassCallback in the shorthand',
+  'ngtsc type checking class resolver bindings should check a (class) binding under a structural directive once, as a resolver',
+  'ngtsc type checking class resolver bindings should check the earlier expressions of a shorthand chain as statements',
+  'ngtsc type checking class resolver bindings should check the handler with $event as any after reporting a class resolver on an ng-container in the math namespace',
+  'ngtsc type checking class resolver bindings should check the handler with $event as any after reporting a class resolver on an ng-container in the svg namespace',
+  'ngtsc type checking class resolver bindings should check the number of parameters of an arrow function in the shorthand',
+  'ngtsc type checking class resolver bindings should check the shorthand as a ClassCallback',
+  'ngtsc type checking class resolver bindings should infer the parameter named $event of an arrow function in the shorthand',
+  'ngtsc type checking class resolver bindings should infer the parameter named cn of an arrow function in the shorthand',
+  'ngtsc type checking class resolver bindings should infer the parameter of an arrow function in both branches of a conditional',
+  'ngtsc type checking class resolver bindings should report a class resolver on a container',
+  'ngtsc type checking class resolver bindings should report a class resolver on a container next to a directive output named class',
+  'ngtsc type checking class resolver bindings should report a class resolver on an ng-container in the svg namespace',
+  'ngtsc type checking strictOutputEventTypes and class resolver bindings should infer the type of $event as ClassResolveEvent and check the shorthand when enabled',
+  'ngtsc type checking strictOutputEventTypes and class resolver bindings should not infer the type of $event or check the shorthand when not enabled',
+
+  // NGP doesn't run the `outputShadowedByClassResolver` check and rejects its name in
+  // `extendedDiagnostics.checks`.
+  'OutputShadowedByClassResolverCheck should produce a diagnostic on an element inside <svg>',
+  'OutputShadowedByClassResolverCheck should produce a diagnostic when a (class) binding shadows a directive output named class',
+  'OutputShadowedByClassResolverCheck should produce a diagnostic when an (attr.class) binding shadows a directive output named attr.class',
+  'ngtsc type checking class resolver bindings should not let a directive output named attr.class claim an (attr.class) binding',
+  'ngtsc type checking class resolver bindings should not let a directive output named class claim a (class) binding',
+  'ngtsc type checking class resolver bindings should warn when a class resolver shadows a host directive output exposed as class or attr.class',
+
+  // NGP doesn't check the class resolvers of host metadata.
+  'ngtsc behavioral tests class resolver declarations should report (class) and (attr.class) in one host',
+  "ngtsc behavioral tests class resolver declarations should report @HostListener('attr.class')",
+  "ngtsc behavioral tests class resolver declarations should report @HostListener('class')",
+  "ngtsc behavioral tests class resolver declarations should report @HostListener('class') next to a host (class)",
+  'ngtsc behavioral tests class resolver declarations should report a chain in a host (class) shorthand',
 
   // API documentation extraction (`getApiDocumentation`) is not implemented in NGP.
   'ngtsc NgModule docs extraction should extract NgModule info',

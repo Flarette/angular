@@ -26,6 +26,7 @@ import {factory as unusedLetDeclarationFactory} from './checks/unused_let_declar
 import {factory as uninvokedTrackFunctionFactory} from './checks/uninvoked_track_function';
 import {factory as uninvokedFunctionInTextInterpolationFactory} from './checks/uninvoked_function_in_text_interpolation';
 import {factory as deferTriggerMisconfigurationFactory} from './checks/defer_trigger_misconfiguration';
+import {factory as outputShadowedByClassResolverFactory} from './checks/output_shadowed_by_class_resolver';
 
 export {ExtendedTemplateCheckerImpl} from './src/extended_template_checker';
 
@@ -50,6 +51,7 @@ export const ALL_DIAGNOSTIC_FACTORIES: readonly TemplateCheckFactory<
   uninvokedTrackFunctionFactory,
   uninvokedFunctionInTextInterpolationFactory,
   deferTriggerMisconfigurationFactory,
+  outputShadowedByClassResolverFactory,
 ];
 
 export const SUPPORTED_DIAGNOSTIC_NAMES = new Set<string>([

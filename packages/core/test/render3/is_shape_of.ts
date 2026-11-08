@@ -130,6 +130,7 @@ const ShapeOfTView: ShapeOf<TView> = {
   destroyHooks: true,
   cleanup: true,
   components: true,
+  classResolvers: true,
   queries: true,
   contentQueries: true,
   schemas: true,
@@ -185,6 +186,7 @@ const ShapeOfTNode: ShapeOf<TNode> = {
   residualClasses: true,
   classBindings: true,
   styleBindings: true,
+  classResolver: true,
 };
 
 /**

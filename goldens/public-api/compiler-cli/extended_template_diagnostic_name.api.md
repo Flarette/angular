@@ -27,6 +27,8 @@ export enum ExtendedTemplateDiagnosticName {
     // (undocumented)
     OPTIONAL_CHAIN_NOT_NULLABLE = "optionalChainNotNullable",
     // (undocumented)
+    OUTPUT_SHADOWED_BY_CLASS_RESOLVER = "outputShadowedByClassResolver",
+    // (undocumented)
     SKIP_HYDRATION_NOT_STATIC = "skipHydrationNotStatic",
     // (undocumented)
     SUFFIX_NOT_SUPPORTED = "suffixNotSupported",

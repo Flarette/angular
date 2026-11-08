@@ -173,6 +173,7 @@ export {
   ɵɵanimateLeave,
   ɵɵanimateLeaveListener,
   ɵɵarrowFunction,
+  ɵɵclassResolver,
 } from './instructions/all';
 export {
   ɵɵdeferEnableTimerScheduling,

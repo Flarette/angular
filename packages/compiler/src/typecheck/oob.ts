@@ -246,4 +246,11 @@ export interface OutOfBandDiagnosticRecorder<T> {
     classPropertyName: string,
     aliases: string[],
   ): void;
+
+  /**
+   * Reports a `(class)` or `(attr.class)` binding on a container, such as `<ng-container>`, which
+   * has no classes to resolve. Optional, because the recorder in `compiler-cli/preprocessor`
+   * doesn't report it.
+   */
+  classResolverOnContainer?(id: TypeCheckId, event: BoundEvent): void;
 }

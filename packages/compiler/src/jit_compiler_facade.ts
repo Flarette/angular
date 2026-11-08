@@ -39,6 +39,7 @@ import {
   R3TemplateDependencyFacade,
 } from './compiler_facade_interface';
 import {ConstantPool} from './constant_pool';
+import {Chain, ParsedEventType} from './expression_parser/ast';
 import {HostBinding, HostListener, Input, Output, ViewEncapsulation} from './core';
 import {compileInjectable} from './injectable_compiler_2';
 import {LEGACY_OPTIONAL_CHAINING_DEFAULT} from './legacy_optional_chaining_default';
@@ -54,6 +55,7 @@ import {
 import {JitEvaluator} from './output/output_jit';
 import {ParseError, ParseSourceSpan, r3JitTypeSourceSpan} from './parse_util';
 import {DeferredBlock} from './render3/r3_ast';
+import {getClassResolverForm} from './render3/r3_class_resolver';
 import {compileFactoryFunction, R3DependencyMetadata} from './render3/r3_factory';
 import {compileInjector, R3InjectorMetadata} from './render3/r3_injector_compiler';
 import {R3JitReflector} from './render3/r3_jit';
@@ -934,7 +936,15 @@ function extractHostBindings(
             field,
           );
         } else if (isHostListener(ann)) {
-          bindings.listeners[ann.eventName || field] = `${field}(${(ann.args || []).join(',')})`;
+          const eventName = ann.eventName || field;
+          const handler = `${field}(${(ann.args || []).join(',')})`;
+          if (getClassResolverForm(eventName, ParsedEventType.Regular, null) !== null) {
+            throw new Error(
+              `@HostListener('${eventName}') can't declare a class resolver. Bind it in the host ` +
+                `metadata instead: host: {'(${eventName})': '${handler}'}.`,
+            );
+          }
+          bindings.listeners[eventName] = handler;
         }
       });
     }
@@ -946,7 +956,37 @@ function extractHostBindings(
     throw new Error(errors.map((error: ParseError) => error.msg).join('\n'));
   }
 
+  verifyHostClassResolvers(bindings, sourceSpan);
+
   return bindings;
+}
+
+/**
+ * Verifies that a host declares at most one class resolver, and that a `(class)` shorthand is a
+ * single expression.
+ */
+function verifyHostClassResolvers(bindings: ParsedHostBindings, sourceSpan: ParseSourceSpan): void {
+  const events = makeBindingParser().createDirectiveHostEventAsts(bindings.listeners, sourceSpan);
+  let hasClassResolver = false;
+  for (const event of events ?? []) {
+    const form = getClassResolverForm(event.name, event.type, event.targetOrPhase);
+    if (form === null) {
+      continue;
+    }
+    if (hasClassResolver) {
+      throw new Error(
+        `Can't have multiple class resolvers in one host. Use only one '(class)' or ` +
+          `'(attr.class)' binding.`,
+      );
+    }
+    hasClassResolver = true;
+    if (form === 'shorthand' && event.handler.ast instanceof Chain) {
+      throw new Error(
+        `A '(class)' shorthand must be a single expression, a function that receives the ` +
+          `resolver. Bind '(attr.class)' to run more than one statement.`,
+      );
+    }
+  }
 }
 
 function isHostBinding(value: any): value is HostBinding {

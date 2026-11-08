@@ -219,6 +219,9 @@ export interface BootstrapOptions {
 }
 
 // @public
+export type BoundClassResolver = (...extras: ClassBindingValue[]) => ResolvedClasses;
+
+// @public
 export enum ChangeDetectionStrategy {
     // @deprecated
     Default = 1,
@@ -235,15 +238,48 @@ export abstract class ChangeDetectorRef {
 }
 
 // @public
+export type ClassBindingValue = string | readonly string[] | ReadonlySet<string> | {
+    readonly [className: string]: unknown;
+} | null | undefined | false;
+
+// @public
+export type ClassCallback = (cn: BoundClassResolver) => ResolvedClasses;
+
+// @public
 export interface ClassProvider extends ClassSansProvider {
     multi?: boolean;
     provide: any;
 }
 
 // @public
+export interface ClassResolveEvent {
+    resolve(classes: ClassBindingValue | ResolvedClasses): void;
+    resolver(...extras: ClassBindingValue[]): ResolvedClasses;
+    readonly sources: ClassSources;
+}
+
+// @public
+export type ClassResolver = (...classes: string[]) => string;
+
+// @public
+export interface ClassResolverFeature {
+    // (undocumented)
+    readonly ɵkind: ClassResolverFeatureKind;
+    // (undocumented)
+    readonly ɵproviders: Provider[];
+}
+
+// @public
 export interface ClassSansProvider {
     useClass: Type<any>;
 }
+
+// @public
+export type ClassSources = readonly [
+component: readonly string[],
+directives: readonly string[],
+template: readonly string[]
+];
 
 // @public @deprecated
 export class Compiler {
@@ -1517,6 +1553,9 @@ export function provideCheckNoChangesConfig(options: {
 }): EnvironmentProviders;
 
 // @public
+export function provideClassResolver(resolver: ClassResolver, ...features: ClassResolverFeature[]): Provider;
+
+// @public
 export function provideEnvironmentInitializer(initializerFn: () => void): EnvironmentProviders;
 
 // @public
@@ -1660,6 +1699,12 @@ export const REQUEST: InjectionToken<Request | null>;
 
 // @public
 export const REQUEST_CONTEXT: InjectionToken<unknown>;
+
+// @public
+export interface ResolvedClasses {
+    // (undocumented)
+    readonly [ɵRESOLVED_CLASSES_BRAND]: true;
+}
 
 // @public
 export function resolveForwardRef<T>(type: T): T;
@@ -2164,6 +2209,9 @@ export interface WebMcpToolDescriptor<InputSchema extends object = object> exten
 
 // @public
 export type WebMcpToolExecute<InputSchema extends object = object> = ModelContextToolFromSchema<InputSchema>['execute'];
+
+// @public
+export function withAutoResolution(): ClassResolverFeature;
 
 // @public
 export interface WritableResource<T> extends Resource<T> {
