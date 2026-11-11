@@ -1,0 +1,269 @@
+{"attr":"aria-describedby","kinds":"C:attr H:attr D1:attr D2:attr T:attr","order":"D2,D1","step":"create","value":"d1"}
+{"attr":"aria-describedby","kinds":"C:attr H:attr D1:attr D2:attr T:attr","order":"D2,D1","step":"after T changes","value":"t2"}
+{"attr":"aria-describedby","kinds":"C:attr H:attr D1:attr D2:attr T:attr","order":"D2,D1","step":"after D2 changes","value":"d22"}
+{"attr":"aria-describedby","kinds":"C:attr H:attr D1:attr D2:attr T:attr","order":"D2,D1","step":"after D1 changes","value":"d12"}
+{"attr":"aria-describedby","kinds":"C:attr H:attr D1:attr D2:attr T:attr","order":"D2,D1","step":"after H changes","value":"h2"}
+{"attr":"aria-describedby","kinds":"C:attr H:attr D1:attr D2:attr T:attr","order":"D2,D1","step":"after C changes","value":"c2"}
+{"attr":"aria-describedby","kinds":"C:attr H:attr D1:attr D2:attr T:attr","order":"D2,D1","step":"after C -> null","value":null}
+{"attr":"aria-describedby","kinds":"C:attr H:attr D1:attr D2:attr T:attr","order":"D2,D1","step":"after T -> null","value":null}
+{"attr":"style","kinds":"C:static H:static D1:static D2:static T:static","order":"D1,D2","step":"create","value":"color: blue; margin: 1px; padding: 4px; padding-left: 2px;","eff":"color=blue padding-left=2px"}
+{"attr":"data-x","kinds":"C:static D1:static T:static","order":"D1,D2","step":"create","value":"t"}
+{"attr":"role","kinds":"C:static D1:static T:static","order":"D1,D2","step":"create","value":"t"}
+{"attr":"role","kinds":"C:static H:static D1:static D2:static","order":"D1,D2","step":"create","value":"d2"}
+{"attr":"style","kinds":"C:static D1:static T:static","order":"D1,D2","step":"create","value":"color: blue; padding: 4px; padding-left: 2px;","eff":"color=blue padding-left=2px"}
+{"attr":"data-x","kinds":"C:static H:static D1:static D2:static T:static","order":"D2,D1","step":"create","value":"t"}
+{"attr":"data-x","kinds":"C:static H:static","order":"D1,D2","step":"create","value":"c"}
+{"attr":"id","kinds":"C:static H:static D1:static D2:static T:static","order":"D2,D1","step":"create","value":"t","prop":"t"}
+{"attr":"role","kinds":"C:attr H:attr D1:attr D2:attr T:attr","order":"D1,D2","step":"create","value":"d2"}
+{"attr":"role","kinds":"C:attr H:attr D1:attr D2:attr T:attr","order":"D1,D2","step":"after T changes","value":"t2"}
+{"attr":"role","kinds":"C:attr H:attr D1:attr D2:attr T:attr","order":"D1,D2","step":"after D2 changes","value":"d22"}
+{"attr":"role","kinds":"C:attr H:attr D1:attr D2:attr T:attr","order":"D1,D2","step":"after D1 changes","value":"d12"}
+{"attr":"role","kinds":"C:attr H:attr D1:attr D2:attr T:attr","order":"D1,D2","step":"after H changes","value":"h2"}
+{"attr":"role","kinds":"C:attr H:attr D1:attr D2:attr T:attr","order":"D1,D2","step":"after C changes","value":"c2"}
+{"attr":"role","kinds":"C:attr H:attr D1:attr D2:attr T:attr","order":"D1,D2","step":"after C -> null","value":null}
+{"attr":"role","kinds":"C:attr H:attr D1:attr D2:attr T:attr","order":"D1,D2","step":"after T -> null","value":null}
+{"attr":"aria-describedby","kinds":"C:attr T:attr","order":"D1,D2","step":"create","value":"c"}
+{"attr":"aria-describedby","kinds":"C:attr T:attr","order":"D1,D2","step":"after T changes","value":"t2"}
+{"attr":"aria-describedby","kinds":"C:attr T:attr","order":"D1,D2","step":"after C changes","value":"c2"}
+{"attr":"aria-describedby","kinds":"C:attr T:attr","order":"D1,D2","step":"after C -> null","value":null}
+{"attr":"aria-describedby","kinds":"C:attr T:attr","order":"D1,D2","step":"after T -> null","value":null}
+{"attr":"id","kinds":"C:attr T:attr","order":"D1,D2","step":"create","value":"c","prop":"c"}
+{"attr":"id","kinds":"C:attr T:attr","order":"D1,D2","step":"after T changes","value":"t2","prop":"t2"}
+{"attr":"id","kinds":"C:attr T:attr","order":"D1,D2","step":"after C changes","value":"c2","prop":"c2"}
+{"attr":"id","kinds":"C:attr T:attr","order":"D1,D2","step":"after C -> null","value":null,"prop":""}
+{"attr":"id","kinds":"C:attr T:attr","order":"D1,D2","step":"after T -> null","value":null,"prop":""}
+{"attr":"tabindex","kinds":"C:static D1:static T:attr","order":"D1,D2","step":"create","value":"5"}
+{"attr":"tabindex","kinds":"C:static D1:static T:attr","order":"D1,D2","step":"after T changes","value":"52"}
+{"attr":"tabindex","kinds":"C:static D1:static T:attr","order":"D1,D2","step":"after T -> null","value":null}
+{"attr":"role","kinds":"C:static H:static D1:static D2:static T:static","order":"D1,D2","step":"create","value":"t"}
+{"attr":"aria-describedby","kinds":"C:attr H:attr D1:attr D2:attr T:attr","order":"D1,D2","step":"create","value":"d2"}
+{"attr":"aria-describedby","kinds":"C:attr H:attr D1:attr D2:attr T:attr","order":"D1,D2","step":"after T changes","value":"t2"}
+{"attr":"aria-describedby","kinds":"C:attr H:attr D1:attr D2:attr T:attr","order":"D1,D2","step":"after D2 changes","value":"d22"}
+{"attr":"aria-describedby","kinds":"C:attr H:attr D1:attr D2:attr T:attr","order":"D1,D2","step":"after D1 changes","value":"d12"}
+{"attr":"aria-describedby","kinds":"C:attr H:attr D1:attr D2:attr T:attr","order":"D1,D2","step":"after H changes","value":"h2"}
+{"attr":"aria-describedby","kinds":"C:attr H:attr D1:attr D2:attr T:attr","order":"D1,D2","step":"after C changes","value":"c2"}
+{"attr":"aria-describedby","kinds":"C:attr H:attr D1:attr D2:attr T:attr","order":"D1,D2","step":"after C -> null","value":null}
+{"attr":"aria-describedby","kinds":"C:attr H:attr D1:attr D2:attr T:attr","order":"D1,D2","step":"after T -> null","value":null}
+{"attr":"title","kinds":"C:attr T:attr","order":"D1,D2","step":"create","value":"c"}
+{"attr":"title","kinds":"C:attr T:attr","order":"D1,D2","step":"after T changes","value":"t2"}
+{"attr":"title","kinds":"C:attr T:attr","order":"D1,D2","step":"after C changes","value":"c2"}
+{"attr":"title","kinds":"C:attr T:attr","order":"D1,D2","step":"after C -> null","value":null}
+{"attr":"title","kinds":"C:attr T:attr","order":"D1,D2","step":"after T -> null","value":null}
+{"attr":"data-x","kinds":"C:attr H:attr D1:attr D2:attr T:attr","order":"D1,D2","step":"create","value":"d2"}
+{"attr":"data-x","kinds":"C:attr H:attr D1:attr D2:attr T:attr","order":"D1,D2","step":"after T changes","value":"t2"}
+{"attr":"data-x","kinds":"C:attr H:attr D1:attr D2:attr T:attr","order":"D1,D2","step":"after D2 changes","value":"d22"}
+{"attr":"data-x","kinds":"C:attr H:attr D1:attr D2:attr T:attr","order":"D1,D2","step":"after D1 changes","value":"d12"}
+{"attr":"data-x","kinds":"C:attr H:attr D1:attr D2:attr T:attr","order":"D1,D2","step":"after H changes","value":"h2"}
+{"attr":"data-x","kinds":"C:attr H:attr D1:attr D2:attr T:attr","order":"D1,D2","step":"after C changes","value":"c2"}
+{"attr":"data-x","kinds":"C:attr H:attr D1:attr D2:attr T:attr","order":"D1,D2","step":"after C -> null","value":null}
+{"attr":"data-x","kinds":"C:attr H:attr D1:attr D2:attr T:attr","order":"D1,D2","step":"after T -> null","value":null}
+{"attr":"data-x","kinds":"C:static H:static D1:static D2:static","order":"D1,D2","step":"create","value":"d2"}
+{"attr":"title","kinds":"C:attr H:attr D1:attr D2:attr T:attr","order":"D2,D1","step":"create","value":"d1"}
+{"attr":"title","kinds":"C:attr H:attr D1:attr D2:attr T:attr","order":"D2,D1","step":"after T changes","value":"t2"}
+{"attr":"title","kinds":"C:attr H:attr D1:attr D2:attr T:attr","order":"D2,D1","step":"after D2 changes","value":"d22"}
+{"attr":"title","kinds":"C:attr H:attr D1:attr D2:attr T:attr","order":"D2,D1","step":"after D1 changes","value":"d12"}
+{"attr":"title","kinds":"C:attr H:attr D1:attr D2:attr T:attr","order":"D2,D1","step":"after H changes","value":"h2"}
+{"attr":"title","kinds":"C:attr H:attr D1:attr D2:attr T:attr","order":"D2,D1","step":"after C changes","value":"c2"}
+{"attr":"title","kinds":"C:attr H:attr D1:attr D2:attr T:attr","order":"D2,D1","step":"after C -> null","value":null}
+{"attr":"title","kinds":"C:attr H:attr D1:attr D2:attr T:attr","order":"D2,D1","step":"after T -> null","value":null}
+{"attr":"tabindex","kinds":"C:attr D1:attr T:static","order":"D1,D2","step":"create","value":"3"}
+{"attr":"tabindex","kinds":"C:attr D1:attr T:static","order":"D1,D2","step":"after D1 changes","value":"32"}
+{"attr":"tabindex","kinds":"C:attr D1:attr T:static","order":"D1,D2","step":"after C changes","value":"12"}
+{"attr":"tabindex","kinds":"C:attr D1:attr T:static","order":"D1,D2","step":"after C -> null","value":null}
+{"attr":"tabindex","kinds":"C:static H:static D1:static D2:static T:static","order":"D2,D1","step":"create","value":"5"}
+{"attr":"aria-describedby","kinds":"C:static H:static","order":"D1,D2","step":"create","value":"c"}
+{"attr":"aria-describedby","kinds":"C:static H:static D1:static D2:static T:static","order":"D1,D2","step":"create","value":"t"}
+{"attr":"aria-describedby","kinds":"C:static H:static D1:static D2:static","order":"D1,D2","step":"create","value":"d2"}
+{"attr":"tabindex","kinds":"C:static D1:static","order":"D1,D2","step":"create","value":"3"}
+{"attr":"role","kinds":"C:static H:static D1:static D2:static T:static","order":"D2,D1","step":"create","value":"t"}
+{"attr":"id","kinds":"C:prop D1:prop T:prop","order":"D1,D2","step":"create","value":"d1","prop":"d1"}
+{"attr":"id","kinds":"C:prop D1:prop T:prop","order":"D1,D2","step":"after T changes","value":"t2","prop":"t2"}
+{"attr":"id","kinds":"C:prop D1:prop T:prop","order":"D1,D2","step":"after D1 changes","value":"d12","prop":"d12"}
+{"attr":"id","kinds":"C:prop D1:prop T:prop","order":"D1,D2","step":"after C changes","value":"c2","prop":"c2"}
+{"attr":"id","kinds":"C:prop D1:prop T:prop","order":"D1,D2","step":"after C -> null","value":"null","prop":"null"}
+{"attr":"id","kinds":"C:prop D1:prop T:prop","order":"D1,D2","step":"after T -> null","value":"null","prop":"null"}
+{"attr":"tabindex","kinds":"C:static D1:static T:static","order":"D1,D2","step":"create","value":"5"}
+{"attr":"role","kinds":"C:static H:static","order":"D1,D2","step":"create","value":"c"}
+{"attr":"data-x","kinds":"C:static D1:static T:attr","order":"D1,D2","step":"create","value":"t"}
+{"attr":"data-x","kinds":"C:static D1:static T:attr","order":"D1,D2","step":"after T changes","value":"t2"}
+{"attr":"data-x","kinds":"C:static D1:static T:attr","order":"D1,D2","step":"after T -> null","value":null}
+{"attr":"tabindex","kinds":"C:static H:static","order":"D1,D2","step":"create","value":"1"}
+{"attr":"title","kinds":"C:static H:static","order":"D1,D2","step":"create","value":"c"}
+{"attr":"id","kinds":"C:static D1:static","order":"D1,D2","step":"create","value":"d1","prop":"d1"}
+{"attr":"aria-describedby","kinds":"C:static D1:static","order":"D1,D2","step":"create","value":"d1"}
+{"attr":"style","kinds":"C:static H:static D1:static D2:static T:static","order":"D2,D1","step":"create","value":"color: blue; margin: 1px; padding: 4px; padding-left: 2px;","eff":"color=blue padding-left=2px"}
+{"attr":"style","kinds":"C:static D1:static T:style","order":"D1,D2","step":"create","value":"color: blue; padding: 4px 4px 4px 2px;","eff":"color=blue padding-left=2px"}
+{"attr":"style","kinds":"C:static D1:static T:style","order":"D1,D2","step":"after T changes","value":"color: blue; padding: 4px 4px 4px 2px; z-index: 1;","eff":"color=blue padding-left=2px"}
+{"attr":"style","kinds":"C:static D1:static T:style","order":"D1,D2","step":"after T -> null","value":"color: green; padding-top: 4px; padding-right: 4px; padding-bottom: 4px;","eff":"color=green padding-left="}
+{"attr":"data-x","kinds":"C:attr T:attr","order":"D1,D2","step":"create","value":"c"}
+{"attr":"data-x","kinds":"C:attr T:attr","order":"D1,D2","step":"after T changes","value":"t2"}
+{"attr":"data-x","kinds":"C:attr T:attr","order":"D1,D2","step":"after C changes","value":"c2"}
+{"attr":"data-x","kinds":"C:attr T:attr","order":"D1,D2","step":"after C -> null","value":null}
+{"attr":"data-x","kinds":"C:attr T:attr","order":"D1,D2","step":"after T -> null","value":null}
+{"attr":"title","kinds":"C:static D1:static","order":"D1,D2","step":"create","value":"d1"}
+{"attr":"role","kinds":"C:static D1:static","order":"D1,D2","step":"create","value":"d1"}
+{"attr":"style","kinds":"C:style T:style","order":"D1,D2","step":"create","value":"color: blue; padding: 4px;","eff":"color=blue padding-left=4px"}
+{"attr":"style","kinds":"C:style T:style","order":"D1,D2","step":"after T changes","value":"color: blue; padding: 4px; z-index: 1;","eff":"color=blue padding-left=4px"}
+{"attr":"style","kinds":"C:style T:style","order":"D1,D2","step":"after C changes","value":"color: blue; padding: 4px; z-index: 1;","eff":"color=blue padding-left=4px"}
+{"attr":"style","kinds":"C:style T:style","order":"D1,D2","step":"after C -> null","value":"color: blue; z-index: 1;","eff":"color=blue padding-left="}
+{"attr":"style","kinds":"C:style T:style","order":"D1,D2","step":"after T -> null","value":"","eff":"color= padding-left="}
+{"attr":"style","kinds":"C:style H:style D1:style D2:style T:style","order":"D1,D2","step":"create","value":"color: blue; padding: 4px; margin: 1px;","eff":"color=blue padding-left=4px"}
+{"attr":"style","kinds":"C:style H:style D1:style D2:style T:style","order":"D1,D2","step":"after T changes","value":"color: blue; padding: 4px; margin: 1px; z-index: 1;","eff":"color=blue padding-left=4px"}
+{"attr":"style","kinds":"C:style H:style D1:style D2:style T:style","order":"D1,D2","step":"after D2 changes","value":"color: blue; padding: 4px; margin: 1px; z-index: 1;","eff":"color=blue padding-left=4px"}
+{"attr":"style","kinds":"C:style H:style D1:style D2:style T:style","order":"D1,D2","step":"after D1 changes","value":"color: blue; padding: 4px; margin: 1px; z-index: 1;","eff":"color=blue padding-left=4px"}
+{"attr":"style","kinds":"C:style H:style D1:style D2:style T:style","order":"D1,D2","step":"after H changes","value":"color: blue; padding: 4px; margin: 1px; z-index: 1;","eff":"color=blue padding-left=4px"}
+{"attr":"style","kinds":"C:style H:style D1:style D2:style T:style","order":"D1,D2","step":"after C changes","value":"color: blue; padding: 4px; margin: 1px; z-index: 1;","eff":"color=blue padding-left=4px"}
+{"attr":"style","kinds":"C:style H:style D1:style D2:style T:style","order":"D1,D2","step":"after C -> null","value":"color: blue; margin: 1px; z-index: 1;","eff":"color=blue padding-left="}
+{"attr":"style","kinds":"C:style H:style D1:style D2:style T:style","order":"D1,D2","step":"after T -> null","value":"color: teal; margin: 1px; z-index: 1; padding-left: 9px;","eff":"color=teal padding-left=9px"}
+{"attr":"title","kinds":"C:static H:static D1:static D2:static","order":"D1,D2","step":"create","value":"d2"}
+{"attr":"tabindex","kinds":"C:attr H:attr D1:attr D2:attr T:attr","order":"D1,D2","step":"create","value":"4"}
+{"attr":"tabindex","kinds":"C:attr H:attr D1:attr D2:attr T:attr","order":"D1,D2","step":"after T changes","value":"52"}
+{"attr":"tabindex","kinds":"C:attr H:attr D1:attr D2:attr T:attr","order":"D1,D2","step":"after D2 changes","value":"42"}
+{"attr":"tabindex","kinds":"C:attr H:attr D1:attr D2:attr T:attr","order":"D1,D2","step":"after D1 changes","value":"32"}
+{"attr":"tabindex","kinds":"C:attr H:attr D1:attr D2:attr T:attr","order":"D1,D2","step":"after H changes","value":"22"}
+{"attr":"tabindex","kinds":"C:attr H:attr D1:attr D2:attr T:attr","order":"D1,D2","step":"after C changes","value":"12"}
+{"attr":"tabindex","kinds":"C:attr H:attr D1:attr D2:attr T:attr","order":"D1,D2","step":"after C -> null","value":null}
+{"attr":"tabindex","kinds":"C:attr H:attr D1:attr D2:attr T:attr","order":"D1,D2","step":"after T -> null","value":null}
+{"attr":"id","kinds":"C:attr T:prop","order":"D1,D2","step":"create","value":"c","prop":"c"}
+{"attr":"id","kinds":"C:attr T:prop","order":"D1,D2","step":"after T changes","value":"t2","prop":"t2"}
+{"attr":"id","kinds":"C:attr T:prop","order":"D1,D2","step":"after C changes","value":"c2","prop":"c2"}
+{"attr":"id","kinds":"C:attr T:prop","order":"D1,D2","step":"after C -> null","value":null,"prop":""}
+{"attr":"id","kinds":"C:attr T:prop","order":"D1,D2","step":"after T -> null","value":"null","prop":"null"}
+{"attr":"style","kinds":"C:style D1:style T:static","order":"D1,D2","step":"create","value":"color: green; padding: 4px;","eff":"color=green padding-left=4px"}
+{"attr":"style","kinds":"C:style D1:style T:static","order":"D1,D2","step":"after D1 changes","value":"color: green; padding: 4px; z-index: 1;","eff":"color=green padding-left=4px"}
+{"attr":"style","kinds":"C:style D1:style T:static","order":"D1,D2","step":"after C changes","value":"color: green; padding: 4px; z-index: 1;","eff":"color=green padding-left=4px"}
+{"attr":"style","kinds":"C:style D1:style T:static","order":"D1,D2","step":"after C -> null","value":"color: green;","eff":"color=green padding-left="}
+{"attr":"style","kinds":"C:attr D1:attr T:attr","order":"D1,D2","step":"create","value":"color: green","eff":"color=green padding-left="}
+{"attr":"style","kinds":"C:attr D1:attr T:attr","order":"D1,D2","step":"after T changes","value":"color: blue; padding-left: 2px; z-index: 1","eff":"color=blue padding-left=2px"}
+{"attr":"style","kinds":"C:attr D1:attr T:attr","order":"D1,D2","step":"after D1 changes","value":"color: green; z-index: 1","eff":"color=green padding-left="}
+{"attr":"style","kinds":"C:attr D1:attr T:attr","order":"D1,D2","step":"after C changes","value":"color: red; padding: 4px; z-index: 1","eff":"color=red padding-left=4px"}
+{"attr":"style","kinds":"C:attr D1:attr T:attr","order":"D1,D2","step":"after C -> null","value":null,"eff":"color= padding-left="}
+{"attr":"style","kinds":"C:attr D1:attr T:attr","order":"D1,D2","step":"after T -> null","value":null,"eff":"color= padding-left="}
+{"attr":"id","kinds":"C:attr H:attr D1:attr D2:attr T:attr","order":"D2,D1","step":"create","value":"d1","prop":"d1"}
+{"attr":"id","kinds":"C:attr H:attr D1:attr D2:attr T:attr","order":"D2,D1","step":"after T changes","value":"t2","prop":"t2"}
+{"attr":"id","kinds":"C:attr H:attr D1:attr D2:attr T:attr","order":"D2,D1","step":"after D2 changes","value":"d22","prop":"d22"}
+{"attr":"id","kinds":"C:attr H:attr D1:attr D2:attr T:attr","order":"D2,D1","step":"after D1 changes","value":"d12","prop":"d12"}
+{"attr":"id","kinds":"C:attr H:attr D1:attr D2:attr T:attr","order":"D2,D1","step":"after H changes","value":"h2","prop":"h2"}
+{"attr":"id","kinds":"C:attr H:attr D1:attr D2:attr T:attr","order":"D2,D1","step":"after C changes","value":"c2","prop":"c2"}
+{"attr":"id","kinds":"C:attr H:attr D1:attr D2:attr T:attr","order":"D2,D1","step":"after C -> null","value":null,"prop":""}
+{"attr":"id","kinds":"C:attr H:attr D1:attr D2:attr T:attr","order":"D2,D1","step":"after T -> null","value":null,"prop":""}
+{"attr":"title","kinds":"C:static H:static D1:static D2:static T:static","order":"D1,D2","step":"create","value":"t"}
+{"attr":"data-x","kinds":"C:static D1:static","order":"D1,D2","step":"create","value":"d1"}
+{"attr":"style","kinds":"C:style H:style D1:style D2:style T:style","order":"D2,D1","step":"create","value":"color: blue; padding: 4px; margin: 1px;","eff":"color=blue padding-left=4px"}
+{"attr":"style","kinds":"C:style H:style D1:style D2:style T:style","order":"D2,D1","step":"after T changes","value":"color: blue; padding: 4px; margin: 1px; z-index: 1;","eff":"color=blue padding-left=4px"}
+{"attr":"style","kinds":"C:style H:style D1:style D2:style T:style","order":"D2,D1","step":"after D2 changes","value":"color: blue; padding: 4px; margin: 1px; z-index: 1;","eff":"color=blue padding-left=4px"}
+{"attr":"style","kinds":"C:style H:style D1:style D2:style T:style","order":"D2,D1","step":"after D1 changes","value":"color: blue; padding: 4px; margin: 1px; z-index: 1;","eff":"color=blue padding-left=4px"}
+{"attr":"style","kinds":"C:style H:style D1:style D2:style T:style","order":"D2,D1","step":"after H changes","value":"color: blue; padding: 4px; margin: 1px; z-index: 1;","eff":"color=blue padding-left=4px"}
+{"attr":"style","kinds":"C:style H:style D1:style D2:style T:style","order":"D2,D1","step":"after C changes","value":"color: blue; padding: 4px; margin: 1px; z-index: 1;","eff":"color=blue padding-left=4px"}
+{"attr":"style","kinds":"C:style H:style D1:style D2:style T:style","order":"D2,D1","step":"after C -> null","value":"color: blue; margin: 1px; z-index: 1;","eff":"color=blue padding-left="}
+{"attr":"style","kinds":"C:style H:style D1:style D2:style T:style","order":"D2,D1","step":"after T -> null","value":"color: green; margin: 1px; z-index: 1; padding-left: 9px;","eff":"color=green padding-left=9px"}
+{"attr":"title","kinds":"C:static H:static D1:static D2:static T:static","order":"D2,D1","step":"create","value":"t"}
+{"attr":"id","kinds":"C:static D1:static T:static","order":"D1,D2","step":"create","value":"t","prop":"t"}
+{"attr":"tabindex","kinds":"C:static H:static D1:static D2:static T:static","order":"D1,D2","step":"create","value":"5"}
+{"attr":"tabindex","kinds":"C:static H:static D1:static D2:static","order":"D1,D2","step":"create","value":"4"}
+{"attr":"id","kinds":"C:attr D1:attr T:static","order":"D1,D2","step":"create","value":"d1","prop":"d1"}
+{"attr":"id","kinds":"C:attr D1:attr T:static","order":"D1,D2","step":"after D1 changes","value":"d12","prop":"d12"}
+{"attr":"id","kinds":"C:attr D1:attr T:static","order":"D1,D2","step":"after C changes","value":"c2","prop":"c2"}
+{"attr":"id","kinds":"C:attr D1:attr T:static","order":"D1,D2","step":"after C -> null","value":null,"prop":""}
+{"attr":"data-x","kinds":"C:attr D1:attr T:static","order":"D1,D2","step":"create","value":"d1"}
+{"attr":"data-x","kinds":"C:attr D1:attr T:static","order":"D1,D2","step":"after D1 changes","value":"d12"}
+{"attr":"data-x","kinds":"C:attr D1:attr T:static","order":"D1,D2","step":"after C changes","value":"c2"}
+{"attr":"data-x","kinds":"C:attr D1:attr T:static","order":"D1,D2","step":"after C -> null","value":null}
+{"attr":"style","kinds":"C:static H:static","order":"D1,D2","step":"create","value":"color: red; margin: 1px; padding: 4px;","eff":"color=red padding-left=4px"}
+{"attr":"aria-describedby","kinds":"C:static H:static D1:static D2:static T:static","order":"D2,D1","step":"create","value":"t"}
+{"attr":"title","kinds":"C:static D1:static T:static","order":"D1,D2","step":"create","value":"t"}
+{"attr":"id","kinds":"C:static H:static D1:static D2:static T:static","order":"D1,D2","step":"create","value":"t","prop":"t"}
+{"attr":"style","kinds":"C:static D1:static","order":"D1,D2","step":"create","value":"color: green; padding: 4px;","eff":"color=green padding-left=4px"}
+{"attr":"title","kinds":"C:static D1:static T:attr","order":"D1,D2","step":"create","value":"t"}
+{"attr":"title","kinds":"C:static D1:static T:attr","order":"D1,D2","step":"after T changes","value":"t2"}
+{"attr":"title","kinds":"C:static D1:static T:attr","order":"D1,D2","step":"after T -> null","value":null}
+{"attr":"tabindex","kinds":"C:attr T:attr","order":"D1,D2","step":"create","value":"1"}
+{"attr":"tabindex","kinds":"C:attr T:attr","order":"D1,D2","step":"after T changes","value":"52"}
+{"attr":"tabindex","kinds":"C:attr T:attr","order":"D1,D2","step":"after C changes","value":"12"}
+{"attr":"tabindex","kinds":"C:attr T:attr","order":"D1,D2","step":"after C -> null","value":null}
+{"attr":"tabindex","kinds":"C:attr T:attr","order":"D1,D2","step":"after T -> null","value":null}
+{"attr":"aria-describedby","kinds":"C:static D1:static T:static","order":"D1,D2","step":"create","value":"t"}
+{"attr":"data-x","kinds":"C:attr H:attr D1:attr D2:attr T:attr","order":"D2,D1","step":"create","value":"d1"}
+{"attr":"data-x","kinds":"C:attr H:attr D1:attr D2:attr T:attr","order":"D2,D1","step":"after T changes","value":"t2"}
+{"attr":"data-x","kinds":"C:attr H:attr D1:attr D2:attr T:attr","order":"D2,D1","step":"after D2 changes","value":"d22"}
+{"attr":"data-x","kinds":"C:attr H:attr D1:attr D2:attr T:attr","order":"D2,D1","step":"after D1 changes","value":"d12"}
+{"attr":"data-x","kinds":"C:attr H:attr D1:attr D2:attr T:attr","order":"D2,D1","step":"after H changes","value":"h2"}
+{"attr":"data-x","kinds":"C:attr H:attr D1:attr D2:attr T:attr","order":"D2,D1","step":"after C changes","value":"c2"}
+{"attr":"data-x","kinds":"C:attr H:attr D1:attr D2:attr T:attr","order":"D2,D1","step":"after C -> null","value":null}
+{"attr":"data-x","kinds":"C:attr H:attr D1:attr D2:attr T:attr","order":"D2,D1","step":"after T -> null","value":null}
+{"attr":"aria-describedby","kinds":"C:attr D1:attr T:static","order":"D1,D2","step":"create","value":"d1"}
+{"attr":"aria-describedby","kinds":"C:attr D1:attr T:static","order":"D1,D2","step":"after D1 changes","value":"d12"}
+{"attr":"aria-describedby","kinds":"C:attr D1:attr T:static","order":"D1,D2","step":"after C changes","value":"c2"}
+{"attr":"aria-describedby","kinds":"C:attr D1:attr T:static","order":"D1,D2","step":"after C -> null","value":null}
+{"attr":"id","kinds":"C:static H:static D1:static D2:static","order":"D1,D2","step":"create","value":"d2","prop":"d2"}
+{"attr":"tabindex","kinds":"C:attr H:attr D1:attr D2:attr T:attr","order":"D2,D1","step":"create","value":"3"}
+{"attr":"tabindex","kinds":"C:attr H:attr D1:attr D2:attr T:attr","order":"D2,D1","step":"after T changes","value":"52"}
+{"attr":"tabindex","kinds":"C:attr H:attr D1:attr D2:attr T:attr","order":"D2,D1","step":"after D2 changes","value":"42"}
+{"attr":"tabindex","kinds":"C:attr H:attr D1:attr D2:attr T:attr","order":"D2,D1","step":"after D1 changes","value":"32"}
+{"attr":"tabindex","kinds":"C:attr H:attr D1:attr D2:attr T:attr","order":"D2,D1","step":"after H changes","value":"22"}
+{"attr":"tabindex","kinds":"C:attr H:attr D1:attr D2:attr T:attr","order":"D2,D1","step":"after C changes","value":"12"}
+{"attr":"tabindex","kinds":"C:attr H:attr D1:attr D2:attr T:attr","order":"D2,D1","step":"after C -> null","value":null}
+{"attr":"tabindex","kinds":"C:attr H:attr D1:attr D2:attr T:attr","order":"D2,D1","step":"after T -> null","value":null}
+{"attr":"data-x","kinds":"C:static H:static D1:static D2:static T:static","order":"D1,D2","step":"create","value":"t"}
+{"attr":"title","kinds":"C:attr H:attr D1:attr D2:attr T:attr","order":"D1,D2","step":"create","value":"d2"}
+{"attr":"title","kinds":"C:attr H:attr D1:attr D2:attr T:attr","order":"D1,D2","step":"after T changes","value":"t2"}
+{"attr":"title","kinds":"C:attr H:attr D1:attr D2:attr T:attr","order":"D1,D2","step":"after D2 changes","value":"d22"}
+{"attr":"title","kinds":"C:attr H:attr D1:attr D2:attr T:attr","order":"D1,D2","step":"after D1 changes","value":"d12"}
+{"attr":"title","kinds":"C:attr H:attr D1:attr D2:attr T:attr","order":"D1,D2","step":"after H changes","value":"h2"}
+{"attr":"title","kinds":"C:attr H:attr D1:attr D2:attr T:attr","order":"D1,D2","step":"after C changes","value":"c2"}
+{"attr":"title","kinds":"C:attr H:attr D1:attr D2:attr T:attr","order":"D1,D2","step":"after C -> null","value":null}
+{"attr":"title","kinds":"C:attr H:attr D1:attr D2:attr T:attr","order":"D1,D2","step":"after T -> null","value":null}
+{"attr":"id","kinds":"C:attr H:attr D1:attr D2:attr T:attr","order":"D1,D2","step":"create","value":"d2","prop":"d2"}
+{"attr":"id","kinds":"C:attr H:attr D1:attr D2:attr T:attr","order":"D1,D2","step":"after T changes","value":"t2","prop":"t2"}
+{"attr":"id","kinds":"C:attr H:attr D1:attr D2:attr T:attr","order":"D1,D2","step":"after D2 changes","value":"d22","prop":"d22"}
+{"attr":"id","kinds":"C:attr H:attr D1:attr D2:attr T:attr","order":"D1,D2","step":"after D1 changes","value":"d12","prop":"d12"}
+{"attr":"id","kinds":"C:attr H:attr D1:attr D2:attr T:attr","order":"D1,D2","step":"after H changes","value":"h2","prop":"h2"}
+{"attr":"id","kinds":"C:attr H:attr D1:attr D2:attr T:attr","order":"D1,D2","step":"after C changes","value":"c2","prop":"c2"}
+{"attr":"id","kinds":"C:attr H:attr D1:attr D2:attr T:attr","order":"D1,D2","step":"after C -> null","value":null,"prop":""}
+{"attr":"id","kinds":"C:attr H:attr D1:attr D2:attr T:attr","order":"D1,D2","step":"after T -> null","value":null,"prop":""}
+{"attr":"aria-describedby","kinds":"C:static D1:static T:attr","order":"D1,D2","step":"create","value":"t"}
+{"attr":"aria-describedby","kinds":"C:static D1:static T:attr","order":"D1,D2","step":"after T changes","value":"t2"}
+{"attr":"aria-describedby","kinds":"C:static D1:static T:attr","order":"D1,D2","step":"after T -> null","value":null}
+{"attr":"role","kinds":"C:attr H:attr D1:attr D2:attr T:attr","order":"D2,D1","step":"create","value":"d1"}
+{"attr":"role","kinds":"C:attr H:attr D1:attr D2:attr T:attr","order":"D2,D1","step":"after T changes","value":"t2"}
+{"attr":"role","kinds":"C:attr H:attr D1:attr D2:attr T:attr","order":"D2,D1","step":"after D2 changes","value":"d22"}
+{"attr":"role","kinds":"C:attr H:attr D1:attr D2:attr T:attr","order":"D2,D1","step":"after D1 changes","value":"d12"}
+{"attr":"role","kinds":"C:attr H:attr D1:attr D2:attr T:attr","order":"D2,D1","step":"after H changes","value":"h2"}
+{"attr":"role","kinds":"C:attr H:attr D1:attr D2:attr T:attr","order":"D2,D1","step":"after C changes","value":"c2"}
+{"attr":"role","kinds":"C:attr H:attr D1:attr D2:attr T:attr","order":"D2,D1","step":"after C -> null","value":null}
+{"attr":"role","kinds":"C:attr H:attr D1:attr D2:attr T:attr","order":"D2,D1","step":"after T -> null","value":null}
+{"attr":"id","kinds":"C:static D1:static T:attr","order":"D1,D2","step":"create","value":"t","prop":"t"}
+{"attr":"id","kinds":"C:static D1:static T:attr","order":"D1,D2","step":"after T changes","value":"t2","prop":"t2"}
+{"attr":"id","kinds":"C:static D1:static T:attr","order":"D1,D2","step":"after T -> null","value":null,"prop":""}
+{"attr":"role","kinds":"C:attr T:attr","order":"D1,D2","step":"create","value":"c"}
+{"attr":"role","kinds":"C:attr T:attr","order":"D1,D2","step":"after T changes","value":"t2"}
+{"attr":"role","kinds":"C:attr T:attr","order":"D1,D2","step":"after C changes","value":"c2"}
+{"attr":"role","kinds":"C:attr T:attr","order":"D1,D2","step":"after C -> null","value":null}
+{"attr":"role","kinds":"C:attr T:attr","order":"D1,D2","step":"after T -> null","value":null}
+{"attr":"style","kinds":"C:static H:static D1:static D2:static","order":"D1,D2","step":"create","value":"color: teal; margin: 1px; padding: 4px; padding-left: 9px;","eff":"color=teal padding-left=9px"}
+{"attr":"role","kinds":"C:attr D1:attr T:static","order":"D1,D2","step":"create","value":"d1"}
+{"attr":"role","kinds":"C:attr D1:attr T:static","order":"D1,D2","step":"after D1 changes","value":"d12"}
+{"attr":"role","kinds":"C:attr D1:attr T:static","order":"D1,D2","step":"after C changes","value":"c2"}
+{"attr":"role","kinds":"C:attr D1:attr T:static","order":"D1,D2","step":"after C -> null","value":null}
+{"attr":"id","kinds":"C:static H:static","order":"D1,D2","step":"create","value":"c","prop":"c"}
+{"attr":"title","kinds":"C:attr D1:attr T:static","order":"D1,D2","step":"create","value":"d1"}
+{"attr":"title","kinds":"C:attr D1:attr T:static","order":"D1,D2","step":"after D1 changes","value":"d12"}
+{"attr":"title","kinds":"C:attr D1:attr T:static","order":"D1,D2","step":"after C changes","value":"c2"}
+{"attr":"title","kinds":"C:attr D1:attr T:static","order":"D1,D2","step":"after C -> null","value":null}
+{"attr":"role","kinds":"C:static D1:static T:attr","order":"D1,D2","step":"create","value":"t"}
+{"attr":"role","kinds":"C:static D1:static T:attr","order":"D1,D2","step":"after T changes","value":"t2"}
+{"attr":"role","kinds":"C:static D1:static T:attr","order":"D1,D2","step":"after T -> null","value":null}
+{"case":"padding: 4px; padding-left: 2px","normalized":"padding: 4px; padding-left: 2px","paddingLeft":"2px","color":"","x":"","margin":"","borderColor":""}
+{"case":"padding-left: 2px; padding: 4px","normalized":"padding-left: 2px; padding: 4px","paddingLeft":"4px","color":"","x":"","margin":"","borderColor":""}
+{"case":"color: red !important; color: blue","normalized":"color: red !important; color: blue","paddingLeft":"","color":"red","x":"","margin":"","borderColor":""}
+{"case":"--x: 1; --x: 2","normalized":"--x: 1; --x: 2","paddingLeft":"","color":"","x":"2","margin":"","borderColor":""}
+{"case":"margin: 1px; margin: 2px","normalized":"margin: 1px; margin: 2px","paddingLeft":"","color":"","x":"","margin":"2px","borderColor":""}
+{"case":"border: 1px solid red; border-color: blue","normalized":"border: 1px solid red; border-color: blue","paddingLeft":"","color":"","x":"","margin":"","borderColor":"blue"}
+{"case":"dir [style.color]=green, [class.foo]=false vs T static","class":"bar","style":"color: blue;"}
+{"css":"a","attr":"data-d","value":"1s 2s","prop":"transition-duration","computed":"0s"}
+{"css":"a","attr":"data-d","value":"1s, 2s","prop":"transition-duration","computed":"1s, 2s"}
+{"css":"b","attr":"data-p","value":"1px 2px","prop":"padding","computed":"1px 2px"}
+{"css":"b","attr":"data-p","value":"1px, 2px","prop":"padding","computed":"0px"}
+{"css":"c","attr":"data-w","value":"10px","prop":"width","computed":"10px"}
+{"css":"d","attr":"data-d","value":"1s, 2s","prop":"transition-duration","computed":"0s"}
+{"css":"e","attr":"data-s","value":"a, b","prop":"content","computed":""a, b""}

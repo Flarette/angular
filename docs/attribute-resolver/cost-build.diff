@@ -1,0 +1,35 @@
+diff --git a/packages/core/test/acceptance/attribute_resolver/BUILD.bazel b/packages/core/test/acceptance/attribute_resolver/BUILD.bazel
+index 16f2018036..f9feadfccf 100644
+--- a/packages/core/test/acceptance/attribute_resolver/BUILD.bazel
++++ b/packages/core/test/acceptance/attribute_resolver/BUILD.bazel
+@@ -21,6 +21,7 @@ ts_project(
+             "auto_attribute_resolution_spec.ts",
+             "auto_resolution_security_spec.ts",
+             "auto_resolution_spec.ts",
++            "benchmark_spec.ts",
+             "off_subtree_cases.ts",
+             "style_order_spec.ts",
+         ],
+@@ -107,3 +108,22 @@ zoneless_web_test_suite(
+         ":auto_resolution_security_lib",
+     ],
+ )
++
++# Temporary benchmark target.
++ts_project(
++    name = "benchmark_lib",
++    testonly = True,
++    srcs = ["benchmark_spec.ts"],
++    deps = [
++        "//packages/core",
++        "//packages/core/testing",
++    ],
++)
++
++zoneless_jasmine_test(
++    name = "benchmark",
++    timeout = "eternal",
++    data = [
++        ":benchmark_lib",
++    ],
++)
