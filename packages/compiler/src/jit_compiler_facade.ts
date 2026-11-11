@@ -54,6 +54,10 @@ import {
 import {JitEvaluator} from './output/output_jit';
 import {ParseError, ParseSourceSpan, r3JitTypeSourceSpan} from './parse_util';
 import {DeferredBlock} from './render3/r3_ast';
+import {
+  getHostListenerAttributeResolver,
+  getHostListenerAttributeResolverError,
+} from './render3/r3_attribute_resolver';
 import {compileFactoryFunction, R3DependencyMetadata} from './render3/r3_factory';
 import {compileInjector, R3InjectorMetadata} from './render3/r3_injector_compiler';
 import {R3JitReflector} from './render3/r3_jit';
@@ -93,6 +97,7 @@ import {
   compileDirectiveFromMetadata,
   ParsedHostBindings,
   parseHostBindings,
+  verifyHostAttributeResolvers,
   verifyHostBindings,
 } from './render3/view/compiler';
 
@@ -592,7 +597,7 @@ function convertDeclareDirectiveFacadeToMetadata(
     selector: declaration.selector ?? null,
     inputs: declaration.inputs ? inputsPartialMetadataToInputMetadata(declaration.inputs) : {},
     outputs: declaration.outputs ?? {},
-    host: convertHostDeclarationToMetadata(declaration.host),
+    host: convertHostDeclarationToMetadata(declaration.host, typeSourceSpan),
     queries: (declaration.queries ?? []).map(convertQueryDeclarationToMetadata),
     viewQueries: (declaration.viewQueries ?? []).map(convertQueryDeclarationToMetadata),
     providers:
@@ -612,10 +617,21 @@ function convertDeclareDirectiveFacadeToMetadata(
 
 function convertHostDeclarationToMetadata(
   host: R3DeclareDirectiveFacade['host'] = {},
+  sourceSpan: ParseSourceSpan,
 ): R3HostMetadata {
+  const listeners = host.listeners ?? {};
+  // A listener of a library declared before resolvers existed is a resolver too.
+  const resolverError = verifyHostAttributeResolvers(
+    listeners,
+    sourceSpan,
+    /* checkDeclarationRules */ false,
+  );
+  if (resolverError !== null) {
+    throw new Error(resolverError.message);
+  }
   return {
     attributes: convertOpaqueValuesToExpressions(host.attributes ?? {}),
-    listeners: host.listeners ?? {},
+    listeners,
     properties: host.properties ?? {},
     specialAttributes: {
       classAttr: host.classAttribute,
@@ -933,7 +949,15 @@ function extractHostBindings(
             field,
           );
         } else if (isHostListener(ann)) {
-          bindings.listeners[ann.eventName || field] = `${field}(${(ann.args || []).join(',')})`;
+          const eventName = ann.eventName || field;
+          const handler = `${field}(${(ann.args || []).join(',')})`;
+          const resolver = getHostListenerAttributeResolver(eventName);
+          if (resolver !== null) {
+            throw new Error(
+              getHostListenerAttributeResolverError(eventName, resolver.attribute, handler),
+            );
+          }
+          bindings.listeners[eventName] = handler;
         }
       });
     }
@@ -943,6 +967,11 @@ function extractHostBindings(
   const errors = verifyHostBindings(bindings, sourceSpan);
   if (errors.length) {
     throw new Error(errors.map((error: ParseError) => error.msg).join('\n'));
+  }
+
+  const resolverError = verifyHostAttributeResolvers(bindings.listeners, sourceSpan);
+  if (resolverError !== null) {
+    throw new Error(resolverError.message);
   }
 
   return bindings;

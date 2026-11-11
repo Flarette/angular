@@ -27,6 +27,33 @@ export {
 } from './animation/interfaces';
 export {ApplicationConfig, mergeApplicationConfig} from './application/application_config';
 export {
+  AttributeResolveEvent,
+  AttributeResolver,
+  AttributeResolverFeature,
+  AttributeSources,
+  AttributeValue,
+  BoundClassResolver,
+  BoundStyleResolver,
+  ClassBindingValue,
+  ClassCallback,
+  ClassResolveEvent,
+  ClassResolver,
+  ClassSources,
+  ResolvedAttribute,
+  StyleBindingValue,
+  StyleCallback,
+  StyleResolveEvent,
+  ɵRESOLVED_CLASSES_BRAND,
+} from './render3/interfaces/attribute_resolver';
+export {
+  joinDeclarations,
+  joinTokens,
+  joinValues,
+  lastValue,
+  provideAttributeResolvers,
+} from './render3/attribute_resolver_provider';
+export {withAutoResolution} from './render3/attribute_resolver_auto';
+export {
   APP_INITIALIZER,
   ApplicationInitStatus,
   provideAppInitializer,

@@ -26,6 +26,7 @@ import {concatStringsWithSpace, stringify} from '../../util/stringify';
 import {assertFirstUpdatePass} from '../assert';
 import {bindingUpdated} from '../bindings';
 import {AttributeMarker} from '../interfaces/attribute_marker';
+import {AttributeResolverSlot} from '../interfaces/attribute_resolver';
 import {DirectiveDef} from '../interfaces/definition';
 import {TAttributes, TNode, TNodeFlags, TNodeType} from '../interfaces/node';
 import {Renderer} from '../interfaces/renderer';
@@ -42,6 +43,7 @@ import {LView, RENDERER, TData, TView} from '../interfaces/view';
 import {applyStyling} from '../node_manipulation';
 import {
   getCurrentDirectiveDef,
+  getCurrentDirectiveIndex,
   getLView,
   getSelectedIndex,
   getTView,
@@ -59,6 +61,7 @@ import {
 import {NO_CHANGE} from '../tokens';
 import {getNativeByIndex} from '../util/view_utils';
 
+import {_registerAttributeResolverBinding} from './attribute_resolver_hook';
 import {setDirectiveInputsWhichShadowsStyling} from './property';
 
 /**
@@ -380,6 +383,20 @@ function stylingFirstUpdatePass(
       // we need to neutralize this binding since that directive is shadowing it.
       // We turn this into a noop by setting the key to `false`
       tStylingKey = false;
+    }
+    const tStylingResolver =
+      tNode.attributeResolvers !== null && tStylingKey !== false
+        ? tNode.attributeResolvers.find(
+            (tAttributeResolver) => tAttributeResolver.name === (isClassBased ? 'class' : 'style'),
+          )
+        : undefined;
+    if (tStylingResolver !== undefined) {
+      _registerAttributeResolverBinding!(
+        tStylingResolver,
+        isHostBindings ? getCurrentDirectiveIndex() : -1,
+        bindingIndex,
+        'styling',
+      );
     }
     tStylingKey = wrapInStaticStylingKey(tData, tNode, tStylingKey, isClassBased);
     insertTStylingBinding(tData, tNode, tStylingKey, bindingIndex, isHostBindings, isClassBased);
@@ -891,6 +908,19 @@ function updateStyling(
   if (!(tNode.type & TNodeType.AnyRNode)) {
     // It is possible to have styling on non-elements (such as ng-container).
     // This is rare, but it does happen. In such a case, just ignore the binding.
+    return;
+  }
+  const tStylingResolver =
+    tNode.attributeResolvers !== null
+      ? tNode.attributeResolvers.find(
+          (tAttributeResolver) => tAttributeResolver.name === (isClassBased ? 'class' : 'style'),
+        )
+      : undefined;
+  if (
+    tStylingResolver !== undefined &&
+    (tStylingResolver.owners.length > 0 ||
+      lView[tStylingResolver.index + AttributeResolverSlot.AutoResolver] !== null)
+  ) {
     return;
   }
   const tData = tView.data;

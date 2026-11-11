@@ -17,6 +17,8 @@ import {
   ExternalExpr,
   ExternalReference,
   ForwardRefHandling,
+  getHostListenerAttributeResolver,
+  getHostListenerAttributeResolverError,
   getSafePropertyAccessString,
   HostBindingDecorator,
   HostListenerDecorator,
@@ -36,6 +38,7 @@ import {
   R3QueryMetadata,
   R3Reference,
   SourceNode,
+  verifyHostAttributeResolvers,
   verifyHostBindings,
   WrappedNodeExpr,
 } from '@angular/compiler';
@@ -759,6 +762,21 @@ function extractHostBindings(
             }
             args = resolvedArgs;
           }
+        }
+
+        const resolver = getHostListenerAttributeResolver(eventName);
+        if (resolver !== null) {
+          throw new FatalDiagnosticError(
+            ErrorCode.HOST_BINDING_PARSE_ERROR,
+            decorator.args !== null && decorator.args.length > 0
+              ? decorator.args[0]
+              : decorator.node,
+            getHostListenerAttributeResolverError(
+              eventName,
+              resolver.attribute,
+              `${member.name}(${args.join(',')})`,
+            ),
+          );
         }
 
         if (ts.isDecorator(decorator.node)) {
@@ -2083,7 +2101,36 @@ function evaluateHostExpressionBindings(
     );
   }
 
+  const resolverError = verifyHostAttributeResolvers(
+    bindings.listeners,
+    createSourceSpan(hostExpr),
+  );
+  if (resolverError !== null) {
+    // A listener's key is its event name in parentheses.
+    const property = getHostProperty(hostExpr, `(${resolverError.listener})`);
+    throw new FatalDiagnosticError(
+      ErrorCode.HOST_BINDING_PARSE_ERROR,
+      (resolverError.inHandler ? property?.initializer : property?.name) ?? hostExpr,
+      resolverError.message,
+    );
+  }
+
   return bindings;
+}
+
+function getHostProperty(hostExpr: ts.Expression, key: string): ts.PropertyAssignment | null {
+  if (ts.isObjectLiteralExpression(hostExpr)) {
+    for (const prop of hostExpr.properties) {
+      if (
+        ts.isPropertyAssignment(prop) &&
+        ts.isStringLiteral(prop.name) &&
+        prop.name.text === key
+      ) {
+        return prop;
+      }
+    }
+  }
+  return null;
 }
 
 /**

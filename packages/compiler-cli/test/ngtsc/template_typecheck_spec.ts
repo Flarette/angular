@@ -1181,6 +1181,1141 @@ runInEachFileSystem(() => {
       });
     });
 
+    describe('strictOutputEventTypes and class resolver bindings', () => {
+      beforeEach(() => {
+        env.write(
+          'test.ts',
+          `
+          import {ClassResolveEvent, Component} from '@angular/core';
+
+          @Component({
+            selector: 'test',
+            template: \`
+              <div (attr.class)="resolve($event)"></div>
+              <span (attr.class)="count($event)"></span>
+              <p (class)="(cn) => 'x'"></p>
+            \`,
+          })
+          class TestCmp {
+            resolve(event: ClassResolveEvent) {}
+            count(value: number) {}
+          }
+        `,
+        );
+      });
+
+      it('should infer the type of $event as ClassResolveEvent and check the shorthand when enabled', () => {
+        env.tsconfig({strictTemplates: true});
+
+        const diags = env.driveDiagnostics();
+        expect(diags.map((diag) => diag.messageText)).toEqual([
+          `Argument of type 'ClassResolveEvent' is not assignable to parameter of type 'number'.`,
+          `Type 'string' is not assignable to type 'ResolvedAttribute'.`,
+          `Type 'string' does not satisfy the expected type 'ResolvedAttribute'.`,
+        ]);
+        expect(diags.map((diag) => getSourceCodeForDiagnostic(diag))).toEqual([
+          '$event',
+          `'x'`,
+          `(cn) => 'x'`,
+        ]);
+      });
+
+      it('should not infer the type of $event or check the shorthand when not enabled', () => {
+        env.tsconfig({strictTemplates: true, strictOutputEventTypes: false});
+
+        expect(env.driveDiagnostics()).toEqual([]);
+      });
+    });
+
+    describe('strictOutputEventTypes and attribute resolver bindings', () => {
+      beforeEach(() => {
+        env.write(
+          'test.ts',
+          `
+          import {Component} from '@angular/core';
+
+          @Component({
+            selector: 'test',
+            template: \`
+              <div (attr.role)="count($event)"></div>
+              <div (attr.style)="count($event)"></div>
+              <div (style)="(m) => 'x'"></div>
+            \`,
+          })
+          class TestCmp {
+            count(value: number) {}
+          }
+        `,
+        );
+      });
+
+      it('should infer the type of $event per attribute and check the (style) shorthand when enabled', () => {
+        env.tsconfig({strictTemplates: true});
+
+        const diags = env.driveDiagnostics();
+        expect(diags.map((diag) => diag.messageText)).toEqual([
+          `Argument of type 'AttributeResolveEvent' is not assignable to parameter of type 'number'.`,
+          `Argument of type 'StyleResolveEvent' is not assignable to parameter of type 'number'.`,
+          `Type 'string' is not assignable to type 'ResolvedAttribute'.`,
+          `Type 'string' does not satisfy the expected type 'ResolvedAttribute'.`,
+        ]);
+        expect(diags.map((diag) => getSourceCodeForDiagnostic(diag))).toEqual([
+          '$event',
+          '$event',
+          `'x'`,
+          `(m) => 'x'`,
+        ]);
+      });
+
+      it('should not infer the type of $event or check the (style) shorthand when not enabled', () => {
+        env.tsconfig({strictTemplates: true, strictOutputEventTypes: false});
+
+        expect(env.driveDiagnostics()).toEqual([]);
+      });
+    });
+
+    describe('class resolver bindings', () => {
+      function writeComponent(template: string, members: string, preamble = ''): void {
+        env.write(
+          'test.ts',
+          `
+          import {BoundClassResolver, ClassCallback, Component, Directive, EventEmitter, Input, Output, ResolvedAttribute} from '@angular/core';
+
+          ${preamble}
+
+          @Component({
+            selector: 'test',
+            imports: [${preamble === '' ? '' : 'TestDir'}],
+            template: \`${template}\`,
+          })
+          class TestCmp {
+            ${members}
+          }
+        `,
+        );
+      }
+
+      function flatten(diag: ts.Diagnostic): string {
+        return ts.flattenDiagnosticMessageText(diag.messageText, '\n');
+      }
+
+      function codesAndSources(): [number, string][] {
+        return env.driveDiagnostics().map((diag) => [diag.code, getSourceCodeForDiagnostic(diag)]);
+      }
+
+      it('should check the shorthand as a ClassCallback', () => {
+        writeComponent(
+          `<div (class)="(cn) => 'x'"></div>
+           <div (class)="(cn) => other()"></div>
+           <div (class)="classes()"></div>`,
+          `other() { return ''; }
+           classes() { return ''; }`,
+        );
+
+        const diags = env.driveDiagnostics();
+        expect(diags.map(flatten)).toEqual([
+          `Type 'string' is not assignable to type 'ResolvedAttribute'.`,
+          `Type 'string' does not satisfy the expected type 'ResolvedAttribute'.`,
+          `Type 'string' is not assignable to type 'ResolvedAttribute'.`,
+          `Type 'string' does not satisfy the expected type 'ResolvedAttribute'.`,
+          `This expression is not callable.\n  Type 'String' has no call signatures.`,
+          `Type 'string' does not satisfy the expected type 'ClassCallback'.`,
+        ]);
+        expect(diags.map((diag) => [diag.code, getSourceCodeForDiagnostic(diag)])).toEqual([
+          [2322, `'x'`],
+          [1360, `(cn) => 'x'`],
+          [2322, 'other'],
+          [1360, '(cn) => other()'],
+          [2349, 'classes()'],
+          [1360, 'classes()'],
+        ]);
+      });
+
+      it('should accept a ClassCallback in the shorthand', () => {
+        writeComponent(
+          `<div (class)="(cn) => cn('a', ['b'], {c: true})"></div>
+           <div (class)="callback"></div>
+           <div (class)="(cn) => $event.resolver($event.sources[2])"></div>`,
+          `callback: ClassCallback = (cn) => cn();`,
+        );
+
+        expect(env.driveDiagnostics()).toEqual([]);
+      });
+
+      for (const name of ['cn', '$event']) {
+        it(`should infer the parameter named ${name} of an arrow function in the shorthand`, () => {
+          writeComponent(`<div (class)="(${name}) => ${name}(42)"></div>`, '');
+
+          const diags = env.driveDiagnostics();
+          expect(diags.map(flatten)).toEqual([
+            `Argument of type '42' is not assignable to parameter of type 'ClassBindingValue'.`,
+          ]);
+          expect(getSourceCodeForDiagnostic(diags[0])).toBe('42');
+        });
+      }
+
+      it('should check a safe read in the shorthand as it is called', () => {
+        writeComponent(
+          `<div (class)="choice?.classes"></div>`,
+          `choice: {classes: ClassCallback} | null = null;`,
+        );
+
+        const diags = env.driveDiagnostics();
+        expect(diags.map(flatten)).toEqual([
+          `Type 'ClassCallback | undefined' does not satisfy the expected type 'ClassCallback'.\n` +
+            `  Type 'undefined' is not assignable to type 'ClassCallback'.`,
+        ]);
+        expect(getSourceCodeForDiagnostic(diags[0])).toBe('choice?.classes');
+      });
+
+      describe('with methods that declare this', () => {
+        const members = `
+          active = false;
+          extra = 'extra';
+          first(this: TestCmp, cn: BoundClassResolver) {
+            return cn();
+          }
+          classes(this: TestCmp, cn: BoundClassResolver) {
+            return cn(this.extra);
+          }`;
+
+        it('should check this when the shorthand calls a method it reads from a conditional', () => {
+          writeComponent(`<div (class)="active ? first : classes"></div>`, members);
+
+          expect(codesAndSources()).toEqual([[2684, 'active ? first : classes']]);
+        });
+
+        it('should check this when the literal expansion calls a method it reads from a conditional', () => {
+          writeComponent(
+            `<div (attr.class)="$event.resolve((active ? first : classes)($event.resolver))"></div>`,
+            members,
+          );
+
+          expect(codesAndSources()).toEqual([
+            [2684, '(active ? first : classes)($event.resolver)'],
+          ]);
+        });
+
+        it('should accept a shorthand that reads a method that declares this', () => {
+          writeComponent(`<div (class)="classes"></div>`, members);
+
+          expect(codesAndSources()).toEqual([]);
+        });
+
+        it('should check this when the shorthand calls a method it reads from a conditional without strictOutputEventTypes', () => {
+          env.tsconfig({strictTemplates: true, strictOutputEventTypes: false});
+          writeComponent(`<div (class)="active ? first : classes"></div>`, members);
+
+          expect(codesAndSources()).toEqual([[2684, 'active ? first : classes']]);
+        });
+      });
+
+      it('should check the result of the overload that the shorthand calls', () => {
+        writeComponent(
+          `<div (class)="classes"></div>`,
+          `classes(cn: BoundClassResolver): number;
+           classes(cn: unknown): ResolvedAttribute;
+           classes(cn: unknown): any { return null; }`,
+        );
+
+        expect(codesAndSources()).toEqual([[1360, 'classes']]);
+      });
+
+      it('should check the argument of the overload that the shorthand calls', () => {
+        writeComponent(
+          `<div (class)="classes"></div>`,
+          `classes(): ResolvedAttribute;
+           classes(n: number): ResolvedAttribute;
+           classes(n?: number): any { return null; }`,
+        );
+
+        expect(codesAndSources()).toEqual([[2345, 'classes']]);
+      });
+
+      it('should check the number of parameters of an arrow function in the shorthand', () => {
+        writeComponent(`<div (class)="() => saved"></div>`, `saved!: ResolvedAttribute;`);
+
+        expect(codesAndSources()).toEqual([[2554, '() => saved']]);
+      });
+
+      it('should report every check that a callback with the wrong parameter fails', () => {
+        writeComponent(`<div (class)="onClick"></div>`, `onClick(e: MouseEvent): void {}`);
+
+        expect(codesAndSources()).toEqual([
+          [1360, 'onClick'],
+          [2345, 'onClick'],
+          [1360, 'onClick'],
+        ]);
+      });
+
+      it('should infer the parameter of an arrow function in both branches of a conditional', () => {
+        writeComponent(
+          `<div (class)="active ? (cn) => cn('a') : (cn) => cn(42)"></div>`,
+          `active = false;`,
+        );
+
+        expect(
+          env.driveDiagnostics().map((diag) => [diag.code, getSourceCodeForDiagnostic(diag)]),
+        ).toEqual([[2345, '42']]);
+      });
+
+      it('should accept a conditional between methods that do not declare this', () => {
+        writeComponent(
+          `<div (class)="active ? plainA : plainB"></div>`,
+          `active = false;
+           plainA(cn: BoundClassResolver) { return cn('a'); }
+           plainB(cn: BoundClassResolver) { return cn('b'); }`,
+        );
+
+        expect(env.driveDiagnostics()).toEqual([]);
+      });
+
+      it('should keep the narrowing of an @if block in a conditional in the shorthand', () => {
+        writeComponent(
+          `@if (callback) { <div (class)="active ? callback : classes"></div> }`,
+          `callback: ClassCallback | null = null;
+           active = true;
+           extra = 'extra';
+           readonly classes = (cn: BoundClassResolver) => cn(this.extra);`,
+        );
+
+        expect(env.driveDiagnostics()).toEqual([]);
+      });
+
+      it('should check the earlier expressions of a shorthand chain as statements', () => {
+        writeComponent(
+          `<div (class)="count($event); (cn) => 'x'"></div>`,
+          `count(value: number) {}`,
+        );
+
+        const diags = env.driveDiagnostics();
+        expect(
+          diags.map((diag) => [diag.code, flatten(diag), getSourceCodeForDiagnostic(diag)]),
+        ).toEqual(
+          jasmine.arrayWithExactContents([
+            [
+              ngErrorCode(ErrorCode.TEMPLATE_PARSE_ERROR),
+              `A '(class)' shorthand must be a single expression, a function that receives the ` +
+                `resolver. Bind '(attr.class)' to run more than one statement.`,
+              `count($event); (cn) => 'x'`,
+            ],
+            [
+              2345,
+              `Argument of type 'ClassResolveEvent' is not assignable to parameter of type 'number'.`,
+              '$event',
+            ],
+            [2322, `Type 'string' is not assignable to type 'ResolvedAttribute'.`, `'x'`],
+            [
+              1360,
+              `Type 'string' does not satisfy the expected type 'ResolvedAttribute'.`,
+              `(cn) => 'x'`,
+            ],
+          ]),
+        );
+      });
+
+      it('should not let a directive output named class claim a (class) binding', () => {
+        env.tsconfig({
+          strictTemplates: true,
+          extendedDiagnostics: {checks: {outputShadowedByAttributeResolver: 'suppress'}},
+        });
+        writeComponent(
+          `<div dir (class)="h"></div>`,
+          `h(e: number) {}`,
+          `@Directive({selector: '[dir]'})
+           class TestDir {
+             @Output('class') changed = new EventEmitter<string>();
+           }`,
+        );
+
+        const diags = env.driveDiagnostics();
+        expect(diags.map(flatten)).toEqual([
+          `Type '(e: number) => void' does not satisfy the expected type 'ClassCallback'.\n` +
+            `  Types of parameters 'e' and 'cn' are incompatible.\n` +
+            `    Type 'BoundClassResolver' is not assignable to type 'number'.`,
+          `Argument of type '(...extras: ClassBindingValue[]) => ResolvedAttribute' is not ` +
+            `assignable to parameter of type 'number'.`,
+          `Type 'void' does not satisfy the expected type 'ResolvedAttribute'.`,
+        ]);
+        expect(diags.map((diag) => [diag.code, getSourceCodeForDiagnostic(diag)])).toEqual([
+          [1360, 'h'],
+          [2345, 'h'],
+          [1360, 'h'],
+        ]);
+      });
+
+      it('should not let a directive output named attr.class claim an (attr.class) binding', () => {
+        env.tsconfig({
+          strictTemplates: true,
+          extendedDiagnostics: {checks: {outputShadowedByAttributeResolver: 'suppress'}},
+        });
+        writeComponent(
+          `<div dir (attr.class)="h($event)"></div>`,
+          `h(e: number) {}`,
+          `@Directive({selector: '[dir]'})
+           class TestDir {
+             @Output('attr.class') changed = new EventEmitter<string>();
+           }`,
+        );
+
+        const diags = env.driveDiagnostics();
+        expect(diags.map(flatten)).toEqual([
+          `Argument of type 'ClassResolveEvent' is not assignable to parameter of type 'number'.`,
+        ]);
+        expect(getSourceCodeForDiagnostic(diags[0])).toBe('$event');
+      });
+
+      it('should warn when a class resolver shadows a host directive output exposed as class or attr.class', () => {
+        writeComponent(
+          `<div dir (class)="(cn) => cn()"></div>
+           <div dir (attr.class)="$event.resolve($event.resolver())"></div>`,
+          '',
+          `@Directive()
+           class Events {
+             @Output() changed = new EventEmitter<number>();
+             @Output() resolved = new EventEmitter<number>();
+           }
+
+           @Directive({
+             selector: '[dir]',
+             hostDirectives: [{directive: Events, outputs: ['changed: class', 'resolved: attr.class']}],
+           })
+           class TestDir {}`,
+        );
+
+        const diags = env.driveDiagnostics();
+        expect(diags.map((diag) => [diag.code, diag.category])).toEqual([
+          [
+            ngErrorCode(ErrorCode.OUTPUT_SHADOWED_BY_ATTRIBUTE_RESOLVER),
+            ts.DiagnosticCategory.Warning,
+          ],
+          [
+            ngErrorCode(ErrorCode.OUTPUT_SHADOWED_BY_ATTRIBUTE_RESOLVER),
+            ts.DiagnosticCategory.Warning,
+          ],
+        ]);
+      });
+
+      it('should check an output named class that a host directive exposes under another name as an ordinary output', () => {
+        writeComponent(
+          `<div dir (changed)="accept($event)"></div>`,
+          `accept(value: number) {}`,
+          `@Directive()
+           class Events {
+             @Output('class') changed = new EventEmitter<string>();
+           }
+
+           @Directive({
+             selector: '[dir]',
+             hostDirectives: [{directive: Events, outputs: ['class: changed']}],
+           })
+           class TestDir {}`,
+        );
+
+        const diags = env.driveDiagnostics();
+        expect(diags.map(flatten)).toEqual([
+          `Argument of type 'string' is not assignable to parameter of type 'number'.`,
+        ]);
+        expect(getSourceCodeForDiagnostic(diags[0])).toBe('$event');
+      });
+
+      it('should not check a two-way binding to an input named class as a class resolver', () => {
+        writeComponent(
+          `<div dir [(class)]="classes"></div>`,
+          `classes = 'initial';`,
+          `@Directive({selector: '[dir]'})
+           class TestDir {
+             @Input('class') value = '';
+             @Output() classChange = new EventEmitter<string>();
+           }`,
+        );
+
+        expect(env.driveDiagnostics()).toEqual([]);
+      });
+
+      it('should check a (class) binding under a structural directive once, as a resolver', () => {
+        writeComponent(
+          `<div *dir (class)="(cn) => 'x'"></div>`,
+          '',
+          `@Directive({selector: '[dir]'})
+           class TestDir {}`,
+        );
+
+        const diags = env.driveDiagnostics();
+        expect(diags.map(flatten)).toEqual([
+          `Type 'string' is not assignable to type 'ResolvedAttribute'.`,
+          `Type 'string' does not satisfy the expected type 'ResolvedAttribute'.`,
+        ]);
+        expect(diags.map((diag) => getSourceCodeForDiagnostic(diag))).toEqual([
+          `'x'`,
+          `(cn) => 'x'`,
+        ]);
+      });
+
+      it('should report a class resolver on a container', () => {
+        writeComponent(
+          `<ng-container (class)="noop()"></ng-container>
+           <ng-container (attr.class)="noop()"></ng-container>`,
+          `noop() {}`,
+        );
+
+        const diags = env.driveDiagnostics();
+        expect(diags.map((diag) => diag.code)).toEqual([
+          ngErrorCode(ErrorCode.ATTRIBUTE_RESOLVER_ON_CONTAINER),
+          ngErrorCode(ErrorCode.ATTRIBUTE_RESOLVER_ON_CONTAINER),
+        ]);
+        expect(diags.map((diag) => diag.category)).toEqual([
+          ts.DiagnosticCategory.Error,
+          ts.DiagnosticCategory.Error,
+        ]);
+        expect(diags.map((diag) => getSourceCodeForDiagnostic(diag))).toEqual([
+          'class',
+          'attr.class',
+        ]);
+        expect(diags[0].messageText).toBe(
+          `The '(class)' binding can't resolve classes on '<ng-container>' or '<ng-template>', ` +
+            `because neither is rendered as an element. Bind it on an element instead.`,
+        );
+      });
+
+      it('should report an (attr.role) resolver on a container', () => {
+        writeComponent(`<ng-container (attr.role)="noop()"></ng-container>`, `noop() {}`);
+
+        const diags = env.driveDiagnostics();
+        expect(diags.map((diag) => diag.code)).toEqual([
+          ngErrorCode(ErrorCode.ATTRIBUTE_RESOLVER_ON_CONTAINER),
+        ]);
+        expect(getSourceCodeForDiagnostic(diags[0])).toBe('attr.role');
+        expect(diags[0].messageText).toBe(
+          `The '(attr.role)' binding can't resolve the 'role' attribute on '<ng-container>' or ` +
+            `'<ng-template>', because neither is rendered as an element. Bind it on an element ` +
+            `instead.`,
+        );
+      });
+
+      it('should report a (style) resolver on a container', () => {
+        writeComponent(`<ng-container (style)="noop()"></ng-container>`, `noop() {}`);
+
+        const diags = env.driveDiagnostics();
+        expect(diags.map((diag) => diag.code)).toEqual([
+          ngErrorCode(ErrorCode.ATTRIBUTE_RESOLVER_ON_CONTAINER),
+        ]);
+        expect(getSourceCodeForDiagnostic(diags[0])).toBe('style');
+        expect(diags[0].messageText).toBe(
+          `The '(style)' binding can't resolve the 'style' attribute on '<ng-container>' or ` +
+            `'<ng-template>', because neither is rendered as an element. Bind it on an element ` +
+            `instead.`,
+        );
+      });
+
+      it('should report a class resolver on a container next to a directive output named class', () => {
+        writeComponent(
+          `<ng-container dir (class)="h()"></ng-container>`,
+          `h() {}`,
+          `@Directive({selector: '[dir]'})
+           class TestDir {
+             @Output('class') changed = new EventEmitter<string>();
+           }`,
+        );
+
+        const diags = env.driveDiagnostics();
+        expect(diags.map((diag) => diag.code)).toEqual([
+          ngErrorCode(ErrorCode.ATTRIBUTE_RESOLVER_ON_CONTAINER),
+        ]);
+        expect(getSourceCodeForDiagnostic(diags[0])).toBe('class');
+      });
+
+      it('should report a class resolver on an ng-container in the svg namespace', () => {
+        writeComponent(
+          `<svg><ng-container (class)="accept($event)"></ng-container></svg>`,
+          `accept(event: Event) {}`,
+        );
+
+        const diags = env.driveDiagnostics();
+        expect(diags.map((diag) => diag.code)).toEqual([
+          ngErrorCode(ErrorCode.ATTRIBUTE_RESOLVER_ON_CONTAINER),
+        ]);
+      });
+
+      for (const namespace of ['svg', 'math']) {
+        it(`should check the handler with $event as any after reporting a class resolver on an ng-container in the ${namespace} namespace`, () => {
+          writeComponent(
+            `<${namespace}><ng-container (attr.class)="h($event); missing()"></ng-container></${namespace}>`,
+            `h(e: number) {}`,
+          );
+
+          expect(env.driveDiagnostics().map((diag) => diag.messageText)).toEqual(
+            jasmine.arrayWithExactContents([
+              `The '(attr.class)' binding can't resolve classes on '<ng-container>' or ` +
+                `'<ng-template>', because neither is rendered as an element. Bind it on an ` +
+                `element instead.`,
+              `Property 'missing' does not exist on type 'TestCmp'.`,
+            ]),
+          );
+        });
+      }
+    });
+
+    describe('attribute resolver bindings', () => {
+      function writeComponent(template: string, members: string, imports = ''): void {
+        env.write(
+          'test.ts',
+          `
+          import {Component${imports}} from '@angular/core';
+
+          @Component({
+            selector: 'test',
+            template: \`${template}\`,
+          })
+          class TestCmp {
+            ${members}
+          }
+        `,
+        );
+      }
+
+      function codesAndSources(): [number, string][] {
+        return env.driveDiagnostics().map((diag) => [diag.code, getSourceCodeForDiagnostic(diag)]);
+      }
+
+      it('should reject false in resolve() of an (attr.role) binding, which (attr.class) accepts', () => {
+        writeComponent(
+          `<div (attr.class)="$event.resolve(false)"></div>
+           <div (attr.role)="$event.resolve(false)"></div>`,
+          '',
+        );
+
+        expect(codesAndSources()).toEqual([[2345, 'false']]);
+      });
+
+      it('should reject a Set in the resolver of an (attr.role) binding, which (attr.class) accepts', () => {
+        writeComponent(
+          `<div (attr.class)="$event.resolve($event.resolver(extras))"></div>
+           <div (attr.role)="$event.resolve($event.resolver(extras))"></div>`,
+          `readonly extras = new Set(['a']);`,
+        );
+
+        expect(codesAndSources()).toEqual([[2345, 'extras']]);
+      });
+
+      it('should accept attribute values in an (attr.role) binding', () => {
+        writeComponent(
+          `<div (attr.role)="$event.resolve('button')"></div>
+           <div (attr.role)="$event.resolve(['a', 'b'])"></div>
+           <div (attr.role)="$event.resolve(null)"></div>
+           <div (attr.role)="$event.resolve($event.resolver('a', ['b'], $event.sources[2]))"></div>`,
+          '',
+        );
+
+        expect(env.driveDiagnostics()).toEqual([]);
+      });
+
+      it('should accept style values in a (style) callback and an (attr.style) binding', () => {
+        writeComponent(
+          `<div (style)="(s) => s({color: 'red'}, 'padding: 4px', ['margin: 0'], null)"></div>
+           <div (style)="styles"></div>
+           <div (attr.style)="$event.resolve({color: 'red'})"></div>`,
+          `styles = (s: StyleResolveEvent['resolver']) => s({width: '1px'});`,
+          ', StyleResolveEvent',
+        );
+
+        expect(env.driveDiagnostics()).toEqual([]);
+      });
+
+      it('should accept an interface-typed map and a trusted style as style values', () => {
+        env.write(
+          'test.ts',
+          `
+          import {Component, ɵSafeStyle} from '@angular/core';
+
+          interface Palette {
+            color: string;
+            padding?: string;
+          }
+
+          @Component({
+            selector: 'test',
+            template: \`
+              <div (style)="(s) => s(palette, trusted)"></div>
+              <div (attr.style)="$event.resolve($event.resolver(palette, trusted))"></div>
+              <div (attr.style)="$event.resolve(palette)"></div>
+              <div (attr.style)="$event.resolve(trusted)"></div>
+            \`,
+          })
+          class TestCmp {
+            readonly palette: Palette = {color: 'red'};
+            readonly trusted = {} as ɵSafeStyle;
+          }
+        `,
+        );
+
+        expect(env.driveDiagnostics()).toEqual([]);
+      });
+
+      it('should reject numbers, booleans, and functions as style values', () => {
+        writeComponent(
+          `<div (style)="(s) => s(true)"></div>
+           <div (style)="(s) => s(styles)"></div>
+           <div (attr.style)="$event.resolve(42)"></div>
+           <div (attr.style)="$event.resolve(false)"></div>
+           <div (attr.style)="$event.resolve(styles)"></div>
+           <div (attr.style)="$event.resolve($event.resolver(1, styles))"></div>`,
+          `readonly styles = () => 'color: red';`,
+        );
+
+        expect(codesAndSources()).toEqual([
+          [2345, 'true'],
+          [2345, 'styles'],
+          [2345, '42'],
+          [2345, 'false'],
+          [2345, 'styles'],
+          [2345, '1'],
+        ]);
+      });
+
+      it('should reject a callable map with a string index signature as a style value', () => {
+        writeComponent(
+          `<div (style)="(s) => s(callablePalette)"></div>
+           <div (attr.style)="$event.resolve(callablePalette)"></div>
+           <div (attr.style)="$event.resolve($event.resolver(callablePalette))"></div>`,
+          `readonly palette: Record<string, string> = {color: 'red'};
+           readonly callablePalette = Object.assign(() => {}, this.palette);`,
+        );
+
+        expect(codesAndSources()).toEqual([
+          [2345, 'callablePalette'],
+          [2345, 'callablePalette'],
+          [2345, 'callablePalette'],
+        ]);
+      });
+
+      it('should reject a callable map as a class value and as an attribute value', () => {
+        writeComponent(
+          `<div (class)="(cn) => cn(callableClasses)"></div>
+           <div (attr.class)="$event.resolve(callableClasses)"></div>
+           <div (attr.class)="$event.resolve($event.resolver(callableClasses))"></div>
+           <div (attr.role)="$event.resolve(callableClasses)"></div>
+           <div (attr.role)="$event.resolve($event.resolver(callableClasses))"></div>`,
+          `readonly classes: Record<string, boolean> = {active: true};
+           readonly callableClasses = Object.assign(() => {}, this.classes);`,
+        );
+
+        expect(codesAndSources()).toEqual([
+          [2345, 'callableClasses'],
+          [2345, 'callableClasses'],
+          [2345, 'callableClasses'],
+          [2345, 'callableClasses'],
+          [2345, 'callableClasses'],
+        ]);
+      });
+
+      it('should reject callable arrays and sets as class, style, and attribute values', () => {
+        writeComponent(
+          `<div (class)="(cn) => cn(callableNames)"></div>
+           <div (class)="(cn) => cn(callableSet)"></div>
+           <div (attr.class)="$event.resolve(callableNames)"></div>
+           <div (attr.class)="$event.resolve(callableSet)"></div>
+           <div (attr.class)="$event.resolve($event.resolver(callableNames))"></div>
+           <div (attr.class)="$event.resolve($event.resolver(callableSet))"></div>
+           <div (style)="(s) => s(callableNames)"></div>
+           <div (attr.style)="$event.resolve(callableNames)"></div>
+           <div (attr.style)="$event.resolve(callableSet)"></div>
+           <div (attr.style)="$event.resolve($event.resolver(callableNames))"></div>
+           <div (attr.role)="$event.resolve(callableNames)"></div>
+           <div (attr.role)="$event.resolve(callableSet)"></div>
+           <div (attr.role)="$event.resolve($event.resolver(callableNames))"></div>`,
+          `readonly callableNames = Object.assign(() => {}, ['active']);
+           readonly callableSet = Object.assign(() => {}, new Set(['active']));`,
+        );
+
+        expect(codesAndSources()).toEqual([
+          [2345, 'callableNames'],
+          [2345, 'callableSet'],
+          [2345, 'callableNames'],
+          [2345, 'callableSet'],
+          [2345, 'callableNames'],
+          [2345, 'callableSet'],
+          [2345, 'callableNames'],
+          [2345, 'callableNames'],
+          [2345, 'callableSet'],
+          [2345, 'callableNames'],
+          [2345, 'callableNames'],
+          [2345, 'callableSet'],
+          [2345, 'callableNames'],
+        ]);
+      });
+
+      it('should accept readonly arrays and sets as class, style, and attribute values', () => {
+        writeComponent(
+          `<div (class)="(cn) => cn(names, nameSet)"></div>
+           <div (attr.class)="$event.resolve(names)"></div>
+           <div (attr.class)="$event.resolve(nameSet)"></div>
+           <div (attr.class)="$event.resolve($event.resolver(names, nameSet))"></div>
+           <div (style)="(s) => s(declarations)"></div>
+           <div (attr.style)="$event.resolve(declarations)"></div>
+           <div (attr.style)="$event.resolve($event.resolver(declarations))"></div>
+           <div (attr.role)="$event.resolve(names)"></div>
+           <div (attr.role)="$event.resolve($event.resolver(names))"></div>`,
+          `readonly names: readonly string[] = ['active'];
+           readonly nameSet: ReadonlySet<string> = new Set(['active']);
+           readonly declarations: readonly string[] = ['color: red'];`,
+        );
+
+        expect(env.driveDiagnostics()).toEqual([]);
+      });
+
+      it('should accept a class map with a key named call', () => {
+        writeComponent(
+          `<div (class)="(cn) => cn({call: true})"></div>
+           <div (attr.class)="$event.resolve({call: true})"></div>`,
+          '',
+        );
+
+        expect(env.driveDiagnostics()).toEqual([]);
+      });
+
+      it('should accept maps, trusted styles, arrays, and resolved styles in an (attr.style) binding', () => {
+        env.write(
+          'test.ts',
+          `
+          import {Component, ResolvedAttribute, ɵSafeStyle} from '@angular/core';
+
+          interface Palette {
+            color: string;
+            padding?: string;
+          }
+
+          @Component({
+            selector: 'test',
+            template: \`
+              <div (attr.style)="$event.resolve($event.resolver(palette, {color: 'red'}, trusted, ['margin: 0']))"></div>
+              <div (attr.style)="$event.resolve(['margin: 0'])"></div>
+              <div (attr.style)="$event.resolve(resolved)"></div>
+            \`,
+          })
+          class TestCmp {
+            readonly palette: Palette = {color: 'red'};
+            readonly trusted = {} as ɵSafeStyle;
+            readonly resolved = {} as ResolvedAttribute;
+          }
+        `,
+        );
+
+        expect(env.driveDiagnostics()).toEqual([]);
+      });
+
+      it('should reject resolved styles and iterables other than arrays as style extras', () => {
+        writeComponent(
+          `<div (attr.style)="$event.resolve($event.resolver(resolved))"></div>
+           <div (attr.style)="$event.resolve($event.resolver($event.resolver()))"></div>
+           <div (attr.style)="$event.resolve($event.resolver(declarations))"></div>
+           <div (attr.style)="$event.resolve($event.resolver(map))"></div>
+           <div (attr.style)="$event.resolve($event.resolver(iterable))"></div>
+           <div (attr.style)="$event.resolve(declarations)"></div>`,
+          `readonly resolved = {} as ResolvedAttribute;
+           readonly declarations = new Set(['color: red']);
+           readonly map = new Map();
+           readonly iterable = {
+             *[Symbol.iterator]() {
+               yield 'color: red';
+             },
+           };`,
+          ', ResolvedAttribute',
+        );
+
+        expect(codesAndSources()).toEqual([
+          [2345, 'resolved'],
+          [2345, 'resolver'],
+          [2345, 'declarations'],
+          [2345, 'map'],
+          [2345, 'iterable'],
+          [2345, 'declarations'],
+        ]);
+      });
+
+      it('should check the (style) shorthand as a callback that receives the style resolver', () => {
+        writeComponent(
+          `<div (style)="(m) => 'x'"></div>
+           <div (style)="(m) => m(42)"></div>
+           <div (style)="onClick"></div>`,
+          `onClick(e: MouseEvent): void {}`,
+        );
+
+        expect(codesAndSources()).toEqual([
+          [2322, `'x'`],
+          [1360, `(m) => 'x'`],
+          [2345, '42'],
+          [1360, 'onClick'],
+          [2345, 'onClick'],
+          [1360, 'onClick'],
+        ]);
+      });
+    });
+
+    describe('property bindings that bypass a resolver', () => {
+      function writeComponent(template: string, directive: string, options = ''): void {
+        env.write(
+          'test.ts',
+          `
+          import {Component, Directive, HostBinding} from '@angular/core';
+
+          @Directive({selector: '[dir]', ${options}})
+          class TestDir {
+            ${directive}
+          }
+
+          @Component({
+            selector: 'test',
+            imports: [TestDir],
+            template: \`${template}\`,
+          })
+          class TestCmp {
+            value = '';
+            resolve(event: unknown) {}
+          }
+        `,
+        );
+      }
+
+      function codesAndSources(): [number, string][] {
+        return env.driveDiagnostics().map((diag) => [diag.code, getSourceCodeForDiagnostic(diag)]);
+      }
+
+      const code = ngErrorCode(ErrorCode.PROPERTY_BINDING_BYPASSES_RESOLVER);
+
+      it('should warn when a template property binding writes an attribute that the element resolves', () => {
+        writeComponent(`<div dir [title]="value" (attr.title)="resolve($event)"></div>`, '');
+
+        const diags = env.driveDiagnostics();
+        expect(diags.map((diag) => [diag.code, diag.category])).toEqual([
+          [code, ts.DiagnosticCategory.Warning],
+        ]);
+        expect(getSourceCodeForDiagnostic(diags[0])).toBe('title');
+      });
+
+      it('should report the check as an error when configured', () => {
+        env.tsconfig({
+          strictTemplates: true,
+          extendedDiagnostics: {checks: {propertyBindingBypassesResolver: 'error'}},
+        });
+        writeComponent(`<div dir [title]="value" (attr.title)="resolve($event)"></div>`, '');
+
+        const diags = env.driveDiagnostics();
+        expect(diags.map((diag) => [diag.code, diag.category])).toEqual([
+          [code, ts.DiagnosticCategory.Error],
+        ]);
+      });
+
+      it('should warn when a template property binding writes an attribute that a directive resolves in its host', () => {
+        writeComponent(
+          `<div dir [title]="value"></div>`,
+          'resolve(event: unknown) {}',
+          `host: {'(attr.title)': 'resolve($event)'}`,
+        );
+
+        const diags = env.driveDiagnostics();
+        expect(diags.map((diag) => [diag.code, getSourceCodeForDiagnostic(diag)])).toEqual([
+          [code, 'title'],
+        ]);
+        expect(ts.flattenDiagnosticMessageText(diags[0].messageText, '\n')).toContain(
+          'The `title` property binding writes the `title` attribute, which the `(attr.title)` ' +
+            'host binding of `TestDir` resolves.',
+        );
+      });
+
+      it('should warn on the element when a directive host binding writes an attribute that the element resolves', () => {
+        writeComponent(
+          `<div dir (attr.title)="resolve($event)"></div>`,
+          '',
+          `host: {'[title]': '"x"'}`,
+        );
+
+        const diags = env.driveDiagnostics();
+        expect(diags.map((diag) => [diag.code, getSourceCodeForDiagnostic(diag)])).toEqual([
+          [code, '<div dir (attr.title)="resolve($event)">'],
+        ]);
+        expect(ts.flattenDiagnosticMessageText(diags[0].messageText, '\n')).toContain(
+          'The `title` host property binding of `TestDir` writes the `title` attribute, which the ' +
+            "element's `(attr.title)` binding resolves.",
+        );
+      });
+
+      it('should warn on the element for a @HostBinding', () => {
+        writeComponent(
+          `<div dir (attr.title)="resolve($event)"></div>`,
+          `@HostBinding('title') title = 'x';`,
+        );
+
+        expect(codesAndSources()).toEqual([[code, '<div dir (attr.title)="resolve($event)">']]);
+      });
+
+      it('should warn once per template for a directive whose host binding bypasses its own host resolver', () => {
+        writeComponent(
+          `<div dir></div>
+           <span dir></span>`,
+          'resolve(event: unknown) {}',
+          `host: {'[title]': '"x"', '(attr.title)': 'resolve($event)'}`,
+        );
+
+        const diags = env.driveDiagnostics();
+        expect(diags.map((diag) => [diag.code, getSourceCodeForDiagnostic(diag)])).toEqual([
+          [code, '<div dir>'],
+        ]);
+        expect(ts.flattenDiagnosticMessageText(diags[0].messageText, '\n')).toContain(
+          'The `title` host property binding of `TestDir` writes the `title` attribute, which the ' +
+            '`(attr.title)` host binding of `TestDir` resolves.',
+        );
+      });
+
+      it('should not warn for host bindings that are sources of the resolver', () => {
+        writeComponent(
+          `<div dir></div>`,
+          'resolve(event: unknown) {}',
+          `host: {
+            '[attr.title]': '"x"',
+            '(attr.title)': 'resolve($event)',
+            '[class]': '"a"',
+            '[class.b]': 'true',
+            '(attr.class)': 'resolve($event)',
+          }`,
+        );
+
+        expect(env.driveDiagnostics()).toEqual([]);
+      });
+
+      it('should not warn for host bindings when host bindings are not type-checked', () => {
+        env.tsconfig({strictTemplates: true, typeCheckHostBindings: false});
+        writeComponent(
+          `<div dir (attr.title)="resolve($event)"></div>`,
+          '',
+          `host: {'[title]': '"x"'}`,
+        );
+
+        expect(env.driveDiagnostics()).toEqual([]);
+      });
+
+      it('should not warn for a directive inside an ngNonBindable element', () => {
+        writeComponent(
+          `<div ngNonBindable><span dir></span><p><b dir></b></p></div>`,
+          'resolve(event: unknown) {}',
+          `host: {'[title]': '"x"', '(attr.title)': 'resolve($event)'}`,
+        );
+
+        expect(env.driveDiagnostics()).toEqual([]);
+      });
+
+      it('should warn for a directive on the element that carries ngNonBindable', () => {
+        writeComponent(
+          `<div ngNonBindable dir></div>`,
+          'resolve(event: unknown) {}',
+          `host: {'[title]': '"x"', '(attr.title)': 'resolve($event)'}`,
+        );
+
+        expect(codesAndSources()).toEqual([[code, '<div ngNonBindable dir>']]);
+      });
+
+      describe('inherited from a base class', () => {
+        function writeInheritingComponent(
+          template: string,
+          base: string,
+          baseOptions = '',
+          imports = 'TestDir',
+        ): void {
+          env.write(
+            'base.ts',
+            `
+            import {Directive, HostBinding} from '@angular/core';
+
+            @Directive({${baseOptions}})
+            export class Base {
+              ${base}
+            }
+          `,
+          );
+          env.write(
+            'test.ts',
+            `
+            import {Component, Directive} from '@angular/core';
+            import {Base} from './base';
+
+            @Directive({selector: '[dir]'})
+            class TestDir extends Base {}
+
+            @Directive({selector: '[other]'})
+            class OtherDir extends Base {}
+
+            @Component({
+              selector: 'test',
+              imports: [${imports}],
+              template: \`${template}\`,
+            })
+            class TestCmp {
+              value = '';
+              resolve(event: unknown) {}
+            }
+          `,
+          );
+        }
+
+        it('should warn on the element for a host binding that the directive inherits', () => {
+          writeInheritingComponent(
+            `<div dir (attr.title)="resolve($event)"></div>`,
+            `@HostBinding('title') title = 'x';`,
+          );
+
+          const diags = env.driveDiagnostics();
+          expect(diags.map((diag) => [diag.code, getSourceCodeForDiagnostic(diag)])).toEqual([
+            [code, '<div dir (attr.title)="resolve($event)">'],
+          ]);
+          expect(ts.flattenDiagnosticMessageText(diags[0].messageText, '\n')).toContain(
+            'The `title` host property binding of `TestDir` writes the `title` attribute, which ' +
+              "the element's `(attr.title)` binding resolves.",
+          );
+        });
+
+        it('should warn when a template property binding writes an attribute that an inherited host resolver resolves', () => {
+          writeInheritingComponent(
+            `<div dir [title]="value"></div>`,
+            'resolve(event: unknown) {}',
+            `host: {'(attr.title)': 'resolve($event)'}`,
+          );
+
+          const diags = env.driveDiagnostics();
+          expect(diags.map((diag) => [diag.code, getSourceCodeForDiagnostic(diag)])).toEqual([
+            [code, 'title'],
+          ]);
+          expect(ts.flattenDiagnosticMessageText(diags[0].messageText, '\n')).toContain(
+            'the `(attr.title)` host binding of `TestDir` resolves.',
+          );
+        });
+
+        it('should warn once per directive that inherits a bypassing host binding', () => {
+          writeInheritingComponent(
+            `<div dir></div>
+             <span other></span>
+             <p dir></p>`,
+            'resolve(event: unknown) {}',
+            `host: {'[title]': '"x"', '(attr.title)': 'resolve($event)'}`,
+            'TestDir, OtherDir',
+          );
+
+          expect(codesAndSources()).toEqual([
+            [code, '<div dir>'],
+            [code, '<span other>'],
+          ]);
+        });
+
+        it('should not warn when an inherited host binding writes another attribute', () => {
+          writeInheritingComponent(
+            `<div dir (attr.title)="resolve($event)"></div>`,
+            `@HostBinding('id') id = 'x';`,
+          );
+
+          expect(env.driveDiagnostics()).toEqual([]);
+        });
+      });
+    });
+
     describe('strictOutputEventTypes and animation event bindings', () => {
       beforeEach(() => {
         env.write(

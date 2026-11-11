@@ -35,6 +35,7 @@ import {
   TI18n,
   TIcu,
 } from '../interfaces/i18n';
+import {AttributeResolverSlot} from '../interfaces/attribute_resolver';
 import {TNode} from '../interfaces/node';
 import {RElement, RNode, RText} from '../interfaces/renderer_dom';
 import {SanitizerFn} from '../interfaces/sanitization';
@@ -427,7 +428,9 @@ function applyUpdateOpCodes(
             switch (opCode & I18nUpdateOpCode.MASK_OPCODE) {
               case I18nUpdateOpCode.Attr:
                 const propName = updateOpCodes[++j] as string;
-                const sanitizeFn = updateOpCodes[++j] as SanitizerFn | null;
+                const sanitizeFnOrValueIndex = updateOpCodes[++j] as SanitizerFn | number | null;
+                const sanitizeFn =
+                  typeof sanitizeFnOrValueIndex === 'number' ? null : sanitizeFnOrValueIndex;
                 const tNodeOrTagName = tView.data[nodeIndex] as TNode | string;
                 ngDevMode && assertDefined(tNodeOrTagName, 'Experting TNode or string');
                 if (typeof tNodeOrTagName === 'string') {
@@ -444,6 +447,18 @@ function applyUpdateOpCodes(
                     sanitizeFn,
                   );
                 } else {
+                  if (typeof sanitizeFnOrValueIndex === 'number') {
+                    lView[sanitizeFnOrValueIndex] = value;
+                    const tAttributeResolver = tNodeOrTagName.attributeResolvers!.find(
+                      (tAttributeResolver) => tAttributeResolver.name === propName,
+                    )!;
+                    if (
+                      tAttributeResolver.owners.length > 0 ||
+                      lView[tAttributeResolver.index + AttributeResolverSlot.AutoResolver] !== null
+                    ) {
+                      break;
+                    }
+                  }
                   const prevSelectedIndex = getSelectedIndex();
                   setSelectedIndex(nodeIndex);
                   try {

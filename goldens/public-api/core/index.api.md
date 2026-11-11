@@ -191,6 +191,36 @@ export interface AttributeDecorator {
 }
 
 // @public
+export interface AttributeResolveEvent {
+    resolve(value: AttributeValue | ResolvedAttribute | null): void;
+    resolver(...extras: AttributeValue[]): ResolvedAttribute;
+    readonly sources: AttributeSources;
+}
+
+// @public
+export type AttributeResolver = (...values: string[]) => string | null;
+
+// @public
+export interface AttributeResolverFeature {
+    // (undocumented)
+    readonly ɵkind: AttributeResolverFeatureKind;
+    // (undocumented)
+    readonly ɵproviders: Provider[];
+}
+
+// @public
+export type AttributeSources = readonly [
+component: readonly string[],
+directives: readonly string[],
+template: readonly string[]
+];
+
+// @public
+export type AttributeValue = string | (readonly string[] & {
+    readonly call?: never;
+});
+
+// @public
 export interface BaseResourceOptions<T, R> {
     defaultValue?: NoInfer<T>;
     equal?: ValueEqualityFn<T>;
@@ -219,6 +249,12 @@ export interface BootstrapOptions {
 }
 
 // @public
+export type BoundClassResolver = (...extras: ClassBindingValue[]) => ResolvedAttribute;
+
+// @public
+export type BoundStyleResolver = (...extras: StyleBindingValue[]) => ResolvedAttribute;
+
+// @public
 export enum ChangeDetectionStrategy {
     // @deprecated
     Default = 1,
@@ -235,15 +271,46 @@ export abstract class ChangeDetectorRef {
 }
 
 // @public
+export type ClassBindingValue = string | (readonly string[] & {
+    readonly [Symbol.hasInstance]?: never;
+}) | (ReadonlySet<string> & {
+    readonly [Symbol.hasInstance]?: never;
+}) | ({
+    readonly [className: string]: unknown;
+} & {
+    readonly [Symbol.hasInstance]?: never;
+}) | null | undefined | false;
+
+// @public
+export type ClassCallback = (cn: BoundClassResolver) => ResolvedAttribute;
+
+// @public
 export interface ClassProvider extends ClassSansProvider {
     multi?: boolean;
     provide: any;
 }
 
 // @public
+export interface ClassResolveEvent {
+    resolve(classes: ClassBindingValue | ResolvedAttribute): void;
+    resolver(...extras: ClassBindingValue[]): ResolvedAttribute;
+    readonly sources: ClassSources;
+}
+
+// @public
+export type ClassResolver = (...classes: string[]) => string;
+
+// @public
 export interface ClassSansProvider {
     useClass: Type<any>;
 }
+
+// @public
+export type ClassSources = readonly [
+component: readonly string[],
+directives: readonly string[],
+template: readonly string[]
+];
 
 // @public @deprecated
 export class Compiler {
@@ -1141,6 +1208,15 @@ export class IterableDiffers {
 }
 
 // @public
+export function joinDeclarations(...declarations: string[]): string;
+
+// @public
+export function joinTokens(...tokens: string[]): string;
+
+// @public
+export function joinValues(separator: string): AttributeResolver;
+
+// @public
 export interface KeyValueChangeRecord<K, V> {
     readonly currentValue: V | null;
     readonly key: K;
@@ -1181,6 +1257,9 @@ export class KeyValueDiffers {
     // (undocumented)
     static ɵprov: _angular_core.ɵɵInjectableDeclaration<KeyValueDiffers>;
 }
+
+// @public
+export function lastValue(...values: string[]): string | null;
 
 // @public
 export function linkedSignal<D>(computation: () => D, options?: {
@@ -1503,6 +1582,12 @@ export interface PromiseResourceOptions<T, R> extends BaseResourceOptions<T, R> 
 export function provideAppInitializer(initializerFn: () => Observable<unknown> | Promise<unknown> | void): EnvironmentProviders;
 
 // @public
+export function provideAttributeResolvers(resolvers: {
+    readonly class?: ClassResolver;
+    readonly [name: string]: AttributeResolver | undefined;
+}, ...features: AttributeResolverFeature[]): Provider;
+
+// @public
 export function provideBrowserGlobalErrorListeners(): EnvironmentProviders;
 
 // @public
@@ -1660,6 +1745,12 @@ export const REQUEST: InjectionToken<Request | null>;
 
 // @public
 export const REQUEST_CONTEXT: InjectionToken<unknown>;
+
+// @public
+export interface ResolvedAttribute {
+    // (undocumented)
+    readonly [ɵRESOLVED_CLASSES_BRAND]: true;
+}
 
 // @public
 export function resolveForwardRef<T>(type: T): T;
@@ -1918,6 +2009,31 @@ export interface StreamingResourceOptions<T, R> extends BaseResourceOptions<T, R
 }
 
 // @public
+export type StyleBindingValue = string | (readonly string[] & {
+    readonly call?: never;
+}) | ({
+    readonly [property: string]: unknown;
+} & {
+    readonly call?: never;
+    readonly [Symbol.iterator]?: never;
+    readonly [ɵRESOLVED_CLASSES_BRAND]?: never;
+}) | (object & {
+    readonly call?: never;
+    readonly [Symbol.iterator]?: never;
+    readonly [ɵRESOLVED_CLASSES_BRAND]?: never;
+}) | null | undefined;
+
+// @public
+export type StyleCallback = (s: BoundStyleResolver) => ResolvedAttribute;
+
+// @public
+export interface StyleResolveEvent {
+    resolve(value: StyleBindingValue | ResolvedAttribute): void;
+    resolver(...extras: StyleBindingValue[]): ResolvedAttribute;
+    readonly sources: AttributeSources;
+}
+
+// @public
 export class TemplateRef<C> {
     createEmbeddedView(context: C, injector?: Injector): EmbeddedViewRef<C>;
     readonly elementRef: ElementRef;
@@ -2164,6 +2280,9 @@ export interface WebMcpToolDescriptor<InputSchema extends object = object> exten
 
 // @public
 export type WebMcpToolExecute<InputSchema extends object = object> = ModelContextToolFromSchema<InputSchema>['execute'];
+
+// @public
+export function withAutoResolution(enabled?: boolean): AttributeResolverFeature;
 
 // @public
 export interface WritableResource<T> extends Resource<T> {

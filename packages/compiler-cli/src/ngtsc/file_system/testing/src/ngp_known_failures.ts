@@ -67,6 +67,9 @@ const NGP_INTENTIONAL_BEHAVIOR_DIFFERENCES: ReadonlySet<string> = new Set([
   'ngtsc behavioral tests input transforms should compile an input with using an ambient type in the transform function',
 
   // Partial compilation isn't implemented in ngp.
+  'ngtsc behavioral tests class resolver declarations should not require 22.3.0 in the partial declaration of a host (window:class) listener',
+  'ngtsc behavioral tests class resolver declarations should require 22.3.0 in the partial declaration of (attr.class) on an ng-container',
+  'ngtsc behavioral tests class resolver declarations should require 22.3.0 in the partial declaration of (class) on an ng-container',
   'ngtsc behavioral tests cycle detection should detect a simple cycle and fatally error if doing partial-compilation',
 
   // Design difference, not a bug: on an `@Inject` parameter whose type is imported from another
@@ -131,6 +134,87 @@ const NGP_INTENTIONAL_BEHAVIOR_DIFFERENCES: ReadonlySet<string> = new Set([
 const NGP_KNOWN_NGTSC_FAILURES: ReadonlySet<string> = new Set([
   'import generation should report an error when a library entry-point does not export the symbol',
   'import generation should report an error when using a directive outside of rootDirs',
+
+  // NGP doesn't check attribute resolver bindings the way ngtsc does: it reports the arrow function
+  // of a `(class)` or `(style)` shorthand as never invoked, and its diagnostics for resolvers differ.
+  'UninvokedFunctionInEventBindingFactoryCheck should not produce a diagnostic for a callback in a (class) binding',
+  'UninvokedFunctionInEventBindingFactoryCheck should not produce a diagnostic for a callback in a (style) binding',
+  'UninvokedFunctionInEventBindingFactoryCheck should not produce a diagnostic for a class resolver on a container',
+  'UninvokedFunctionInEventBindingFactoryCheck should produce a diagnostic for a function in an (attr.class) binding',
+  'UninvokedFunctionInEventBindingFactoryCheck should produce a diagnostic for a function in an (attr.style) binding',
+  'ngtsc type checking attribute resolver bindings should accept an interface-typed map and a trusted style as style values',
+  'ngtsc type checking attribute resolver bindings should accept style values in a (style) callback and an (attr.style) binding',
+  'ngtsc type checking attribute resolver bindings should reject numbers, booleans, and functions as style values',
+  'ngtsc type checking attribute resolver bindings should reject a callable map with a string index signature as a style value',
+  'ngtsc type checking attribute resolver bindings should reject a callable map as a class value and as an attribute value',
+  'ngtsc type checking attribute resolver bindings should reject callable arrays and sets as class, style, and attribute values',
+  'ngtsc type checking attribute resolver bindings should accept readonly arrays and sets as class, style, and attribute values',
+  'ngtsc type checking attribute resolver bindings should accept a class map with a key named call',
+  'ngtsc type checking attribute resolver bindings should check the (style) shorthand as a callback that receives the style resolver',
+  'ngtsc type checking class resolver bindings should accept a ClassCallback in the shorthand',
+  'ngtsc type checking class resolver bindings should check a (class) binding under a structural directive once, as a resolver',
+  'ngtsc type checking class resolver bindings should check the earlier expressions of a shorthand chain as statements',
+  'ngtsc type checking class resolver bindings should check the handler with $event as any after reporting a class resolver on an ng-container in the math namespace',
+  'ngtsc type checking class resolver bindings should check the handler with $event as any after reporting a class resolver on an ng-container in the svg namespace',
+  'ngtsc type checking class resolver bindings should check the number of parameters of an arrow function in the shorthand',
+  'ngtsc type checking class resolver bindings should check the shorthand as a ClassCallback',
+  'ngtsc type checking class resolver bindings should infer the parameter named $event of an arrow function in the shorthand',
+  'ngtsc type checking class resolver bindings should infer the parameter named cn of an arrow function in the shorthand',
+  'ngtsc type checking class resolver bindings should infer the parameter of an arrow function in both branches of a conditional',
+  'ngtsc type checking class resolver bindings should report a class resolver on a container',
+  'ngtsc type checking class resolver bindings should report a class resolver on a container next to a directive output named class',
+  'ngtsc type checking class resolver bindings should report a class resolver on an ng-container in the svg namespace',
+  'ngtsc type checking class resolver bindings should report a (style) resolver on a container',
+  'ngtsc type checking class resolver bindings should report an (attr.role) resolver on a container',
+  'ngtsc type checking strictOutputEventTypes and class resolver bindings should infer the type of $event as ClassResolveEvent and check the shorthand when enabled',
+  'ngtsc type checking strictOutputEventTypes and class resolver bindings should not infer the type of $event or check the shorthand when not enabled',
+  'ngtsc type checking strictOutputEventTypes and attribute resolver bindings should infer the type of $event per attribute and check the (style) shorthand when enabled',
+  'ngtsc type checking strictOutputEventTypes and attribute resolver bindings should not infer the type of $event or check the (style) shorthand when not enabled',
+
+  // NGP doesn't run the `outputShadowedByAttributeResolver` check and rejects its name in
+  // `extendedDiagnostics.checks`.
+  'OutputShadowedByAttributeResolverCheck should produce a diagnostic on an element inside <svg>',
+  'OutputShadowedByAttributeResolverCheck should produce a diagnostic when a (class) binding shadows a directive output named class',
+  'OutputShadowedByAttributeResolverCheck should produce a diagnostic when a (style) binding shadows a directive output named style',
+  'OutputShadowedByAttributeResolverCheck should produce a diagnostic when an (attr.class) binding shadows a directive output named attr.class',
+  'OutputShadowedByAttributeResolverCheck should produce a diagnostic when an (attr.role) binding shadows a directive output named attr.role',
+  'ngtsc type checking class resolver bindings should not let a directive output named attr.class claim an (attr.class) binding',
+  'ngtsc type checking class resolver bindings should not let a directive output named class claim a (class) binding',
+  'ngtsc type checking class resolver bindings should warn when a class resolver shadows a host directive output exposed as class or attr.class',
+
+  // NGP doesn't run the `propertyBindingBypassesResolver` check and rejects its name in
+  // `extendedDiagnostics.checks`.
+  'PropertyBindingBypassesResolverCheck should look up the host of each directive once per run',
+  'PropertyBindingBypassesResolverCheck should not look up hosts when host bindings are not type-checked',
+  'PropertyBindingBypassesResolverCheck should produce a diagnostic for a property that the DOM schema maps to the attribute',
+  'PropertyBindingBypassesResolverCheck should produce a diagnostic for a translated interpolation',
+  'PropertyBindingBypassesResolverCheck should produce a diagnostic for an ARIA binding',
+  'PropertyBindingBypassesResolverCheck should produce a diagnostic for an interpolation',
+  'PropertyBindingBypassesResolverCheck should produce a diagnostic on an element inside <svg>',
+  'PropertyBindingBypassesResolverCheck should produce a diagnostic when a property binding writes an attribute that the element resolves',
+  'ngtsc type checking property bindings that bypass a resolver inherited from a base class should warn on the element for a host binding that the directive inherits',
+  'ngtsc type checking property bindings that bypass a resolver inherited from a base class should warn once per directive that inherits a bypassing host binding',
+  'ngtsc type checking property bindings that bypass a resolver inherited from a base class should warn when a template property binding writes an attribute that an inherited host resolver resolves',
+  'ngtsc type checking property bindings that bypass a resolver should report the check as an error when configured',
+  'ngtsc type checking property bindings that bypass a resolver should warn for a directive on the element that carries ngNonBindable',
+  'ngtsc type checking property bindings that bypass a resolver should warn on the element for a @HostBinding',
+  'ngtsc type checking property bindings that bypass a resolver should warn on the element when a directive host binding writes an attribute that the element resolves',
+  'ngtsc type checking property bindings that bypass a resolver should warn once per template for a directive whose host binding bypasses its own host resolver',
+  'ngtsc type checking property bindings that bypass a resolver should warn when a template property binding writes an attribute that a directive resolves in its host',
+  'ngtsc type checking property bindings that bypass a resolver should warn when a template property binding writes an attribute that the element resolves',
+
+  // NGP doesn't check the resolvers of host metadata.
+  'ngtsc behavioral tests attribute resolver declarations should report (style) and (attr.style) in one host',
+  "ngtsc behavioral tests attribute resolver declarations should report @HostListener('attr.role')",
+  'ngtsc behavioral tests attribute resolver declarations should report a @HostListener name that the parser trims into a resolver',
+  'ngtsc behavioral tests attribute resolver declarations should report a host (attr.href)',
+  'ngtsc behavioral tests attribute resolver declarations should report a host (attr.onclick)',
+  'ngtsc behavioral tests attribute resolver declarations should report a host (attr.xlink:title)',
+  'ngtsc behavioral tests class resolver declarations should report (class) and (attr.class) in one host',
+  "ngtsc behavioral tests class resolver declarations should report @HostListener('attr.class')",
+  "ngtsc behavioral tests class resolver declarations should report @HostListener('class')",
+  "ngtsc behavioral tests class resolver declarations should report @HostListener('class') next to a host (class)",
+  'ngtsc behavioral tests class resolver declarations should report a chain in a host (class) shorthand',
 
   // API documentation extraction (`getApiDocumentation`) is not implemented in NGP.
   'ngtsc NgModule docs extraction should extract NgModule info',

@@ -170,6 +170,63 @@ runInEachFileSystem(() => {
       expect(diags.length).toBe(0);
     });
 
+    it('should not produce a diagnostic for a callback in a (class) binding', () => {
+      const diags = setupTestComponent(
+        `<div (class)="resolve"></div><div (class)="(cn) => resolve(cn)"></div>`,
+        `resolve(cn: () => string) { return cn(); }`,
+      );
+
+      expect(diags.length).toBe(0);
+    });
+
+    it('should produce a diagnostic for a function in an (attr.class) binding', () => {
+      const diags = setupTestComponent(
+        `<div (attr.class)="resolve"></div>`,
+        `resolve(cn: () => string) { return cn(); }`,
+      );
+
+      expect(diags.length).toBe(1);
+      expect(getSourceCodeForDiagnostic(diags[0])).toBe(`(attr.class)="resolve"`);
+      expect(diags[0].messageText).toBe(generateDiagnosticText('resolve()'));
+    });
+
+    it('should not produce a diagnostic for a callback in a (style) binding', () => {
+      const diags = setupTestComponent(
+        `<div (style)="resolve"></div><div (style)="(s) => resolve(s)"></div>`,
+        `resolve(s: () => string) { return s(); }`,
+      );
+
+      expect(diags.length).toBe(0);
+    });
+
+    it('should produce a diagnostic for a function in an (attr.style) binding', () => {
+      const diags = setupTestComponent(
+        `<div (attr.style)="resolve"></div>`,
+        `resolve(s: () => string) { return s(); }`,
+      );
+
+      expect(diags.length).toBe(1);
+      expect(getSourceCodeForDiagnostic(diags[0])).toBe(`(attr.style)="resolve"`);
+      expect(diags[0].messageText).toBe(generateDiagnosticText('resolve()'));
+    });
+
+    it('should not produce a diagnostic for a class resolver on a container', () => {
+      const diags = setupTestComponent(
+        `
+          <ng-container (class)="resolve"></ng-container>
+          <ng-container (class)="(cn) => resolve(cn)"></ng-container>
+          <ng-container (attr.class)="resolve"></ng-container>
+          <ng-template (class)="resolve"></ng-template>
+          <ng-template (class)="(cn) => resolve(cn)"></ng-template>
+          <ng-template (attr.class)="resolve"></ng-template>
+          <svg><ng-container (class)="resolve"></ng-container></svg>
+        `,
+        `resolve(cn: () => string) { return cn(); }`,
+      );
+
+      expect(diags.length).toBe(0);
+    });
+
     it('should not produce a warning when the function is not invoked in two-way-binding', () => {
       const diags = setupTestComponent(
         `<button [(event)]="increment"></button>`,

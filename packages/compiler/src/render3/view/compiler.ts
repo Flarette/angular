@@ -14,7 +14,14 @@ import {namespaceCssVariables, ShadowCss} from '../../shadow_css';
 import {CompilationJobKind, TemplateCompilationMode} from '../../template/pipeline/src/compilation';
 import {emitHostBindingFunction, emitTemplateFn, transform} from '../../template/pipeline/src/emit';
 import {ingestComponent, ingestHostBinding} from '../../template/pipeline/src/ingest';
+import {Chain} from '../../expression_parser/ast';
 import {BindingParser} from '../../template_parser/binding_parser';
+import {
+  getAttributeResolver,
+  getAttributeResolverError,
+  getMultipleAttributeResolversError,
+  getShorthandChainError,
+} from '../r3_attribute_resolver';
 import {Identifiers as R3} from '../r3_identifiers';
 import {R3CompiledExpression, tsIgnoreComment, typeWithParameters} from '../util';
 
@@ -583,6 +590,64 @@ export function verifyHostBindings(
   validateNoEventBindings(bindings, bindingParser, sourceSpan);
 
   return bindingParser.errors;
+}
+
+/** An error in the attribute resolvers that the listeners of a host declare. */
+export interface HostAttributeResolverError {
+  /** Key of the listener, without parentheses, such as `attr.href`. */
+  readonly listener: string;
+
+  /** Whether the error is in the listener's handler rather than in its name. */
+  readonly inHandler: boolean;
+
+  /** Description of the error. */
+  readonly message: string;
+}
+
+/**
+ * Verifies the attribute resolvers that host listeners declare.
+ * @param listeners host listeners, keyed by event name without parentheses.
+ * @param sourceSpan source span where the host bindings were defined.
+ * @param checkDeclarationRules whether to check the rules for writing a host, at most one resolver
+ *     per attribute and a single expression in a shorthand, or only the attributes' names. A
+ *     partial declaration was checked when it was written, so it checks only the names.
+ * @returns the first error, or `null`.
+ */
+export function verifyHostAttributeResolvers(
+  listeners: {[key: string]: string},
+  sourceSpan: ParseSourceSpan,
+  checkDeclarationRules = true,
+): HostAttributeResolverError | null {
+  const bindingParser = makeBindingParser();
+  const attributes = new Set<string>();
+  for (const listener of Object.keys(listeners)) {
+    const events =
+      bindingParser.createDirectiveHostEventAsts({[listener]: listeners[listener]}, sourceSpan) ??
+      [];
+    for (const event of events) {
+      const resolver = getAttributeResolver(event.name, event.type, event.targetOrPhase);
+      if (resolver === null) {
+        continue;
+      }
+      const message =
+        getAttributeResolverError(resolver.attribute, null) ??
+        (checkDeclarationRules && attributes.has(resolver.attribute)
+          ? getMultipleAttributeResolversError(resolver.attribute, 'in one host')
+          : null);
+      if (message !== null) {
+        return {listener, inHandler: false, message};
+      }
+      attributes.add(resolver.attribute);
+      if (
+        checkDeclarationRules &&
+        resolver.form === 'shorthand' &&
+        event.handler.ast instanceof Chain
+      ) {
+        return {listener, inHandler: true, message: getShorthandChainError(resolver.attribute)};
+      }
+    }
+  }
+  return null;
 }
 
 /**

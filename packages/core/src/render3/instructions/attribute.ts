@@ -6,8 +6,16 @@
  * found in the LICENSE file at https://angular.dev/license
  */
 import {bindingUpdated} from '../bindings';
+import {AttributeResolverSlot} from '../interfaces/attribute_resolver';
 import {SanitizerFn} from '../interfaces/sanitization';
-import {getLView, getSelectedTNode, getTView, nextBindingIndex} from '../state';
+import {
+  getCurrentDirectiveIndex,
+  getLView,
+  getSelectedTNode,
+  getTView,
+  nextBindingIndex,
+} from '../state';
+import {_registerAttributeResolverBinding} from './attribute_resolver_hook';
 import {elementAttributeInternal, storePropertyBindingMetadata} from './shared';
 
 /**
@@ -34,7 +42,26 @@ export function ɵɵattribute(
   if (bindingUpdated(lView, bindingIndex, value)) {
     const tView = getTView();
     const tNode = getSelectedTNode();
-    elementAttributeInternal(tNode, lView, name, value, sanitizer, namespace);
+    const tAttributeResolver =
+      tNode.attributeResolvers !== null && namespace == null
+        ? tNode.attributeResolvers.find((tAttributeResolver) => tAttributeResolver.name === name)
+        : undefined;
+    if (tAttributeResolver !== undefined && tView.firstUpdatePass) {
+      _registerAttributeResolverBinding!(
+        tAttributeResolver,
+        // All host bindings are placed after the expando section.
+        bindingIndex >= tView.expandoStartIndex ? getCurrentDirectiveIndex() : -1,
+        bindingIndex,
+        'attribute',
+      );
+    }
+    if (
+      tAttributeResolver === undefined ||
+      (tAttributeResolver.owners.length === 0 &&
+        lView[tAttributeResolver.index + AttributeResolverSlot.AutoResolver] === null)
+    ) {
+      elementAttributeInternal(tNode, lView, name, value, sanitizer, namespace);
+    }
     ngDevMode && storePropertyBindingMetadata(tView.data, tNode, 'attr.' + name, bindingIndex);
   }
 
